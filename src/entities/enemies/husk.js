@@ -3,54 +3,51 @@ import { Enemy } from '../enemy.js';
 
 export class Husk extends Enemy {
   constructor(scene, position, player) {
-    super(scene, position, player, 45); // 45 HP
-
-    this.speed = 7.0; // Fast melee sprinter
+    super(scene, position, player, 45);
+    this.speed = 7.0;
     this.damage = 12;
-
     this.buildCharacterMesh();
   }
 
   buildCharacterMesh() {
     const group = new THREE.Group();
 
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0x882020, roughness: 0.7, metalness: 0.2 });
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0808, roughness: 0.9 });
+    // Use MeshBasicMaterial so enemies are ALWAYS visible regardless of lighting
+    const skinMat = new THREE.MeshBasicMaterial({ color: 0x882020 });
+    const darkMat = new THREE.MeshBasicMaterial({ color: 0x3a1010 });
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0022 });
 
     // Torso
-    const torsoGeo = new THREE.BoxGeometry(0.7, 0.9, 0.4);
-    const torso = new THREE.Mesh(torsoGeo, skinMat);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.4), skinMat);
     torso.position.y = 1.1;
     group.add(torso);
 
-    // Head with glowing visor eyes
-    const headGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-    const head = new THREE.Mesh(headGeo, skinMat);
-    head.position.set(0, 1.75, 0.1);
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.4), skinMat);
+    head.position.set(0, 1.75, 0);
     group.add(head);
 
-    const eyesGeo = new THREE.BoxGeometry(0.3, 0.08, 0.05);
-    const eyes = new THREE.Mesh(eyesGeo, eyeMat);
-    eyes.position.set(0, 1.78, 0.31);
+    // Glowing visor eyes
+    const eyes = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 0.05), eyeMat);
+    eyes.position.set(0, 1.78, 0.23);
     group.add(eyes);
 
     // Legs
-    const legGeo = new THREE.BoxGeometry(0.22, 0.75, 0.22);
+    const legGeo = new THREE.BoxGeometry(0.22, 0.65, 0.22);
     const leftLeg = new THREE.Mesh(legGeo, darkMat);
-    leftLeg.position.set(-0.2, 0.38, 0);
+    leftLeg.position.set(-0.2, 0.33, 0);
     const rightLeg = new THREE.Mesh(legGeo, darkMat);
-    rightLeg.position.set(0.2, 0.38, 0);
+    rightLeg.position.set(0.2, 0.33, 0);
     group.add(leftLeg, rightLeg);
 
-    // Claws / Arms
-    const armGeo = new THREE.BoxGeometry(0.18, 0.8, 0.18);
+    // Claws
+    const armGeo = new THREE.BoxGeometry(0.18, 0.7, 0.18);
     const leftArm = new THREE.Mesh(armGeo, skinMat);
-    leftArm.position.set(-0.48, 1.1, 0.2);
-    leftArm.rotation.x = -Math.PI / 4;
+    leftArm.position.set(-0.52, 1.0, 0.15);
+    leftArm.rotation.x = -0.6;
     const rightArm = new THREE.Mesh(armGeo, skinMat);
-    rightArm.position.set(0.48, 1.1, 0.2);
-    rightArm.rotation.x = -Math.PI / 4;
+    rightArm.position.set(0.52, 1.0, 0.15);
+    rightArm.rotation.x = -0.6;
     group.add(leftArm, rightArm);
 
     this.setupHitbox(group);
@@ -71,7 +68,7 @@ export class Husk extends Enemy {
     } else {
       if (this.attackCooldown <= 0) {
         this.player.takeDamage(this.damage);
-        this.attackCooldown = 1.0;
+        this.attackCooldown = 1.2;
       }
     }
   }

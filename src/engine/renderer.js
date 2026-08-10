@@ -6,68 +6,46 @@ export class GameRenderer {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
 
-    // PS2 Low-Res Downsampling Resolution (e.g. 384 x 216 or 320 x 240)
-    this.renderWidth = 384;
-    this.renderHeight = 216;
-
     // Scene setup
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0c14);
-    this.scene.fog = new THREE.FogExp2(0x0a0c14, 0.012); // Atmosphere fog
+    this.scene.background = new THREE.Color(0x08090e);
+    // Very light fog so distant rooms fade but nearby is fully visible
+    this.scene.fog = new THREE.Fog(0x08090e, 30, 80);
 
     // Camera setup
-    this.camera = new THREE.PerspectiveCamera(70, this.width / this.height, 0.1, 150);
+    this.camera = new THREE.PerspectiveCamera(70, this.width / this.height, 0.05, 200);
 
-    // Main WebGL Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+    // WebGL Renderer - renders at LOW resolution for PS2 look
+    this.renderer = new THREE.WebGLRenderer({ antialias: false });
+    // PS2 pixelation: render at 1/3 resolution
+    const ps2Scale = 0.35;
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setPixelRatio(1.0);
+    this.renderer.setPixelRatio(ps2Scale);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.BasicShadowMap;
+    this.renderer.domElement.style.imageRendering = 'pixelated';
     this.container.appendChild(this.renderer.domElement);
 
-    // Bright Ambient Lighting so dungeon walls are clearly visible
-    this.ambientLight = new THREE.AmbientLight(0x404860, 1.2);
-    this.scene.add(this.ambientLight);
+    // BRIGHT hemisphere light (sky/ground fill) so the dungeon is VISIBLE
+    this.hemiLight = new THREE.HemisphereLight(0x8090b0, 0x443322, 1.8);
+    this.scene.add(this.hemiLight);
 
-    // Main Directional Sunlight / Dungeon Fill Light
-    this.dirLight = new THREE.DirectionalLight(0xd0e0ff, 0.8);
-    this.dirLight.position.set(20, 40, 20);
-    this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.width = 1024;
-    this.dirLight.shadow.mapSize.height = 1024;
-    this.scene.add(this.dirLight);
+    // Warm ambient fill
+    this.ambientLight = new THREE.AmbientLight(0xffeedd, 0.6);
+    this.scene.add(this.ambientLight);
 
     // Torches registration
     this.torches = [];
 
-    // PS2 Texture Generator Helper Cache
+    // PS2 Texture Generator
     this.textures = this.generatePS2Textures();
-
-    // PS2 Downsampling Render Target Setup
-    this.renderTarget = new THREE.WebGLRenderTarget(this.renderWidth, this.renderHeight, {
-      minFilter: THREE.NearestFilter,
-      magFilter: THREE.NearestFilter,
-      format: THREE.RGBAFormat
-    });
-
-    // Fullscreen quad for PS2 blit pass
-    this.postScene = new THREE.Scene();
-    this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const postMat = new THREE.MeshBasicMaterial({
-      map: this.renderTarget.texture
-    });
-    const postGeo = new THREE.PlaneGeometry(2, 2);
-    this.postQuad = new THREE.Mesh(postGeo, postMat);
-    this.postScene.add(this.postQuad);
 
     // Event Listeners
     window.addEventListener('resize', () => this.onWindowResize());
   }
 
-  // Generate procedural retro PS2 style textures with needsUpdate = true
   generatePS2Textures() {
-    const createTex = (drawFn, width = 128, height = 128) => {
+    const createTex = (drawFn, width = 64, height = 64) => {
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
@@ -78,18 +56,18 @@ export class GameRenderer {
       texture.wrapT = THREE.RepeatWrapping;
       texture.minFilter = THREE.NearestFilter;
       texture.magFilter = THREE.NearestFilter;
-      texture.needsUpdate = true; // Critical for WebGL GPU upload!
+      texture.needsUpdate = true;
       return texture;
     };
 
-    // Dark Grimy Stone Wall Texture
+    // Stone Wall - brighter colors so it's visible
     const stoneWall = createTex((ctx, w, h) => {
-      ctx.fillStyle = '#2b3244';
+      ctx.fillStyle = '#3a4258';
       ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = '#121622';
-      ctx.lineWidth = 4;
-      const rows = 8;
-      const cols = 4;
+      ctx.strokeStyle = '#222838';
+      ctx.lineWidth = 3;
+      const rows = 4;
+      const cols = 2;
       const rh = h / rows;
       const cw = w / cols;
       for (let r = 0; r <= rows; r++) {
@@ -107,46 +85,40 @@ export class GameRenderer {
           ctx.stroke();
         }
       }
-      // Noise overlay
-      for (let i = 0; i < 800; i++) {
+      for (let i = 0; i < 200; i++) {
         const x = Math.random() * w;
         const y = Math.random() * h;
-        const s = Math.random() * 3 + 1;
-        ctx.fillStyle = Math.random() > 0.5 ? '#3d4860' : '#181e2b';
-        ctx.fillRect(x, y, s, s);
+        ctx.fillStyle = Math.random() > 0.5 ? '#4a5570' : '#2a3040';
+        ctx.fillRect(x, y, 2, 2);
       }
     });
 
-    // Metallic Rust Floor Texture
+    // Metal Floor
     const metalFloor = createTex((ctx, w, h) => {
-      ctx.fillStyle = '#222938';
+      ctx.fillStyle = '#333c4e';
       ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = '#445270';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(4, 4, w - 8, h - 8);
-      // Rust spots & rivets
-      ctx.fillStyle = '#5c3a26';
-      for (let i = 0; i < 60; i++) {
-        const x = Math.random() * w;
-        const y = Math.random() * h;
-        ctx.fillRect(x, y, 4, 4);
+      ctx.strokeStyle = '#506080';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(3, 3, w - 6, h - 6);
+      ctx.fillStyle = '#6a4530';
+      for (let i = 0; i < 30; i++) {
+        ctx.fillRect(Math.random() * w, Math.random() * h, 3, 3);
       }
-      ctx.fillStyle = '#6a7ca4';
-      const corners = [[10,10], [w-10,10], [10,h-10], [w-10,h-10]];
-      corners.forEach(([cx, cy]) => {
-        ctx.fillRect(cx - 3, cy - 3, 6, 6);
+      ctx.fillStyle = '#7080a0';
+      [[6,6], [w-6,6], [6,h-6], [w-6,h-6]].forEach(([cx, cy]) => {
+        ctx.fillRect(cx - 2, cy - 2, 4, 4);
       });
     });
 
-    // Door Gate Metal Texture
+    // Gate texture
     const gateMetal = createTex((ctx, w, h) => {
-      ctx.fillStyle = '#101420';
+      ctx.fillStyle = '#181c28';
       ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#ff2a4b';
-      ctx.fillRect(w * 0.15, h * 0.15, w * 0.7, h * 0.7);
-      ctx.strokeStyle = '#801024';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(w * 0.15, h * 0.15, w * 0.7, h * 0.7);
+      ctx.fillStyle = '#cc2244';
+      ctx.fillRect(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
+      ctx.strokeStyle = '#661122';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
     });
 
     return { stoneWall, metalFloor, gateMetal };
@@ -163,13 +135,13 @@ export class GameRenderer {
     return cloned;
   }
 
-  registerTorch(torchLight, torchPosition) {
-    this.torches.push({ light: torchLight, baseIntensity: torchLight.intensity, pos: torchPosition });
+  registerTorch(torchLight) {
+    this.torches.push({ light: torchLight, baseIntensity: torchLight.intensity });
   }
 
   updateTorches(time) {
     this.torches.forEach((torch, idx) => {
-      const noise = Math.sin(time * 14 + idx * 3) * 0.4 + Math.cos(time * 26 + idx * 5) * 0.3;
+      const noise = Math.sin(time * 14 + idx * 3.7) * 0.5 + Math.cos(time * 23 + idx * 5.3) * 0.3;
       torch.light.intensity = torch.baseIntensity + noise;
     });
   }
@@ -184,13 +156,6 @@ export class GameRenderer {
 
   render(time) {
     this.updateTorches(time);
-
-    // Render 3D Scene into PS2 low-res render target
-    this.renderer.setRenderTarget(this.renderTarget);
     this.renderer.render(this.scene, this.camera);
-
-    // Blit low-res target onto screen for hardware PS2 pixelation crunch
-    this.renderer.setRenderTarget(null);
-    this.renderer.render(this.postScene, this.postCamera);
   }
 }

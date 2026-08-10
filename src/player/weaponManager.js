@@ -13,11 +13,13 @@ export class WeaponManager {
       { id: 3, name: 'NAILGUN', unlocked: false, ammo: 100, maxAmmo: 100, reloadCd: 0 },
       { id: 4, name: 'RAILCANNON', unlocked: false, charge: 100, rechargeRate: 20 }
     ];
-    this.currentSlot = 0; // Starts with Revolver
+    this.currentSlot = 0;
 
     this.viewmodels = [];
     this.viewmodelGroup = new THREE.Group();
     this.camera.add(this.viewmodelGroup);
+    // CRITICAL: Camera must be in the scene for its children (guns) to render
+    this.scene.add(this.camera);
 
     this.fireTimer = 0;
     this.recoil = 0;
@@ -27,61 +29,50 @@ export class WeaponManager {
   }
 
   buildWeaponModels() {
-    const gunMat = new THREE.MeshStandardMaterial({ color: 0x1f2636, roughness: 0.4, metalness: 0.85 });
-    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x0f131c, roughness: 0.6, metalness: 0.9 });
+    // Use MeshBasicMaterial so guns are ALWAYS visible regardless of lighting
+    const gunMat = new THREE.MeshBasicMaterial({ color: 0x2a3040 });
+    const darkMat = new THREE.MeshBasicMaterial({ color: 0x141820 });
     const cyanGlow = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-    const redGlow = new THREE.MeshBasicMaterial({ color: 0xff2a4b });
-    const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.3, metalness: 0.9 });
+    const redGlow = new THREE.MeshBasicMaterial({ color: 0xff2244 });
+    const brassMat = new THREE.MeshBasicMaterial({ color: 0xc4a030 });
 
-    // 1. REVOLVER VIEWMODEL
+    // 1. REVOLVER
     const revGroup = new THREE.Group();
-    const revBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.55), gunMat);
-    revBarrel.position.set(0.28, -0.24, -0.65);
-    const revCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 8), darkSteel);
-    revCylinder.rotation.x = Math.PI / 2;
-    revCylinder.position.set(0.28, -0.27, -0.55);
-    const revGrip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.20, 0.09), darkSteel);
-    revGrip.rotation.x = Math.PI / 6;
-    revGrip.position.set(0.28, -0.34, -0.45);
-    const revSight = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.02, 0.40), cyanGlow);
-    revSight.position.set(0.28, -0.19, -0.65);
-    revGroup.add(revBarrel, revCylinder, revGrip, revSight);
+    revGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.50), gunMat).translateX(0.28).translateY(-0.26).translateZ(-0.65));
+    revGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.14, 8), darkMat).translateX(0.28).translateY(-0.28).translateZ(-0.55));
+    const revGrip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.08), darkMat);
+    revGrip.position.set(0.28, -0.36, -0.48);
+    revGrip.rotation.x = 0.4;
+    revGroup.add(revGrip);
+    revGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.02, 0.38), cyanGlow).translateX(0.28).translateY(-0.21).translateZ(-0.65));
 
-    // 2. SHOTGUN VIEWMODEL
+    // 2. SHOTGUN
     const shotGroup = new THREE.Group();
-    const shotBarrel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.75, 8), gunMat);
-    shotBarrel1.rotation.x = Math.PI / 2;
-    shotBarrel1.position.set(0.28, -0.26, -0.70);
-    const shotBarrel2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.75, 8), gunMat);
-    shotBarrel2.rotation.x = Math.PI / 2;
-    shotBarrel2.position.set(0.35, -0.26, -0.70);
-    const shotPump = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.09, 0.28), darkSteel);
-    shotPump.position.set(0.315, -0.28, -0.60);
-    const shotGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.40), redGlow);
-    shotGlow.position.set(0.315, -0.21, -0.68);
-    shotGroup.add(shotBarrel1, shotBarrel2, shotPump, shotGlow);
+    const sb1 = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.70, 8), gunMat);
+    sb1.rotation.x = Math.PI / 2; sb1.position.set(0.26, -0.25, -0.68);
+    const sb2 = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.70, 8), gunMat);
+    sb2.rotation.x = Math.PI / 2; sb2.position.set(0.34, -0.25, -0.68);
+    shotGroup.add(sb1, sb2);
+    shotGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.26), darkMat).translateX(0.30).translateY(-0.30).translateZ(-0.58));
+    shotGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.38), redGlow).translateX(0.30).translateY(-0.20).translateZ(-0.66));
 
-    // 3. NAILGUN VIEWMODEL
+    // 3. NAILGUN
     const nailGroup = new THREE.Group();
-    const nailBody = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.20, 0.65), gunMat);
-    nailBody.position.set(0.32, -0.26, -0.68);
-    const nailDrum = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.18, 12), brassMat);
-    nailDrum.position.set(0.32, -0.36, -0.58);
-    const nailBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 8), darkSteel);
-    nailBarrel.rotation.x = Math.PI / 2;
-    nailBarrel.position.set(0.32, -0.24, -0.80);
-    nailGroup.add(nailBody, nailDrum, nailBarrel);
+    nailGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.58), gunMat).translateX(0.30).translateY(-0.26).translateZ(-0.66));
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.16, 10), brassMat);
+    drum.position.set(0.30, -0.36, -0.56);
+    nailGroup.add(drum);
+    const nb = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.30, 8), darkMat);
+    nb.rotation.x = Math.PI / 2; nb.position.set(0.30, -0.24, -0.78);
+    nailGroup.add(nb);
 
-    // 4. RAILCANNON VIEWMODEL
+    // 4. RAILCANNON
     const railGroup = new THREE.Group();
-    const railBody = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.85), gunMat);
-    railBody.position.set(0.32, -0.28, -0.75);
-    const railCore = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), cyanGlow);
-    railCore.position.set(0.32, -0.28, -0.60);
-    const railCoil = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.02, 8, 16), brassMat);
-    railCoil.rotation.x = Math.PI / 2;
-    railCoil.position.set(0.32, -0.28, -0.75);
-    railGroup.add(railBody, railCore, railCoil);
+    railGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.80), gunMat).translateX(0.30).translateY(-0.27).translateZ(-0.72));
+    railGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), cyanGlow).translateX(0.30).translateY(-0.27).translateZ(-0.58));
+    const coil = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.02, 6, 12), brassMat);
+    coil.rotation.x = Math.PI / 2; coil.position.set(0.30, -0.27, -0.72);
+    railGroup.add(coil);
 
     this.viewmodels = [revGroup, shotGroup, nailGroup, railGroup];
     this.viewmodels.forEach((vm, idx) => {
@@ -110,14 +101,11 @@ export class WeaponManager {
       if (!this.player.isLocked) return;
       const unlockedIndices = this.weapons.map((w, i) => w.unlocked ? i : -1).filter(i => i !== -1);
       if (unlockedIndices.length <= 1) return;
-
       const currentIdxPos = unlockedIndices.indexOf(this.currentSlot);
       if (e.deltaY > 0) {
-        const nextPos = (currentIdxPos + 1) % unlockedIndices.length;
-        this.selectWeapon(unlockedIndices[nextPos]);
+        this.selectWeapon(unlockedIndices[(currentIdxPos + 1) % unlockedIndices.length]);
       } else {
-        const nextPos = (currentIdxPos - 1 + unlockedIndices.length) % unlockedIndices.length;
-        this.selectWeapon(unlockedIndices[nextPos]);
+        this.selectWeapon(unlockedIndices[(currentIdxPos - 1 + unlockedIndices.length) % unlockedIndices.length]);
       }
     });
   }
@@ -142,7 +130,6 @@ export class WeaponManager {
     slots.forEach((s, idx) => {
       const w = this.weapons[idx];
       const nameElem = s.querySelector('.name');
-
       if (!w.unlocked) {
         s.classList.add('locked');
         s.classList.remove('active');
@@ -161,26 +148,26 @@ export class WeaponManager {
     const w = this.weapons[this.currentSlot];
     if (!w.unlocked) return;
 
-    if (w.id === 1) { // Revolver
+    if (w.id === 1) {
       sound.playPistolShot();
       this.fireTimer = 0.22;
       this.recoil = 0.08;
       this.spawnRaycastShot(38 * this.player.statMultipliers.damage);
-    } else if (w.id === 2) { // Shotgun
+    } else if (w.id === 2) {
       sound.playShotgunShot();
       this.fireTimer = 0.55;
       this.recoil = 0.16;
       for (let i = 0; i < 9; i++) {
         this.spawnRaycastShot(14 * this.player.statMultipliers.damage, 0.06);
       }
-    } else if (w.id === 3) { // Nailgun
+    } else if (w.id === 3) {
       if (w.ammo <= 0) return;
       sound.playNailgunShot();
       w.ammo--;
       this.fireTimer = 0.07;
       this.recoil = 0.03;
       this.spawnRaycastShot(9 * this.player.statMultipliers.damage, 0.03);
-    } else if (w.id === 4) { // Railcannon
+    } else if (w.id === 4) {
       if (w.charge < 100) return;
       sound.playRailcannonShot();
       w.charge = 0;
@@ -193,13 +180,12 @@ export class WeaponManager {
   shootAlt() {
     const w = this.weapons[this.currentSlot];
     if (!w.unlocked) return;
-
-    if (w.id === 1 && w.altCd <= 0) { // Charged Ricochet
+    if (w.id === 1 && w.altCd <= 0) {
       sound.playRailcannonShot();
       w.altCd = w.altMaxCd;
       this.recoil = 0.15;
       this.spawnRaycastShot(95 * this.player.statMultipliers.damage);
-    } else if (w.id === 2 && w.altCd <= 0) { // Shotgun Core Eject
+    } else if (w.id === 2 && w.altCd <= 0) {
       sound.playShotgunShot();
       w.altCd = w.altMaxCd;
       this.recoil = 0.18;
@@ -210,12 +196,10 @@ export class WeaponManager {
   spawnRaycastShot(damage, spread = 0.0) {
     const raycaster = new THREE.Raycaster();
     const center = new THREE.Vector2(0, 0);
-
     if (spread > 0) {
       center.x += (Math.random() * 2 - 1) * spread;
       center.y += (Math.random() * 2 - 1) * spread;
     }
-
     raycaster.setFromCamera(center, this.camera);
     const intersects = raycaster.intersectObjects(this.scene.children, true);
 
@@ -226,7 +210,8 @@ export class WeaponManager {
         this.showHitMarker();
         break;
       }
-      if (hit.object.isMesh && hit.object.geometry.type === 'BoxGeometry') {
+      // Stop at walls/floors but skip viewmodel parts
+      if (hit.distance > 0.5 && hit.object.isMesh) {
         break;
       }
     }

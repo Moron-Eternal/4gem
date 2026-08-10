@@ -4,45 +4,43 @@ import { EnemyProjectile } from '../projectile.js';
 
 export class MaliciousSkull extends Enemy {
   constructor(scene, position, player, projectilesList) {
-    super(scene, position, player, 80); // 80 HP
+    super(scene, position, player, 80);
     this.projectilesList = projectilesList;
-
-    this.speed = 4.2;
-    this.damage = 18;
-    this.shootCooldown = 2.5;
-
+    this.speed = 4.0;
+    this.damage = 16;
+    this.shootCooldown = 3.0;
+    this.bobOffset = Math.random() * Math.PI * 2;
     this.buildCharacterMesh();
   }
 
   buildCharacterMesh() {
     const group = new THREE.Group();
 
-    const boneMat = new THREE.MeshStandardMaterial({ color: 0x801020, roughness: 0.5, metalness: 0.5 });
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    const boneMat = new THREE.MeshBasicMaterial({ color: 0x992020 });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
 
-    // Low-poly demonic skull body
-    const skullGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
-    const skull = new THREE.Mesh(skullGeo, boneMat);
-    skull.position.y = 2.8;
+    // Skull body
+    const skull = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.8), boneMat);
     group.add(skull);
 
     // Jawbone
-    const jawGeo = new THREE.BoxGeometry(0.7, 0.35, 0.7);
-    const jaw = new THREE.Mesh(jawGeo, boneMat);
-    jaw.position.set(0, 2.3, 0.1);
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.6), boneMat);
+    jaw.position.set(0, -0.5, 0.05);
     group.add(jaw);
 
-    // Hollow eye sockets
-    const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.1), eyeMat);
-    leftEye.position.set(-0.24, 2.9, 0.46);
-    const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.1), eyeMat);
-    rightEye.position.set(0.24, 2.9, 0.46);
+    // Eyes
+    const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.1), eyeMat);
+    leftEye.position.set(-0.22, 0.1, 0.41);
+    const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.1), eyeMat);
+    rightEye.position.set(0.22, 0.1, 0.41);
     group.add(leftEye, rightEye);
 
-    // Glowing core light
-    const coreLight = new THREE.PointLight(0xff4400, 2.0, 8);
-    coreLight.position.y = 2.8;
+    // Glow
+    const coreLight = new THREE.PointLight(0xff4400, 2.0, 6);
     group.add(coreLight);
+
+    // Position the whole model group elevated
+    group.position.y = 3.0;
 
     this.setupHitbox(group);
   }
@@ -51,31 +49,32 @@ export class MaliciousSkull extends Enemy {
     super.update(delta, playerPos);
     if (this.isDead || this.player.isDead) return;
 
-    // Bobbing floating height
-    const targetY = 2.8 + Math.sin(Date.now() * 0.003) * 0.5;
-    this.group.position.y += (targetY - this.group.position.y) * delta * 2.0;
+    // Floating bob
+    this.bobOffset += delta * 3;
+    this.group.position.y = this.position.y + 3.0 + Math.sin(this.bobOffset) * 0.4;
 
     const dir = new THREE.Vector3().subVectors(playerPos, this.group.position);
     const dist = dir.length();
 
-    if (dist > 6.0) {
+    if (dist > 7.0) {
       dir.normalize();
-      this.group.position.addScaledVector(dir, this.speed * delta);
+      this.group.position.x += dir.x * this.speed * delta;
+      this.group.position.z += dir.z * this.speed * delta;
     }
     this.group.lookAt(playerPos);
 
+    // Triple fireball
     this.shootCooldown -= delta;
     if (this.shootCooldown <= 0 && dist < 30.0) {
-      this.shootCooldown = 2.8;
+      this.shootCooldown = 3.2;
       const spawnPos = this.group.position.clone();
       const baseDir = new THREE.Vector3().subVectors(playerPos, spawnPos).normalize();
 
-      const offsets = [-0.15, 0, 0.15];
-      offsets.forEach(off => {
+      [-0.12, 0, 0.12].forEach(off => {
         const spreadDir = baseDir.clone();
         spreadDir.x += off;
         spreadDir.normalize();
-        const proj = new EnemyProjectile(this.scene, spawnPos, spreadDir, this.damage, this.player);
+        const proj = new EnemyProjectile(this.scene, spawnPos.clone(), spreadDir, this.damage, this.player, 14.0);
         this.projectilesList.push(proj);
       });
     }

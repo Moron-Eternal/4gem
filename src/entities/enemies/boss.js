@@ -5,14 +5,12 @@ import { sound } from '../../engine/audio.js';
 
 export class MaliciousTitanBoss extends Enemy {
   constructor(scene, position, player, projectilesList) {
-    super(scene, position, player, 850); // 850 HP Boss
+    super(scene, position, player, 850);
     this.projectilesList = projectilesList;
-
-    this.speed = 4.5;
-    this.damage = 25;
+    this.speed = 4.0;
+    this.damage = 22;
     this.attackPhase = 1;
     this.actionTimer = 0;
-
     this.buildBossMesh();
     sound.playBossRoar();
   }
@@ -20,39 +18,44 @@ export class MaliciousTitanBoss extends Enemy {
   buildBossMesh() {
     const group = new THREE.Group();
 
-    this.bossMat = new THREE.MeshStandardMaterial({ color: 0x330a14, roughness: 0.4, metalness: 0.85 });
-    this.steelMat = new THREE.MeshStandardMaterial({ color: 0x141a28, roughness: 0.6, metalness: 0.9 });
+    this.bodyMat = new THREE.MeshBasicMaterial({ color: 0x440a14 });
+    const steelMat = new THREE.MeshBasicMaterial({ color: 0x1a2030 });
     this.crownMat = new THREE.MeshBasicMaterial({ color: 0xff0044, wireframe: true });
+    const coreMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
 
-    // Massive Colossus Torso
-    const bodyGeo = new THREE.BoxGeometry(3.6, 5.5, 2.6);
-    const body = new THREE.Mesh(bodyGeo, this.bossMat);
-    body.position.y = 3.2;
+    // Massive torso
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 5.0, 2.4), this.bodyMat);
+    body.position.y = 3.0;
     group.add(body);
 
-    // Heavy Plated Legs
+    // Legs
     const legGeo = new THREE.BoxGeometry(1.2, 2.5, 1.2);
-    const leftLeg = new THREE.Mesh(legGeo, this.steelMat);
+    const leftLeg = new THREE.Mesh(legGeo, steelMat);
     leftLeg.position.set(-1.2, 1.25, 0);
-    const rightLeg = new THREE.Mesh(legGeo, this.steelMat);
+    const rightLeg = new THREE.Mesh(legGeo, steelMat);
     rightLeg.position.set(1.2, 1.25, 0);
     group.add(leftLeg, rightLeg);
 
-    // Shoulder Cannon Turrets
+    // Shoulder cannons
     const turretGeo = new THREE.BoxGeometry(1.0, 1.0, 2.0);
-    const leftTurret = new THREE.Mesh(turretGeo, this.steelMat);
-    leftTurret.position.set(-2.4, 5.2, 0);
-    const rightTurret = new THREE.Mesh(turretGeo, this.steelMat);
-    rightTurret.position.set(2.4, 5.2, 0);
+    const leftTurret = new THREE.Mesh(turretGeo, steelMat);
+    leftTurret.position.set(-2.4, 5.0, 0);
+    const rightTurret = new THREE.Mesh(turretGeo, steelMat);
+    rightTurret.position.set(2.4, 5.0, 0);
     group.add(leftTurret, rightTurret);
 
-    // Glowing Chest Core & Crown
-    const crownGeo = new THREE.OctahedronGeometry(1.4, 0);
-    const crown = new THREE.Mesh(crownGeo, this.crownMat);
-    crown.position.y = 7.0;
+    // Glowing chest core
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), coreMat);
+    core.position.set(0, 3.5, 1.3);
+    group.add(core);
+
+    // Crown
+    const crown = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), this.crownMat);
+    crown.position.y = 6.5;
     group.add(crown);
 
-    this.bossLight = new THREE.PointLight(0xff0044, 4.5, 18);
+    // Light
+    this.bossLight = new THREE.PointLight(0xff0044, 5.0, 20);
     this.bossLight.position.set(0, 4.0, 1.4);
     group.add(this.bossLight);
 
@@ -61,11 +64,10 @@ export class MaliciousTitanBoss extends Enemy {
 
   takeDamage(amount) {
     super.takeDamage(amount);
-
     if (this.hp <= 425 && this.attackPhase === 1) {
       this.attackPhase = 2;
-      this.speed = 6.8;
-      this.bossMat.color.setHex(0x700018);
+      this.speed = 6.0;
+      this.bodyMat.color.setHex(0x700018);
       this.crownMat.color.setHex(0xffaa00);
       this.bossLight.color.setHex(0xffaa00);
       sound.playBossRoar();
@@ -88,28 +90,26 @@ export class MaliciousTitanBoss extends Enemy {
     }
 
     this.actionTimer += delta;
+    const attackInterval = this.attackPhase === 1 ? 2.5 : 1.6;
 
-    if (this.actionTimer >= (this.attackPhase === 1 ? 2.4 : 1.5)) {
+    if (this.actionTimer >= attackInterval) {
       this.actionTimer = 0;
-
-      const spawnPos = this.group.position.clone().add(new THREE.Vector3(0, 4.5, 0));
+      const spawnPos = this.group.position.clone();
+      spawnPos.y += 4.5;
       const baseDir = new THREE.Vector3().subVectors(playerPos, spawnPos).normalize();
 
       if (Math.random() > 0.35) {
-        // Fireball Volley (5-way spread)
-        const angles = [-0.3, -0.15, 0, 0.15, 0.3];
-        angles.forEach(ang => {
+        [-0.3, -0.15, 0, 0.15, 0.3].forEach(ang => {
           const spreadDir = baseDir.clone();
           spreadDir.x += ang;
           spreadDir.normalize();
-          const proj = new EnemyProjectile(this.scene, spawnPos, spreadDir, this.damage, this.player, 22.0);
+          const proj = new EnemyProjectile(this.scene, spawnPos.clone(), spreadDir, this.damage, this.player, 18.0);
           this.projectilesList.push(proj);
         });
       } else {
-        // Ground Shockwave
-        if (dist < 14.0) {
-          this.player.takeDamage(30);
-          this.player.shakeCamera(0.6);
+        if (dist < 12.0) {
+          this.player.takeDamage(28);
+          this.player.shakeCamera(0.5);
           sound.playDoorSlam();
         }
       }
