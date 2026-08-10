@@ -77,6 +77,7 @@ class Game {
     const startWorldPos = this.dungeon.startRoom.worldPos.clone();
     startWorldPos.y = 1.8;
     this.player.camera.position.copy(startWorldPos);
+    this.activeRoom = this.dungeon.startRoom;
 
     // Spawn Weapon Pedestals & Item Pedestals in Item Rooms
     const gunNames = [
@@ -128,17 +129,6 @@ class Game {
   onRoomEntered(room) {
     this.activeRoom = room;
     room.visited = true;
-
-    // Light Culling Optimization: Only enable lights in active room & adjacent rooms
-    this.dungeon.roomsList.forEach(r => {
-      const dist = Math.hypot(r.gridX - room.gridX, r.gridZ - room.gridZ);
-      const isNearby = (dist <= 1.5);
-      r.group.traverse(child => {
-        if (child.isPointLight) {
-          child.visible = isNearby;
-        }
-      });
-    });
 
     if (!room.cleared) {
       room.setGatesLocked(true);
@@ -221,18 +211,18 @@ class Game {
     const delta = Math.min(0.04, (currentTime - this.lastTime) / 1000.0);
     this.lastTime = currentTime;
 
-    // Player Update
-    this.player.update(delta);
-
-    if (this.player.isDead) {
-      this.triggerGameOver();
-      return;
-    }
-
     // Room Detection
     const currentRoom = this.dungeon.getRoomAtWorldPos(this.player.camera.position);
     if (currentRoom && currentRoom !== this.activeRoom) {
       this.onRoomEntered(currentRoom);
+    }
+
+    // Player Update with Solid Wall Collision physics
+    this.player.update(delta, this.activeRoom);
+
+    if (this.player.isDead) {
+      this.triggerGameOver();
+      return;
     }
 
     // Weapon Manager Update

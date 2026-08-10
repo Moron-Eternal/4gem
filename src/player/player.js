@@ -16,7 +16,7 @@ export class Player {
     // Dash / Stamina System
     this.maxDashCharges = 3;
     this.dashCharges = 3;
-    this.dashRechargeRate = 1.8; // seconds per charge
+    this.dashRechargeRate = 1.8;
     this.dashTimer = 0;
     this.dashImpulse = 36.0;
 
@@ -43,7 +43,7 @@ export class Player {
       space: false, shift: false, e: false
     };
 
-    // Camera shake & recoil
+    // Camera shake
     this.shakeIntensity = 0;
 
     // Interaction Callback
@@ -72,7 +72,6 @@ export class Player {
       this.yaw -= e.movementX * sensitivity;
       this.pitch -= e.movementY * sensitivity;
 
-      // Clamp pitch to prevent flipping camera (-85 to +85 deg)
       const maxPitch = Math.PI / 2.1;
       this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
     });
@@ -119,7 +118,6 @@ export class Player {
       this.dashCharges--;
       sound.playDash();
 
-      // Compute forward & right vectors relative to camera look
       const forward = new THREE.Vector3();
       this.camera.getWorldDirection(forward);
       forward.y = 0;
@@ -135,7 +133,7 @@ export class Player {
       if (this.keys.a) dashDir.sub(right);
 
       if (dashDir.lengthSq() === 0) {
-        dashDir.copy(forward); // Default forward dash
+        dashDir.copy(forward);
       } else {
         dashDir.normalize();
       }
@@ -158,7 +156,7 @@ export class Player {
       vignette.style.boxShadow = 'inset 0 0 120px rgba(255, 0, 40, 0.8)';
       setTimeout(() => {
         vignette.style.boxShadow = 'inset 0 0 100px rgba(255, 0, 0, 0)';
-      }, 250);
+      }, 200);
     }
 
     if (this.health <= 0) {
@@ -175,7 +173,80 @@ export class Player {
     this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
   }
 
-  update(delta) {
+  // Solid Wall, Gate, and Pillar Collision System
+  applyRoomCollisions(currentRoom) {
+    if (!currentRoom) return;
+
+    const pos = this.camera.position;
+    const center = currentRoom.worldPos;
+    const innerRadius = 11.2; // Room boundary limit
+    const pRadius = 0.6; // Player collision radius
+
+    const minX = center.x - innerRadius + pRadius;
+    const maxX = center.x + innerRadius - pRadius;
+    const minZ = center.z - innerRadius + pRadius;
+    const maxZ = center.z + innerRadius - pRadius;
+
+    const doorWidth = 2.4; // Half door opening width
+
+    // North Wall Collision
+    if (pos.z < minZ) {
+      const inDoor = currentRoom.doors.N && !currentRoom.gateMeshes['N']?.visible && (Math.abs(pos.x - center.x) < doorWidth);
+      if (!inDoor) {
+        pos.z = minZ;
+        this.velocity.z = 0;
+      }
+    }
+
+    // South Wall Collision
+    if (pos.z > maxZ) {
+      const inDoor = currentRoom.doors.S && !currentRoom.gateMeshes['S']?.visible && (Math.abs(pos.x - center.x) < doorWidth);
+      if (!inDoor) {
+        pos.z = maxZ;
+        this.velocity.z = 0;
+      }
+    }
+
+    // West Wall Collision
+    if (pos.x < minX) {
+      const inDoor = currentRoom.doors.W && !currentRoom.gateMeshes['W']?.visible && (Math.abs(pos.z - center.z) < doorWidth);
+      if (!inDoor) {
+        pos.x = minX;
+        this.velocity.x = 0;
+      }
+    }
+
+    // East Wall Collision
+    if (pos.x > maxX) {
+      const inDoor = currentRoom.doors.E && !currentRoom.gateMeshes['E']?.visible && (Math.abs(pos.z - center.z) < doorWidth);
+      if (!inDoor) {
+        pos.x = maxX;
+        this.velocity.x = 0;
+      }
+    }
+
+    // Pillar Collisions
+    if (currentRoom.type === 'boss' || currentRoom.type === 'combat') {
+      const pillarOffsets = [[-5.5, -5.5], [5.5, -5.5], [-5.5, 5.5], [5.5, 5.5]];
+      pillarOffsets.forEach(([px, pz]) => {
+        const pillarX = center.x + px;
+        const pillarZ = center.z + pz;
+
+        const dx = pos.x - pillarX;
+        const dz = pos.z - pillarZ;
+        const dist = Math.hypot(dx, dz);
+        const minDist = 1.4; // Pillar radius + player radius
+
+        if (dist < minDist && dist > 0) {
+          const push = (minDist - dist) / dist;
+          pos.x += dx * push;
+          pos.z += dz * push;
+        }
+      });
+    }
+  }
+
+  update(delta, currentRoom = null) {
     if (this.isDead) return;
 
     // Dash Recharge Timer
@@ -187,7 +258,7 @@ export class Player {
       }
     }
 
-    // WASD Movement Vectors calculated directly from Camera Direction
+    // WASD Movement Vectors
     const forward = new THREE.Vector3();
     this.camera.getWorldDirection(forward);
     forward.y = 0;
@@ -218,10 +289,15 @@ export class Player {
       }
     }
 
-    // Apply Velocity to Camera Position
+    // Apply Velocity
     this.camera.position.x += this.velocity.x * delta;
     this.camera.position.y += this.velocity.y * delta;
     this.camera.position.z += this.velocity.z * delta;
+
+    // Solid Wall & Gate & Pillar Collision Physics
+    if (currentRoom) {
+      this.applyRoomCollisions(currentRoom);
+    }
 
     // Camera Shake Offset
     let shakeX = 0, shakeY = 0;
