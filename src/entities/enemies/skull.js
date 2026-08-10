@@ -10,6 +10,7 @@ export class MaliciousSkull extends Enemy {
     this.damage = 16;
     this.shootCooldown = 3.0;
     this.bobOffset = Math.random() * Math.PI * 2;
+    this.roomCenter = position.clone(); // Store spawn room center for boundary clamping
     this.buildCharacterMesh();
   }
 
@@ -35,10 +36,6 @@ export class MaliciousSkull extends Enemy {
     rightEye.position.set(0.22, 0.1, 0.41);
     group.add(leftEye, rightEye);
 
-    // Glow
-    const coreLight = new THREE.PointLight(0xff4400, 2.0, 6);
-    group.add(coreLight);
-
     // Position the whole model group elevated
     group.position.y = 3.0;
 
@@ -62,6 +59,11 @@ export class MaliciousSkull extends Enemy {
       this.group.position.z += dir.z * this.speed * delta;
     }
     this.group.lookAt(playerPos);
+
+    // Clamp to room boundaries so skull can't fly through walls
+    const boundary = 10.0;
+    this.group.position.x = Math.max(this.roomCenter.x - boundary, Math.min(this.roomCenter.x + boundary, this.group.position.x));
+    this.group.position.z = Math.max(this.roomCenter.z - boundary, Math.min(this.roomCenter.z + boundary, this.group.position.z));
 
     // Triple fireball
     this.shootCooldown -= delta;

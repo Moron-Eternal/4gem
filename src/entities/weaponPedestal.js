@@ -22,22 +22,17 @@ export class WeaponPedestal {
   buildPedestal() {
     // Stone Alter Base
     const baseGeo = new THREE.BoxGeometry(1.4, 1.0, 1.4);
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x222a3a, roughness: 0.8 });
+    const baseMat = new THREE.MeshBasicMaterial({ color: 0x222a3a });
     const alter = new THREE.Mesh(baseGeo, baseMat);
     alter.position.y = 0.5;
     this.group.add(alter);
 
     // Floating Gun Model Preview
-    const gunMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.3, metalness: 0.9 });
+    const gunMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
     const previewGeo = new THREE.BoxGeometry(0.3, 0.3, 0.9);
     this.gunPreview = new THREE.Mesh(previewGeo, gunMat);
     this.gunPreview.position.y = 1.6;
     this.group.add(this.gunPreview);
-
-    // Golden Light Beam
-    this.light = new THREE.PointLight(0x00f0ff, 2.0, 8);
-    this.light.position.y = 1.6;
-    this.group.add(this.light);
   }
 
   update(time, playerPos) {

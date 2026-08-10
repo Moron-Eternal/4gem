@@ -15,10 +15,10 @@ export class GameRenderer {
     this.camera = new THREE.PerspectiveCamera(70, this.width / this.height, 0.05, 150);
 
     // Optimized Pixelated WebGL Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Performance scale
-    this.renderer.shadowMap.enabled = false; // Disable heavy shadow maps for smooth 60fps
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
+    this.renderer.shadowMap.enabled = false;
     this.renderer.domElement.style.imageRendering = 'pixelated';
     this.container.appendChild(this.renderer.domElement);
 
@@ -36,8 +36,15 @@ export class GameRenderer {
     // PS2 Texture Cache
     this.textures = this.generatePS2Textures();
 
-    // Event Listeners
-    window.addEventListener('resize', () => this.onWindowResize());
+    // Event Listeners (bound for cleanup)
+    this._onResize = () => this.onWindowResize();
+    window.addEventListener('resize', this._onResize);
+  }
+
+  dispose() {
+    window.removeEventListener('resize', this._onResize);
+    this.renderer.dispose();
+    this.torches.length = 0;
   }
 
   generatePS2Textures() {
@@ -120,13 +127,10 @@ export class GameRenderer {
   }
 
   updateTorches(time) {
-    // Only animate a small subset of active torches to save CPU cycles
     for (let i = 0; i < this.torches.length; i++) {
       const torch = this.torches[i];
-      if (torch.light.visible) {
-        const noise = Math.sin(time * 12 + i * 2) * 0.4;
-        torch.light.intensity = torch.baseIntensity + noise;
-      }
+      const noise = Math.sin(time * 12 + i * 2) * 0.4;
+      torch.light.intensity = torch.baseIntensity + noise;
     }
   }
 

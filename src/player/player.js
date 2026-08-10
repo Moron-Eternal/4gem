@@ -6,75 +6,87 @@ export class Player {
     this.camera = camera;
     this.domElement = domElement;
 
-    // Movement Parameters
+    // Movement
     this.moveSpeed = 16.0;
     this.jumpForce = 11.0;
     this.gravity = 28.0;
     this.velocity = new THREE.Vector3();
     this.direction = new THREE.Vector3();
 
-    // Dash / Stamina System
+    // Dash
     this.maxDashCharges = 3;
     this.dashCharges = 3;
     this.dashRechargeRate = 1.8;
     this.dashTimer = 0;
     this.dashImpulse = 36.0;
 
-    // Stats & Health
+    // Health
     this.maxHealth = 100;
     this.health = 100;
     this.isDead = false;
     this.statMultipliers = {
-      speed: 1.0,
-      damage: 1.0,
-      cooldown: 1.0,
-      bloodFuel: false,
-      steelArmor: 1.0
+      speed: 1.0, damage: 1.0, cooldown: 1.0,
+      bloodFuel: false, steelArmor: 1.0
     };
 
-    // Camera PointerLock Controls
+    // Camera
     this.isLocked = false;
     this.pitch = 0;
     this.yaw = 0;
 
-    // Key states
-    this.keys = {
-      w: false, a: false, s: false, d: false,
-      space: false, shift: false, e: false
-    };
+    // Input
+    this.keys = { w: false, a: false, s: false, d: false, space: false, shift: false, e: false };
+    this.mouseHeld = false; // Track mouse button for auto-fire
 
     // Camera shake
     this.shakeIntensity = 0;
 
-    // Interaction Callback
-    this.onInteractCallback = null;
+    // Bound event handlers for cleanup
+    this._onKeyDown = (e) => this.onKeyDown(e);
+    this._onKeyUp = (e) => this.onKeyUp(e);
+    this._onClick = () => {
+      if (!this.isLocked && !this.isDead) this.domElement.requestPointerLock();
+    };
+    this._onPointerLockChange = () => {
+      this.isLocked = document.pointerLockElement === this.domElement;
+      if (!this.isLocked) this.mouseHeld = false;
+    };
+    this._onMouseMove = (e) => {
+      if (!this.isLocked || this.isDead) return;
+      const sensitivity = 0.0022;
+      this.yaw -= e.movementX * sensitivity;
+      this.pitch -= e.movementY * sensitivity;
+      const maxPitch = Math.PI / 2.1;
+      this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
+    };
+    this._onMouseDown = (e) => {
+      if (e.button === 0) this.mouseHeld = true;
+    };
+    this._onMouseUp = (e) => {
+      if (e.button === 0) this.mouseHeld = false;
+    };
 
     this.initControls();
   }
 
   initControls() {
-    document.addEventListener('keydown', (e) => this.onKeyDown(e));
-    document.addEventListener('keyup', (e) => this.onKeyUp(e));
+    document.addEventListener('keydown', this._onKeyDown);
+    document.addEventListener('keyup', this._onKeyUp);
+    this.domElement.addEventListener('click', this._onClick);
+    document.addEventListener('pointerlockchange', this._onPointerLockChange);
+    document.addEventListener('mousemove', this._onMouseMove);
+    document.addEventListener('mousedown', this._onMouseDown);
+    document.addEventListener('mouseup', this._onMouseUp);
+  }
 
-    this.domElement.addEventListener('click', () => {
-      if (!this.isLocked && !this.isDead) {
-        this.domElement.requestPointerLock();
-      }
-    });
-
-    document.addEventListener('pointerlockchange', () => {
-      this.isLocked = document.pointerLockElement === this.domElement;
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!this.isLocked || this.isDead) return;
-      const sensitivity = 0.0022;
-      this.yaw -= e.movementX * sensitivity;
-      this.pitch -= e.movementY * sensitivity;
-
-      const maxPitch = Math.PI / 2.1;
-      this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
-    });
+  dispose() {
+    document.removeEventListener('keydown', this._onKeyDown);
+    document.removeEventListener('keyup', this._onKeyUp);
+    this.domElement.removeEventListener('click', this._onClick);
+    document.removeEventListener('pointerlockchange', this._onPointerLockChange);
+    document.removeEventListener('mousemove', this._onMouseMove);
+    document.removeEventListener('mousedown', this._onMouseDown);
+    document.removeEventListener('mouseup', this._onMouseUp);
   }
 
   onKeyDown(e) {
@@ -83,18 +95,10 @@ export class Player {
       case 'KeyA': this.keys.a = true; break;
       case 'KeyS': this.keys.s = true; break;
       case 'KeyD': this.keys.d = true; break;
-      case 'KeyE':
-        if (!this.keys.e && this.onInteractCallback) {
-          this.onInteractCallback();
-        }
-        this.keys.e = true;
-        break;
+      case 'KeyE': this.keys.e = true; break;
       case 'Space': this.keys.space = true; break;
-      case 'ShiftLeft':
-      case 'ShiftRight':
-        if (!this.keys.shift) {
-          this.performDash();
-        }
+      case 'ShiftLeft': case 'ShiftRight':
+        if (!this.keys.shift) this.performDash();
         this.keys.shift = true;
         break;
     }
@@ -108,8 +112,7 @@ export class Player {
       case 'KeyD': this.keys.d = false; break;
       case 'KeyE': this.keys.e = false; break;
       case 'Space': this.keys.space = false; break;
-      case 'ShiftLeft':
-      case 'ShiftRight': this.keys.shift = false; break;
+      case 'ShiftLeft': case 'ShiftRight': this.keys.shift = false; break;
     }
   }
 
@@ -132,11 +135,8 @@ export class Player {
       if (this.keys.d) dashDir.add(right);
       if (this.keys.a) dashDir.sub(right);
 
-      if (dashDir.lengthSq() === 0) {
-        dashDir.copy(forward);
-      } else {
-        dashDir.normalize();
-      }
+      if (dashDir.lengthSq() === 0) dashDir.copy(forward);
+      else dashDir.normalize();
 
       this.velocity.x = dashDir.x * this.dashImpulse;
       this.velocity.z = dashDir.z * this.dashImpulse;
@@ -159,9 +159,7 @@ export class Player {
       }, 200);
     }
 
-    if (this.health <= 0) {
-      this.isDead = true;
-    }
+    if (this.health <= 0) this.isDead = true;
   }
 
   heal(amount) {
@@ -173,70 +171,48 @@ export class Player {
     this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
   }
 
-  // Solid Wall, Gate, and Pillar Collision System
   applyRoomCollisions(currentRoom) {
     if (!currentRoom) return;
 
     const pos = this.camera.position;
     const center = currentRoom.worldPos;
-    const innerRadius = 11.2; // Room boundary limit
-    const pRadius = 0.6; // Player collision radius
+    const innerRadius = 11.2;
+    const pRadius = 0.6;
 
     const minX = center.x - innerRadius + pRadius;
     const maxX = center.x + innerRadius - pRadius;
     const minZ = center.z - innerRadius + pRadius;
     const maxZ = center.z + innerRadius - pRadius;
 
-    const doorWidth = 2.4; // Half door opening width
+    const doorWidth = 2.4;
 
-    // North Wall Collision
     if (pos.z < minZ) {
       const inDoor = currentRoom.doors.N && !currentRoom.gateMeshes['N']?.visible && (Math.abs(pos.x - center.x) < doorWidth);
-      if (!inDoor) {
-        pos.z = minZ;
-        this.velocity.z = 0;
-      }
+      if (!inDoor) { pos.z = minZ; this.velocity.z = 0; }
     }
-
-    // South Wall Collision
     if (pos.z > maxZ) {
       const inDoor = currentRoom.doors.S && !currentRoom.gateMeshes['S']?.visible && (Math.abs(pos.x - center.x) < doorWidth);
-      if (!inDoor) {
-        pos.z = maxZ;
-        this.velocity.z = 0;
-      }
+      if (!inDoor) { pos.z = maxZ; this.velocity.z = 0; }
     }
-
-    // West Wall Collision
     if (pos.x < minX) {
       const inDoor = currentRoom.doors.W && !currentRoom.gateMeshes['W']?.visible && (Math.abs(pos.z - center.z) < doorWidth);
-      if (!inDoor) {
-        pos.x = minX;
-        this.velocity.x = 0;
-      }
+      if (!inDoor) { pos.x = minX; this.velocity.x = 0; }
     }
-
-    // East Wall Collision
     if (pos.x > maxX) {
       const inDoor = currentRoom.doors.E && !currentRoom.gateMeshes['E']?.visible && (Math.abs(pos.z - center.z) < doorWidth);
-      if (!inDoor) {
-        pos.x = maxX;
-        this.velocity.x = 0;
-      }
+      if (!inDoor) { pos.x = maxX; this.velocity.x = 0; }
     }
 
-    // Pillar Collisions
+    // Pillar collision
     if (currentRoom.type === 'boss' || currentRoom.type === 'combat') {
       const pillarOffsets = [[-5.5, -5.5], [5.5, -5.5], [-5.5, 5.5], [5.5, 5.5]];
       pillarOffsets.forEach(([px, pz]) => {
         const pillarX = center.x + px;
         const pillarZ = center.z + pz;
-
         const dx = pos.x - pillarX;
         const dz = pos.z - pillarZ;
         const dist = Math.hypot(dx, dz);
-        const minDist = 1.4; // Pillar radius + player radius
-
+        const minDist = 1.4;
         if (dist < minDist && dist > 0) {
           const push = (minDist - dist) / dist;
           pos.x += dx * push;
@@ -249,7 +225,7 @@ export class Player {
   update(delta, currentRoom = null) {
     if (this.isDead) return;
 
-    // Dash Recharge Timer
+    // Dash recharge
     if (this.dashCharges < this.maxDashCharges) {
       this.dashTimer += delta;
       if (this.dashTimer >= this.dashRechargeRate / this.statMultipliers.cooldown) {
@@ -258,7 +234,7 @@ export class Player {
       }
     }
 
-    // WASD Movement Vectors
+    // Movement
     const forward = new THREE.Vector3();
     this.camera.getWorldDirection(forward);
     forward.y = 0;
@@ -274,7 +250,6 @@ export class Player {
     if (this.keys.a) this.direction.sub(right);
     if (this.direction.lengthSq() > 0) this.direction.normalize();
 
-    // Horizontal Movement Acceleration & Drag
     const speed = this.moveSpeed * this.statMultipliers.speed;
     this.velocity.x += (this.direction.x * speed - this.velocity.x) * Math.min(1.0, delta * 12.0);
     this.velocity.z += (this.direction.z * speed - this.velocity.z) * Math.min(1.0, delta * 12.0);
@@ -284,22 +259,18 @@ export class Player {
     if (this.camera.position.y <= 1.8) {
       this.velocity.y = 0;
       this.camera.position.y = 1.8;
-      if (this.keys.space) {
-        this.velocity.y = this.jumpForce;
-      }
+      if (this.keys.space) this.velocity.y = this.jumpForce;
     }
 
-    // Apply Velocity
+    // Apply velocity
     this.camera.position.x += this.velocity.x * delta;
     this.camera.position.y += this.velocity.y * delta;
     this.camera.position.z += this.velocity.z * delta;
 
-    // Solid Wall & Gate & Pillar Collision Physics
-    if (currentRoom) {
-      this.applyRoomCollisions(currentRoom);
-    }
+    // Wall collision
+    if (currentRoom) this.applyRoomCollisions(currentRoom);
 
-    // Camera Shake Offset
+    // Camera shake
     let shakeX = 0, shakeY = 0;
     if (this.shakeIntensity > 0) {
       shakeX = (Math.random() * 2 - 1) * this.shakeIntensity;
@@ -307,7 +278,6 @@ export class Player {
       this.shakeIntensity = Math.max(0, this.shakeIntensity - delta * 2.5);
     }
 
-    // Update Camera Orientation
     const euler = new THREE.Euler(0, 0, 0, 'YXZ');
     euler.x = this.pitch + shakeY * 0.1;
     euler.y = this.yaw + shakeX * 0.1;

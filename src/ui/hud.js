@@ -13,6 +13,11 @@ export class HUDManager {
     this.roomBannerSubtitle = document.getElementById('room-banner-subtitle');
 
     this.collectedItems = [];
+
+    // Reset UI from any previous run
+    if (this.itemsList) this.itemsList.innerHTML = '';
+    if (this.promptContainer) this.promptContainer.classList.add('hidden');
+    if (this.roomBanner) this.roomBanner.classList.add('hidden');
   }
 
   updateHealth(currentHp, maxHp) {

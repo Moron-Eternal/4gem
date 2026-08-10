@@ -28,7 +28,7 @@ export class ItemPedestal {
   buildPedestal() {
     // Stone Pedestal Base
     const pedGeo = new THREE.CylinderGeometry(0.8, 1.0, 1.2, 8);
-    const pedMat = new THREE.MeshStandardMaterial({ color: 0x1f2638, roughness: 0.8 });
+    const pedMat = new THREE.MeshBasicMaterial({ color: 0x1f2638 });
     const pedestal = new THREE.Mesh(pedGeo, pedMat);
     pedestal.position.y = 0.6;
     this.group.add(pedestal);
@@ -39,11 +39,6 @@ export class ItemPedestal {
     this.gem = new THREE.Mesh(gemGeo, gemMat);
     this.gem.position.y = 1.8;
     this.group.add(this.gem);
-
-    // Gold Glow Light
-    this.light = new THREE.PointLight(0xffb700, 2.0, 8);
-    this.light.position.y = 1.8;
-    this.group.add(this.light);
   }
 
   update(time, playerPos) {

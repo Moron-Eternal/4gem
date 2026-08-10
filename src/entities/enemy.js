@@ -17,6 +17,9 @@ export class Enemy {
     this.damage = 10;
     this.attackCooldown = 0;
 
+    // Store original colors per material to prevent the white-flash bug
+    this._originalColors = new Map();
+
     this.scene.add(this.group);
   }
 
@@ -25,6 +28,10 @@ export class Enemy {
     this.mesh.traverse(child => {
       if (child.isMesh) {
         child.ancestorEnemy = this;
+        // Store original color per material instance
+        if (child.material && !this._originalColors.has(child.material)) {
+          this._originalColors.set(child.material, child.material.color.getHex());
+        }
       }
     });
     this.group.add(this.mesh);
@@ -34,17 +41,25 @@ export class Enemy {
     if (this.isDead) return;
     this.hp -= amount;
 
-    // Flash hit white/red tint on all child meshes
+    // Flash white using stored original colors (prevents permanent white bug)
     if (this.mesh) {
+      const materialsFlashed = new Set();
       this.mesh.traverse(child => {
-        if (child.isMesh && child.material) {
-          const origColor = child.material.color.getHex();
+        if (child.isMesh && child.material && !materialsFlashed.has(child.material)) {
+          materialsFlashed.add(child.material);
           child.material.color.setHex(0xffffff);
-          setTimeout(() => {
-            if (child.material) child.material.color.setHex(origColor);
-          }, 80);
         }
       });
+
+      // Restore from stored originals after delay
+      setTimeout(() => {
+        materialsFlashed.forEach(mat => {
+          const orig = this._originalColors.get(mat);
+          if (orig !== undefined) {
+            mat.color.setHex(orig);
+          }
+        });
+      }, 80);
     }
 
     if (this.hp <= 0) {
@@ -60,40 +75,7 @@ export class Enemy {
       this.player.heal(15);
     }
 
-    // this.spawnBloodParticles(); // Disabled to prevent RAF stuttering
     this.scene.remove(this.group);
-  }
-
-  spawnBloodParticles() {
-    const particleCount = 10;
-    const pGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
-    const pMat = new THREE.MeshBasicMaterial({ color: 0xcc0011 });
-
-    for (let i = 0; i < particleCount; i++) {
-      const p = new THREE.Mesh(pGeo, pMat);
-      p.position.copy(this.group.position);
-      p.position.y += 1.0;
-      this.scene.add(p);
-
-      const vel = new THREE.Vector3(
-        (Math.random() * 2 - 1) * 4,
-        Math.random() * 3 + 2,
-        (Math.random() * 2 - 1) * 4
-      );
-
-      let life = 0;
-      const animateP = () => {
-        life += 0.04;
-        p.position.addScaledVector(vel, 0.04);
-        vel.y -= 9.8 * 0.04;
-        if (life < 0.4) {
-          requestAnimationFrame(animateP);
-        } else {
-          this.scene.remove(p);
-        }
-      };
-      animateP();
-    }
   }
 
   update(delta, playerPos) {

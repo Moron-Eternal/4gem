@@ -23,8 +23,9 @@ class Game {
     this.victoryScreen = document.getElementById('victory-screen');
     this.gameoverScreen = document.getElementById('gameover-screen');
 
-    this.state = 'START'; // 'START', 'PLAYING', 'PAUSED', 'VICTORY', 'GAMEOVER'
+    this.state = 'START';
     this.lastTime = performance.now();
+    this.animFrameId = null; // Track RAF ID so we can cancel on restart
 
     this.projectiles = [];
     this.activeRoom = null;
@@ -47,14 +48,61 @@ class Game {
     });
   }
 
+  cleanup() {
+    // Cancel any running animation frame
+    if (this.animFrameId) {
+      cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = null;
+    }
+
+    // Cleanup player event listeners
+    if (this.player) {
+      this.player.dispose();
+    }
+
+    // Cleanup weapon manager event listeners
+    if (this.weapons) {
+      this.weapons.dispose();
+    }
+
+    // Dispose old renderer
+    if (this.gameRenderer) {
+      this.gameRenderer.dispose();
+    }
+
+    // Clear projectiles from scene
+    this.projectiles.forEach(p => {
+      if (!p.isDestroyed) p.destroy();
+    });
+
+    // Clear enemies from scene
+    this.activeEnemies.forEach(e => {
+      if (!e.isDead) {
+        this.scene && this.scene.remove(e.group);
+      }
+    });
+
+    // Clear pedestals from scene
+    this.pedestals.forEach(p => {
+      if (!p.collected) {
+        this.scene && this.scene.remove(p.group);
+      }
+    });
+
+    // Empty arrays in-place
+    this.projectiles.length = 0;
+    this.activeEnemies.length = 0;
+    this.pedestals.length = 0;
+  }
+
   startGame() {
+    // CLEAN UP previous game state completely
+    this.cleanup();
+
     sound.init();
 
     // Reset Containers
     this.container.innerHTML = '';
-    this.projectiles = [];
-    this.activeEnemies = [];
-    this.pedestals = [];
 
     // Core Systems
     this.gameRenderer = new GameRenderer(this.container);
@@ -67,7 +115,7 @@ class Game {
     this.hud = new HUDManager();
     this.minimap = new Minimap('minimap-canvas', this.dungeon);
 
-    // Pass dynamic getter so WeaponManager always queries live activeEnemies array
+    // Pass stable projectiles array reference + dynamic enemies getter
     this.weapons.setGetActiveEnemiesFn(() => this.activeEnemies);
 
     // Initial HUD weapon status
@@ -78,6 +126,7 @@ class Game {
     startWorldPos.y = 1.8;
     this.player.camera.position.copy(startWorldPos);
     this.activeRoom = this.dungeon.startRoom;
+    this.activeRoom.visited = true;
 
     // Spawn Weapon Pedestals & Item Pedestals in Item Rooms
     const gunNames = [
@@ -86,13 +135,18 @@ class Game {
       { slot: 3, name: 'RAILCANNON' }
     ];
 
+    // Shuffle items so different runs get different item layouts
+    const shuffledItems = [...ITEM_DATABASE].sort(() => Math.random() - 0.5);
+    let itemIdx = 0;
+
     this.dungeon.itemRooms.forEach((room, idx) => {
       if (idx < gunNames.length) {
         const gunInfo = gunNames[idx];
         const wPed = new WeaponPedestal(this.scene, room.worldPos, gunInfo.slot, gunInfo.name, this.weapons, this.player, this.hud);
         this.pedestals.push(wPed);
       } else {
-        const itemData = ITEM_DATABASE[idx % ITEM_DATABASE.length];
+        const itemData = shuffledItems[itemIdx % shuffledItems.length];
+        itemIdx++;
         const iPed = new ItemPedestal(this.scene, room.worldPos, itemData, this.player, this.hud);
         this.pedestals.push(iPed);
       }
@@ -111,7 +165,7 @@ class Game {
     this.state = 'PLAYING';
     this.lastTime = performance.now();
 
-    requestAnimationFrame((t) => this.loop(t));
+    this.animFrameId = requestAnimationFrame((t) => this.loop(t));
   }
 
   pauseGame() {
@@ -124,6 +178,8 @@ class Game {
     this.state = 'PLAYING';
     this.pauseScreen.classList.add('hidden');
     document.body.requestPointerLock();
+    this.lastTime = performance.now();
+    this.animFrameId = requestAnimationFrame((t) => this.loop(t));
   }
 
   onRoomEntered(room) {
@@ -172,6 +228,7 @@ class Game {
 
   checkRoomClearing() {
     if (this.activeRoom && !this.activeRoom.cleared && this.activeEnemies.length > 0) {
+      // In-place removal to keep array reference stable
       for (let i = this.activeEnemies.length - 1; i >= 0; i--) {
         if (this.activeEnemies[i].isDead) {
           this.activeEnemies.splice(i, 1);
@@ -187,9 +244,15 @@ class Game {
           this.triggerVictory();
         } else {
           this.hud.showRoomBanner('ROOM CLEARED', 'GATES UNLOCKED');
-          const rewardData = ITEM_DATABASE[Math.floor(Math.random() * ITEM_DATABASE.length)];
-          const iPed = new ItemPedestal(this.scene, this.activeRoom.worldPos, rewardData, this.player, this.hud);
-          this.pedestals.push(iPed);
+          // Give a random unique reward item
+          const unusedItems = ITEM_DATABASE.filter(item => {
+            return !this.hud.collectedItems.some(ci => ci.id === item.id);
+          });
+          if (unusedItems.length > 0) {
+            const rewardData = unusedItems[Math.floor(Math.random() * unusedItems.length)];
+            const iPed = new ItemPedestal(this.scene, this.activeRoom.worldPos, rewardData, this.player, this.hud);
+            this.pedestals.push(iPed);
+          }
         }
       }
     }
@@ -212,7 +275,7 @@ class Game {
   loop(currentTime) {
     if (this.state !== 'PLAYING') return;
 
-    const delta = Math.min(0.04, (currentTime - this.lastTime) / 1000.0);
+    const delta = Math.min(0.05, (currentTime - this.lastTime) / 1000.0);
     this.lastTime = currentTime;
 
     // Room Detection
@@ -221,7 +284,7 @@ class Game {
       this.onRoomEntered(currentRoom);
     }
 
-    // Player Update
+    // Player Update with wall collision
     this.player.update(delta, this.activeRoom);
 
     if (this.player.isDead) {
@@ -229,7 +292,7 @@ class Game {
       return;
     }
 
-    // Weapon Manager Update
+    // Weapon Manager Update (handles auto-fire)
     this.weapons.update(delta);
 
     // Update active room torches only
@@ -258,7 +321,7 @@ class Game {
     }
     this.checkRoomClearing();
 
-    // Projectiles Update
+    // Projectiles Update (in-place removal)
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       this.projectiles[i].update(delta);
       if (this.projectiles[i].isDestroyed) {
@@ -266,20 +329,19 @@ class Game {
       }
     }
 
-    // HUD & Dynamic Minimap Updates
+    // HUD & Minimap
     this.hud.updateHealth(this.player.health, this.player.maxHealth);
     this.hud.updateDashCharges(this.player.dashCharges, this.player.maxDashCharges);
     this.hud.updateWeaponCooldowns(this.weapons.weapons);
     this.minimap.render(this.player.camera.position, this.activeRoom, this.player.yaw);
 
-    // Render Scene
+    // Render
     this.gameRenderer.render(currentTime / 1000.0);
 
-    requestAnimationFrame((t) => this.loop(t));
+    this.animFrameId = requestAnimationFrame((t) => this.loop(t));
   }
 }
 
-// Global Game Instantiation
 window.addEventListener('DOMContentLoaded', () => {
   window.game = new Game();
 });

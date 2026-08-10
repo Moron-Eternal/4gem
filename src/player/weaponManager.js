@@ -29,7 +29,43 @@ export class WeaponManager {
     this.getActiveEnemiesFn = null;
 
     this.buildWeaponModels();
-    this.initEvents();
+
+    // Bound event handlers for cleanup
+    this._onMouseDown = (e) => {
+      if (!this.player.isLocked || this.player.isDead) return;
+      if (e.button === 0) this.shootPrimary();
+      if (e.button === 2) this.shootAlt();
+    };
+    this._onKeyDown = (e) => {
+      if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
+        const slot = parseInt(e.code.replace('Digit', '')) - 1;
+        if (this.weapons[slot].unlocked) this.selectWeapon(slot);
+      }
+    };
+    this._onWheel = (e) => {
+      if (!this.player.isLocked) return;
+      const unlockedIndices = this.weapons.map((w, i) => w.unlocked ? i : -1).filter(i => i !== -1);
+      if (unlockedIndices.length <= 1) return;
+      const currentIdxPos = unlockedIndices.indexOf(this.currentSlot);
+      if (e.deltaY > 0) {
+        this.selectWeapon(unlockedIndices[(currentIdxPos + 1) % unlockedIndices.length]);
+      } else {
+        this.selectWeapon(unlockedIndices[(currentIdxPos - 1 + unlockedIndices.length) % unlockedIndices.length]);
+      }
+    };
+    this._onContextMenu = (e) => e.preventDefault();
+
+    window.addEventListener('mousedown', this._onMouseDown);
+    window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('wheel', this._onWheel);
+    window.addEventListener('contextmenu', this._onContextMenu);
+  }
+
+  dispose() {
+    window.removeEventListener('mousedown', this._onMouseDown);
+    window.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('wheel', this._onWheel);
+    window.removeEventListener('contextmenu', this._onContextMenu);
   }
 
   setGetActiveEnemiesFn(fn) {
@@ -85,35 +121,6 @@ export class WeaponManager {
     this.viewmodels.forEach((vm, idx) => {
       vm.visible = (idx === this.currentSlot);
       this.viewmodelGroup.add(vm);
-    });
-  }
-
-  initEvents() {
-    window.addEventListener('mousedown', (e) => {
-      if (!this.player.isLocked || this.player.isDead) return;
-      if (e.button === 0) this.shootPrimary();
-      if (e.button === 2) this.shootAlt();
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
-        const slot = parseInt(e.code.replace('Digit', '')) - 1;
-        if (this.weapons[slot].unlocked) {
-          this.selectWeapon(slot);
-        }
-      }
-    });
-
-    window.addEventListener('wheel', (e) => {
-      if (!this.player.isLocked) return;
-      const unlockedIndices = this.weapons.map((w, i) => w.unlocked ? i : -1).filter(i => i !== -1);
-      if (unlockedIndices.length <= 1) return;
-      const currentIdxPos = unlockedIndices.indexOf(this.currentSlot);
-      if (e.deltaY > 0) {
-        this.selectWeapon(unlockedIndices[(currentIdxPos + 1) % unlockedIndices.length]);
-      } else {
-        this.selectWeapon(unlockedIndices[(currentIdxPos - 1 + unlockedIndices.length) % unlockedIndices.length]);
-      }
     });
   }
 
@@ -173,7 +180,7 @@ export class WeaponManager {
       w.ammo--;
       this.fireTimer = 0.07;
       this.recoil = 0.03;
-      this.spawnRaycastShot(9 * this.player.statMultipliers.damage, 0.03);
+      this.spawnRaycastShot(18 * this.player.statMultipliers.damage, 0.03);
     } else if (w.id === 4) {
       if (w.charge < 100) return;
       sound.playRailcannonShot();
@@ -234,6 +241,14 @@ export class WeaponManager {
 
   update(delta) {
     if (this.fireTimer > 0) this.fireTimer -= delta;
+
+    // AUTO-FIRE: Nailgun fires while mouse is held down
+    if (this.player.mouseHeld && this.player.isLocked && !this.player.isDead) {
+      const w = this.weapons[this.currentSlot];
+      if (w.id === 3 && w.unlocked && this.fireTimer <= 0) {
+        this.shootPrimary();
+      }
+    }
 
     this.weapons.forEach(w => {
       if (w.altCd > 0) w.altCd = Math.max(0, w.altCd - delta);
