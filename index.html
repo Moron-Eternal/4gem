@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ULTRA-DUNGEON // PS2 Roguelike FPS</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="game-container"></div>
+
+  <!-- HUD Overlay -->
+  <div id="hud-overlay" class="hidden">
+    <!-- Top-Right: Minimap -->
+    <div id="minimap-container">
+      <div class="hud-header">MAP SYSTEM</div>
+      <canvas id="minimap-canvas" width="180" height="180"></canvas>
+      <div id="minimap-legend">
+        <span><i class="dot current"></i> YOU</span>
+        <span><i class="dot cleared"></i> CLEAR</span>
+        <span><i class="dot item"></i> ITEM</span>
+        <span><i class="dot boss"></i> BOSS</span>
+      </div>
+    </div>
+
+    <!-- Left Side: Collected Items UI -->
+    <div id="items-container">
+      <div class="hud-header">RUN ARTIFACTS</div>
+      <div id="items-list">
+        <!-- Item icons dynamically added here -->
+      </div>
+    </div>
+
+    <!-- Bottom Center HUD: Health Bar + Weapon Selector -->
+    <div id="bottom-hud">
+      <!-- Health & Stamina (Just above Guns) -->
+      <div id="status-panel">
+        <div class="stat-group health-group">
+          <div class="stat-label">HEALTH</div>
+          <div class="bar-outer">
+            <div id="health-bar" class="bar-inner" style="width: 100%;"></div>
+          </div>
+          <div id="health-value" class="stat-text">100 / 100</div>
+        </div>
+
+        <div class="stat-group dash-group">
+          <div class="stat-label">STAMINA / DASH</div>
+          <div id="dash-charges">
+            <div class="dash-pip filled"></div>
+            <div class="dash-pip filled"></div>
+            <div class="dash-pip filled"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visible Guns UI -->
+      <div id="weapons-bar">
+        <div class="weapon-slot active" data-slot="1">
+          <span class="num">1</span>
+          <span class="name">REVOLVER</span>
+          <span class="alt-cooldown" id="cd-1">ALT: READY</span>
+        </div>
+        <div class="weapon-slot" data-slot="2">
+          <span class="num">2</span>
+          <span class="name">SHOTGUN</span>
+          <span class="alt-cooldown" id="cd-2">ALT: READY</span>
+        </div>
+        <div class="weapon-slot" data-slot="3">
+          <span class="num">3</span>
+          <span class="name">NAILGUN</span>
+          <span class="alt-cooldown" id="cd-3">AMMO: 100</span>
+        </div>
+        <div class="weapon-slot" data-slot="4">
+          <span class="num">4</span>
+          <span class="name">RAILCANNON</span>
+          <span class="alt-cooldown" id="cd-4">CHARGE: 100%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crosshair & Visual Feedback -->
+    <div id="crosshair"></div>
+    <div id="hit-marker"></div>
+    <div id="damage-vignette"></div>
+    <div id="room-banner" class="hidden">
+      <h2 id="room-banner-title">ROOM CLEARED</h2>
+      <p id="room-banner-subtitle">GATES UNLOCKED</p>
+    </div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="start-screen" class="overlay-screen">
+    <div class="screen-box">
+      <h1 class="title-glitch">ULTRA-DUNGEON</h1>
+      <p class="subtitle">PS2 ROGUELIKE FPS DEMO</p>
+      
+      <div class="controls-guide">
+        <div class="control-row"><span>WASD</span> Move</div>
+        <div class="control-row"><span>SHIFT</span> Dash / Slide</div>
+        <div class="control-row"><span>SPACE</span> Jump</div>
+        <div class="control-row"><span>LEFT CLICK</span> Fire Primary</div>
+        <div class="control-row"><span>RIGHT CLICK</span> Alt Fire</div>
+        <div class="control-row"><span>1 - 4 / WHEEL</span> Switch Weapon</div>
+      </div>
+
+      <button id="btn-start" class="btn-ps2">INITIALIZE DESCENT</button>
+    </div>
+  </div>
+
+  <!-- Pause Screen -->
+  <div id="pause-screen" class="overlay-screen hidden">
+    <div class="screen-box">
+      <h2>PAUSED</h2>
+      <p>CLICK TO RESUME DEMO</p>
+      <button id="btn-resume" class="btn-ps2">RESUME</button>
+    </div>
+  </div>
+
+  <!-- Victory Screen -->
+  <div id="victory-screen" class="overlay-screen hidden">
+    <div class="screen-box victory">
+      <h1 class="text-gold">DUNGEON CLEARED</h1>
+      <p>THE MALICIOUS TITAN HAS BEEN SLAIN</p>
+      <div id="run-stats"></div>
+      <button id="btn-restart-win" class="btn-ps2">DESCEND AGAIN</button>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameover-screen" class="overlay-screen hidden">
+    <div class="screen-box gameover">
+      <h1 class="text-red">YOU DIED</h1>
+      <p>YOUR BLOOD FUELS THE DUNGEON</p>
+      <button id="btn-restart-lose" class="btn-ps2">RETRY RUN</button>
+    </div>
+  </div>
+
+  <!-- Module Entry Script -->
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

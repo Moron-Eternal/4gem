@@ -1,0 +1,236 @@
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { GameRenderer } from './engine/renderer.js';
+import { sound } from './engine/audio.js';
+import { DungeonGenerator } from './world/dungeonGenerator.js';
+import { Player } from './player/player.js';
+import { WeaponManager } from './player/weaponManager.js';
+import { ItemPedestal, ITEM_DATABASE } from './entities/item.js';
+import { Husk } from './entities/enemies/husk.js';
+import { Stray } from './entities/enemies/stray.js';
+import { MaliciousSkull } from './entities/enemies/skull.js';
+import { MaliciousTitanBoss } from './entities/enemies/boss.js';
+import { Minimap } from './ui/minimap.js';
+import { HUDManager } from './ui/hud.js';
+
+class Game {
+  constructor() {
+    this.container = document.getElementById('game-container');
+    this.hudOverlay = document.getElementById('hud-overlay');
+
+    this.startScreen = document.getElementById('start-screen');
+    this.pauseScreen = document.getElementById('pause-screen');
+    this.victoryScreen = document.getElementById('victory-screen');
+    this.gameoverScreen = document.getElementById('gameover-screen');
+
+    this.state = 'START'; // 'START', 'PLAYING', 'PAUSED', 'VICTORY', 'GAMEOVER'
+    this.lastTime = performance.now();
+
+    this.projectiles = [];
+    this.activeRoom = null;
+    this.activeEnemies = [];
+
+    this.initUIEvents();
+  }
+
+  initUIEvents() {
+    document.getElementById('btn-start').addEventListener('click', () => this.startGame());
+    document.getElementById('btn-resume').addEventListener('click', () => this.resumeGame());
+    document.getElementById('btn-restart-win').addEventListener('click', () => this.startGame());
+    document.getElementById('btn-restart-lose').addEventListener('click', () => this.startGame());
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && this.state === 'PLAYING') {
+        this.pauseGame();
+      }
+    });
+  }
+
+  startGame() {
+    sound.init();
+
+    // Reset Container
+    this.container.innerHTML = '';
+    this.projectiles = [];
+    this.activeEnemies = [];
+
+    // Core Systems
+    this.gameRenderer = new GameRenderer(this.container);
+    this.scene = this.gameRenderer.scene;
+    this.camera = this.gameRenderer.camera;
+
+    this.dungeon = new DungeonGenerator(this.scene, this.gameRenderer);
+    this.player = new Player(this.camera, document.body);
+    this.weapons = new WeaponManager(this.camera, this.scene, this.player);
+    this.hud = new HUDManager();
+    this.minimap = new Minimap('minimap-canvas', this.dungeon);
+
+    // Place Player in Start Room
+    const startWorldPos = this.dungeon.startRoom.worldPos.clone();
+    startWorldPos.y = 1.8;
+    this.player.camera.position.copy(startWorldPos);
+
+    // Spawn Items in Item Rooms
+    this.dungeon.itemRooms.forEach((room, idx) => {
+      const itemData = ITEM_DATABASE[idx % ITEM_DATABASE.length];
+      const pedPos = room.worldPos.clone().add(new THREE.Vector3(0, 0, 0));
+      new ItemPedestal(this.scene, pedPos, itemData, this.player, this.hud);
+    });
+
+    // Request Pointer Lock
+    document.body.requestPointerLock();
+
+    // UI state
+    this.startScreen.classList.add('hidden');
+    this.pauseScreen.classList.add('hidden');
+    this.victoryScreen.classList.add('hidden');
+    this.gameoverScreen.classList.add('hidden');
+    this.hudOverlay.classList.remove('hidden');
+
+    this.state = 'PLAYING';
+    this.lastTime = performance.now();
+
+    requestAnimationFrame((t) => this.loop(t));
+  }
+
+  pauseGame() {
+    this.state = 'PAUSED';
+    document.exitPointerLock();
+    this.pauseScreen.classList.remove('hidden');
+  }
+
+  resumeGame() {
+    this.state = 'PLAYING';
+    this.pauseScreen.classList.add('hidden');
+    document.body.requestPointerLock();
+  }
+
+  onRoomEntered(room) {
+    this.activeRoom = room;
+    room.visited = true;
+
+    if (!room.cleared) {
+      // Lock room gates
+      room.setGatesLocked(true);
+      sound.playDoorSlam();
+
+      if (room.type === 'boss') {
+        this.hud.showRoomBanner('MALICIOUS TITAN', 'THE FINAL TRIAL BEGINS');
+        const boss = new MaliciousTitanBoss(this.scene, room.worldPos, this.player, this.projectiles);
+        this.activeEnemies.push(boss);
+      } else {
+        this.hud.showRoomBanner('ROOM LOCKED', 'ELIMINATE HOSTILES TO PROCEED');
+        this.spawnRoomEnemies(room);
+      }
+    }
+  }
+
+  spawnRoomEnemies(room) {
+    const enemyCount = Math.floor(Math.random() * 3) + 3; // 3 to 5 enemies
+    const center = room.worldPos;
+
+    for (let i = 0; i < enemyCount; i++) {
+      const offset = new THREE.Vector3(
+        (Math.random() * 2 - 1) * 7,
+        0,
+        (Math.random() * 2 - 1) * 7
+      );
+      const spawnPos = center.clone().add(offset);
+
+      const roll = Math.random();
+      let enemy;
+      if (roll < 0.4) {
+        enemy = new Husk(this.scene, spawnPos, this.player);
+      } else if (roll < 0.75) {
+        enemy = new Stray(this.scene, spawnPos, this.player, this.projectiles);
+      } else {
+        enemy = new MaliciousSkull(this.scene, spawnPos, this.player, this.projectiles);
+      }
+      this.activeEnemies.push(enemy);
+    }
+  }
+
+  checkRoomClearing() {
+    if (this.activeRoom && !this.activeRoom.cleared && this.activeEnemies.length > 0) {
+      // Clean up dead enemies
+      this.activeEnemies = this.activeEnemies.filter(e => !e.isDead);
+
+      if (this.activeEnemies.length === 0) {
+        this.activeRoom.cleared = true;
+        this.activeRoom.setGatesLocked(false);
+        sound.playItemPickup();
+
+        if (this.activeRoom.type === 'boss') {
+          this.triggerVictory();
+        } else {
+          this.hud.showRoomBanner('ROOM CLEARED', 'GATES UNLOCKED');
+          // Spawn room reward item pedestal
+          const rewardData = ITEM_DATABASE[Math.floor(Math.random() * ITEM_DATABASE.length)];
+          new ItemPedestal(this.scene, this.activeRoom.worldPos, rewardData, this.player, this.hud);
+        }
+      }
+    }
+  }
+
+  triggerVictory() {
+    this.state = 'VICTORY';
+    document.exitPointerLock();
+    this.victoryScreen.classList.remove('hidden');
+    this.hudOverlay.classList.add('hidden');
+  }
+
+  triggerGameOver() {
+    this.state = 'GAMEOVER';
+    document.exitPointerLock();
+    this.gameoverScreen.classList.remove('hidden');
+    this.hudOverlay.classList.add('hidden');
+  }
+
+  loop(currentTime) {
+    if (this.state !== 'PLAYING') return;
+
+    const delta = Math.min(0.05, (currentTime - this.lastTime) / 1000.0);
+    this.lastTime = currentTime;
+
+    // Player Update
+    this.player.update(delta);
+
+    if (this.player.isDead) {
+      this.triggerGameOver();
+      return;
+    }
+
+    // Room Detection
+    const currentRoom = this.dungeon.getRoomAtWorldPos(this.player.camera.position);
+    if (currentRoom && currentRoom !== this.activeRoom) {
+      this.onRoomEntered(currentRoom);
+    }
+
+    // Weapon & Cooldown Updates
+    this.weapons.update(delta);
+
+    // Active Room & Enemies Update
+    this.dungeon.roomsList.forEach(r => r.update(currentTime / 1000.0));
+    this.activeEnemies.forEach(e => e.update(delta, this.player.camera.position));
+    this.checkRoomClearing();
+
+    // Projectiles Update
+    this.projectiles.forEach(p => p.update(delta));
+    this.projectiles = this.projectiles.filter(p => !p.isDestroyed);
+
+    // HUD & Minimap Updates
+    this.hud.updateHealth(this.player.health, this.player.maxHealth);
+    this.hud.updateDashCharges(this.player.dashCharges, this.player.maxDashCharges);
+    this.hud.updateWeaponCooldowns(this.weapons.weapons);
+    this.minimap.render(this.player.camera.position, this.activeRoom);
+
+    // Render Scene
+    this.gameRenderer.render(currentTime / 1000.0);
+
+    requestAnimationFrame((t) => this.loop(t));
+  }
+}
+
+// Global Game Instantiation
+window.addEventListener('DOMContentLoaded', () => {
+  window.game = new Game();
+});
