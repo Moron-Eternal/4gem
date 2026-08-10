@@ -23,18 +23,17 @@ export class WeaponManager {
     this.fireTimer = 0;
     this.recoil = 0;
 
-    // Raycaster scratchpad vector
     this.raycaster = new THREE.Raycaster();
     this.centerVec = new THREE.Vector2(0, 0);
 
-    this.activeEnemiesRef = []; // Reference to active enemies for fast raycasting
+    this.getActiveEnemiesFn = null;
 
     this.buildWeaponModels();
     this.initEvents();
   }
 
-  setActiveEnemiesRef(enemiesList) {
-    this.activeEnemiesRef = enemiesList;
+  setGetActiveEnemiesFn(fn) {
+    this.getActiveEnemiesFn = fn;
   }
 
   buildWeaponModels() {
@@ -209,13 +208,11 @@ export class WeaponManager {
     }
     this.raycaster.setFromCamera(this.centerVec, this.camera);
 
-    // Fast Raycast ONLY against active enemy target groups
-    const enemyTargetGroups = this.activeEnemiesRef
-      .filter(e => !e.isDead && e.group)
-      .map(e => e.group);
+    const activeEnemies = this.getActiveEnemiesFn ? this.getActiveEnemiesFn() : [];
+    const enemyGroups = activeEnemies.filter(e => !e.isDead && e.group).map(e => e.group);
 
-    if (enemyTargetGroups.length > 0) {
-      const intersects = this.raycaster.intersectObjects(enemyTargetGroups, true);
+    if (enemyGroups.length > 0) {
+      const intersects = this.raycaster.intersectObjects(enemyGroups, true);
       for (const hit of intersects) {
         if (hit.object.ancestorEnemy) {
           hit.object.ancestorEnemy.takeDamage(damage);

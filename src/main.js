@@ -67,8 +67,8 @@ class Game {
     this.hud = new HUDManager();
     this.minimap = new Minimap('minimap-canvas', this.dungeon);
 
-    // Pass active enemies reference to WeaponManager for 0ms raycasting
-    this.weapons.setActiveEnemiesRef(this.activeEnemies);
+    // Pass dynamic getter so WeaponManager always queries live activeEnemies array
+    this.weapons.setGetActiveEnemiesFn(() => this.activeEnemies);
 
     // Initial HUD weapon status
     this.weapons.updateUI();
@@ -217,7 +217,7 @@ class Game {
       this.onRoomEntered(currentRoom);
     }
 
-    // Player Update with Solid Wall Collision physics
+    // Player Update
     this.player.update(delta, this.activeRoom);
 
     if (this.player.isDead) {
