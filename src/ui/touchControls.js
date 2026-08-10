@@ -23,10 +23,16 @@ export class TouchControls {
   }
 
   checkMobile() {
-    // Detect mobile touch capability or screen size
-    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 900);
-    if (isTouch) {
+    const isTouchDevice = ('ontouchstart' in window) && (navigator.maxTouchPoints > 0);
+    if (isTouchDevice) {
       this.enable();
+    } else {
+      // Listen for first touch event to enable touch controls dynamically
+      const onFirstTouch = () => {
+        this.enable();
+        window.removeEventListener('touchstart', onFirstTouch);
+      };
+      window.addEventListener('touchstart', onFirstTouch, { once: true });
     }
   }
 

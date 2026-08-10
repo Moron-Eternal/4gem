@@ -140,9 +140,14 @@ class Game {
       }
     });
 
-    // Request Pointer Lock (for desktop mouse)
-    if (!this.touchControls.enabled) {
-      document.body.requestPointerLock();
+    // Safely request pointer lock without crashing on mobile/iframe
+    try {
+      const lockPromise = document.body.requestPointerLock();
+      if (lockPromise && lockPromise.catch) {
+        lockPromise.catch(() => {});
+      }
+    } catch (e) {
+      // Safe fallback for browsers blocking pointer lock
     }
 
     // UI state
@@ -160,18 +165,21 @@ class Game {
 
   pauseGame() {
     this.state = 'PAUSED';
-    if (!this.touchControls?.enabled) {
+    try {
       document.exitPointerLock();
-    }
+    } catch (e) {}
     this.pauseScreen.classList.remove('hidden');
   }
 
   resumeGame() {
     this.state = 'PLAYING';
     this.pauseScreen.classList.add('hidden');
-    if (!this.touchControls?.enabled) {
-      document.body.requestPointerLock();
-    }
+    try {
+      const lockPromise = document.body.requestPointerLock();
+      if (lockPromise && lockPromise.catch) {
+        lockPromise.catch(() => {});
+      }
+    } catch (e) {}
     this.lastTime = performance.now();
     this.animFrameId = requestAnimationFrame((t) => this.loop(t));
   }
@@ -252,14 +260,14 @@ class Game {
 
   triggerVictory() {
     this.state = 'VICTORY';
-    if (!this.touchControls?.enabled) document.exitPointerLock();
+    try { document.exitPointerLock(); } catch (e) {}
     this.victoryScreen.classList.remove('hidden');
     this.hudOverlay.classList.add('hidden');
   }
 
   triggerGameOver() {
     this.state = 'GAMEOVER';
-    if (!this.touchControls?.enabled) document.exitPointerLock();
+    try { document.exitPointerLock(); } catch (e) {}
     this.gameoverScreen.classList.remove('hidden');
     this.hudOverlay.classList.add('hidden');
   }
