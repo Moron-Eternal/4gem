@@ -5,6 +5,7 @@ import { DungeonGenerator } from './world/dungeonGenerator.js';
 import { Player } from './player/player.js';
 import { WeaponManager } from './player/weaponManager.js';
 import { ItemPedestal, ITEM_DATABASE } from './entities/item.js';
+import { WeaponPedestal } from './entities/weaponPedestal.js';
 import { Husk } from './entities/enemies/husk.js';
 import { Stray } from './entities/enemies/stray.js';
 import { MaliciousSkull } from './entities/enemies/skull.js';
@@ -28,6 +29,7 @@ class Game {
     this.projectiles = [];
     this.activeRoom = null;
     this.activeEnemies = [];
+    this.pedestals = [];
 
     this.initUIEvents();
   }
@@ -48,10 +50,11 @@ class Game {
   startGame() {
     sound.init();
 
-    // Reset Container
+    // Reset Containers
     this.container.innerHTML = '';
     this.projectiles = [];
     this.activeEnemies = [];
+    this.pedestals = [];
 
     // Core Systems
     this.gameRenderer = new GameRenderer(this.container);
@@ -64,16 +67,31 @@ class Game {
     this.hud = new HUDManager();
     this.minimap = new Minimap('minimap-canvas', this.dungeon);
 
+    // Initial HUD weapon status (starts with Revolver only)
+    this.weapons.updateUI();
+
     // Place Player in Start Room
     const startWorldPos = this.dungeon.startRoom.worldPos.clone();
     startWorldPos.y = 1.8;
     this.player.camera.position.copy(startWorldPos);
 
-    // Spawn Items in Item Rooms
+    // Spawn Weapon Pedestals & Item Pedestals in Item Rooms
+    const gunNames = [
+      { slot: 1, name: 'SHOTGUN' },
+      { slot: 2, name: 'NAILGUN' },
+      { slot: 3, name: 'RAILCANNON' }
+    ];
+
     this.dungeon.itemRooms.forEach((room, idx) => {
-      const itemData = ITEM_DATABASE[idx % ITEM_DATABASE.length];
-      const pedPos = room.worldPos.clone().add(new THREE.Vector3(0, 0, 0));
-      new ItemPedestal(this.scene, pedPos, itemData, this.player, this.hud);
+      if (idx < gunNames.length) {
+        const gunInfo = gunNames[idx];
+        const wPed = new WeaponPedestal(this.scene, room.worldPos, gunInfo.slot, gunInfo.name, this.weapons, this.player, this.hud);
+        this.pedestals.push(wPed);
+      } else {
+        const itemData = ITEM_DATABASE[idx % ITEM_DATABASE.length];
+        const iPed = new ItemPedestal(this.scene, room.worldPos, itemData, this.player, this.hud);
+        this.pedestals.push(iPed);
+      }
     });
 
     // Request Pointer Lock
@@ -109,7 +127,6 @@ class Game {
     room.visited = true;
 
     if (!room.cleared) {
-      // Lock room gates
       room.setGatesLocked(true);
       sound.playDoorSlam();
 
@@ -138,9 +155,9 @@ class Game {
 
       const roll = Math.random();
       let enemy;
-      if (roll < 0.4) {
+      if (roll < 0.45) {
         enemy = new Husk(this.scene, spawnPos, this.player);
-      } else if (roll < 0.75) {
+      } else if (roll < 0.8) {
         enemy = new Stray(this.scene, spawnPos, this.player, this.projectiles);
       } else {
         enemy = new MaliciousSkull(this.scene, spawnPos, this.player, this.projectiles);
@@ -151,7 +168,6 @@ class Game {
 
   checkRoomClearing() {
     if (this.activeRoom && !this.activeRoom.cleared && this.activeEnemies.length > 0) {
-      // Clean up dead enemies
       this.activeEnemies = this.activeEnemies.filter(e => !e.isDead);
 
       if (this.activeEnemies.length === 0) {
@@ -163,9 +179,10 @@ class Game {
           this.triggerVictory();
         } else {
           this.hud.showRoomBanner('ROOM CLEARED', 'GATES UNLOCKED');
-          // Spawn room reward item pedestal
+          // Spawn room reward pedestal
           const rewardData = ITEM_DATABASE[Math.floor(Math.random() * ITEM_DATABASE.length)];
-          new ItemPedestal(this.scene, this.activeRoom.worldPos, rewardData, this.player, this.hud);
+          const iPed = new ItemPedestal(this.scene, this.activeRoom.worldPos, rewardData, this.player, this.hud);
+          this.pedestals.push(iPed);
         }
       }
     }
@@ -205,11 +222,23 @@ class Game {
       this.onRoomEntered(currentRoom);
     }
 
-    // Weapon & Cooldown Updates
+    // Weapon Manager Update
     this.weapons.update(delta);
 
-    // Active Room & Enemies Update
+    // Room & Pedestal Updates
     this.dungeon.roomsList.forEach(r => r.update(currentTime / 1000.0));
+    let hasNearbyPedestal = false;
+    this.pedestals.forEach(p => {
+      p.update(currentTime / 1000.0, this.player.camera.position);
+      if (!p.collected && p.group.position.distanceTo(this.player.camera.position) < 2.5) {
+        hasNearbyPedestal = true;
+      }
+    });
+    if (!hasNearbyPedestal) {
+      this.hud.hideInteractionPrompt();
+    }
+
+    // Active Enemies & Room Clearing Update
     this.activeEnemies.forEach(e => e.update(delta, this.player.camera.position));
     this.checkRoomClearing();
 
@@ -217,13 +246,13 @@ class Game {
     this.projectiles.forEach(p => p.update(delta));
     this.projectiles = this.projectiles.filter(p => !p.isDestroyed);
 
-    // HUD & Minimap Updates
+    // HUD & Dynamic Minimap Updates
     this.hud.updateHealth(this.player.health, this.player.maxHealth);
     this.hud.updateDashCharges(this.player.dashCharges, this.player.maxDashCharges);
     this.hud.updateWeaponCooldowns(this.weapons.weapons);
-    this.minimap.render(this.player.camera.position, this.activeRoom);
+    this.minimap.render(this.player.camera.position, this.activeRoom, this.player.yaw);
 
-    // Render Scene
+    // Render Scene with PS2 Downsampled Pass
     this.gameRenderer.render(currentTime / 1000.0);
 
     requestAnimationFrame((t) => this.loop(t));

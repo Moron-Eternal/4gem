@@ -41,7 +41,7 @@ export class ItemPedestal {
     this.group.add(this.gem);
 
     // Gold Glow Light
-    this.light = new THREE.PointLight(0xffb700, 1.5, 6);
+    this.light = new THREE.PointLight(0xffb700, 2.0, 8);
     this.light.position.y = 1.8;
     this.group.add(this.light);
   }
@@ -49,14 +49,17 @@ export class ItemPedestal {
   update(time, playerPos) {
     if (this.collected) return;
 
-    // Rotate & bob floating item
     this.gem.rotation.y = time * 2;
     this.gem.position.y = 1.8 + Math.sin(time * 3) * 0.12;
 
-    // Distance check to player
     const dist = this.group.position.distanceTo(playerPos);
-    if (dist < 1.8) {
-      this.collect();
+    if (dist < 2.5) {
+      if (this.hud) {
+        this.hud.showInteractionPrompt(`PRESS [E] TO COLLECT ${this.itemData.name}`);
+      }
+      if (this.player.keys.e) {
+        this.collect();
+      }
     }
   }
 
@@ -65,7 +68,6 @@ export class ItemPedestal {
     this.collected = true;
     sound.playItemPickup();
 
-    // Apply Stat Buffs
     if (this.itemData.id === 'blood_fuel') {
       this.player.statMultipliers.bloodFuel = true;
     } else if (this.itemData.id === 'furious_dash') {
@@ -82,12 +84,12 @@ export class ItemPedestal {
       this.player.heal(100);
     }
 
-    // Register UI Item card on Left HUD Strip
     if (this.hud) {
+      this.hud.hideInteractionPrompt();
       this.hud.addCollectedItem(this.itemData);
+      this.hud.showRoomBanner('ARTIFACT ACQUIRED', this.itemData.name);
     }
 
-    // Remove 3D Mesh
     this.scene.remove(this.group);
   }
 }

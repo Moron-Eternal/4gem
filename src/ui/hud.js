@@ -5,6 +5,9 @@ export class HUDManager {
     this.dashChargesContainer = document.getElementById('dash-charges');
     this.itemsList = document.getElementById('items-list');
 
+    this.promptContainer = document.getElementById('interaction-prompt');
+    this.promptText = document.getElementById('prompt-text');
+
     this.roomBanner = document.getElementById('room-banner');
     this.roomBannerTitle = document.getElementById('room-banner-title');
     this.roomBannerSubtitle = document.getElementById('room-banner-subtitle');
@@ -29,10 +32,29 @@ export class HUDManager {
     this.dashChargesContainer.innerHTML = html;
   }
 
+  showInteractionPrompt(text) {
+    if (this.promptContainer && this.promptText) {
+      this.promptText.innerText = text;
+      this.promptContainer.classList.remove('hidden');
+    }
+  }
+
+  hideInteractionPrompt() {
+    if (this.promptContainer) {
+      this.promptContainer.classList.add('hidden');
+    }
+  }
+
   updateWeaponCooldowns(weapons) {
     weapons.forEach((w, idx) => {
       const cdElem = document.getElementById(`cd-${idx + 1}`);
       if (!cdElem) return;
+
+      if (!w.unlocked) {
+        cdElem.innerText = `LOCKED`;
+        cdElem.style.color = '#556688';
+        return;
+      }
 
       if (w.id === 1 || w.id === 2) {
         if (w.altCd > 0) {
@@ -44,6 +66,7 @@ export class HUDManager {
         }
       } else if (w.id === 3) {
         cdElem.innerText = `AMMO: ${w.ammo}`;
+        cdElem.style.color = '#00f0ff';
       } else if (w.id === 4) {
         const pct = Math.floor(w.charge);
         cdElem.innerText = `CHARGE: ${pct}%`;

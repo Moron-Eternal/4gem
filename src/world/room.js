@@ -15,7 +15,7 @@ export class Room {
 
     // Room World Dimensions
     this.roomSize = 24;
-    this.wallHeight = 7;
+    this.wallHeight = 7.5;
     this.worldPos = new THREE.Vector3(gridX * this.roomSize, gridY * 8, gridZ * this.roomSize);
 
     this.group = new THREE.Group();
@@ -24,11 +24,6 @@ export class Room {
     this.doors = { N: false, S: false, E: false, W: false };
     this.gateMeshes = {};
     this.torches = [];
-    this.wallColliders = [];
-    this.doorColliders = [];
-
-    this.enemies = [];
-    this.items = [];
   }
 
   buildRoom(connections) {
@@ -38,28 +33,32 @@ export class Room {
     const h = this.wallHeight;
     const tex = this.renderer.textures;
 
+    // Cloned pixelated textures for Floor, Ceiling, Walls
+    const floorTex = this.renderer.getClonedTexture(tex.metalFloor, 6, 6);
+    const wallTex = this.renderer.getClonedTexture(tex.stoneWall, 4, 2);
+    const gateTex = this.renderer.getClonedTexture(tex.gateMetal, 1, 1);
+
     // Floor Mesh
     const floorGeo = new THREE.PlaneGeometry(this.roomSize, this.roomSize);
-    tex.metalFloor.repeat.set(6, 6);
-    const floorMat = new THREE.MeshStandardMaterial({ map: tex.metalFloor, roughness: 0.8, metalness: 0.4 });
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7, metalness: 0.5 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.group.add(floor);
 
     // Ceiling Mesh
-    const ceilingMat = new THREE.MeshStandardMaterial({ map: tex.stoneWall, roughness: 0.9 });
+    const ceilingMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
     const ceiling = new THREE.Mesh(floorGeo, ceilingMat);
     ceiling.position.y = h;
     ceiling.rotation.x = Math.PI / 2;
     this.group.add(ceiling);
 
-    // Build 4 Walls with optional door openings
-    tex.stoneWall.repeat.set(4, 2);
-    const wallMat = new THREE.MeshStandardMaterial({ map: tex.stoneWall, roughness: 0.85 });
+    // Wall Material
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8 });
 
     const createWallSegment = (dir, isDoor) => {
       const wallGroup = new THREE.Group();
+
       if (!isDoor) {
         // Solid Wall
         const geo = new THREE.BoxGeometry(this.roomSize, h, 0.6);
@@ -69,8 +68,8 @@ export class Room {
         mesh.receiveShadow = true;
         wallGroup.add(mesh);
 
-        // Add Wall Torch
-        const torchPos = new THREE.Vector3(0, 2.5, 0.4);
+        // Center Wall Torch
+        const torchPos = new THREE.Vector3(0, 2.8, 0.45);
         const torch = new Torch(wallGroup, this.renderer, torchPos, 0);
         this.torches.push(torch);
       } else {
@@ -79,29 +78,34 @@ export class Room {
         const leftGeo = new THREE.BoxGeometry(sideW, h, 0.6);
         const leftMesh = new THREE.Mesh(leftGeo, wallMat);
         leftMesh.position.set(-sideW / 2 - 3, h / 2, 0);
+        leftMesh.castShadow = true;
+        leftMesh.receiveShadow = true;
         wallGroup.add(leftMesh);
 
         const rightMesh = new THREE.Mesh(leftGeo, wallMat);
         rightMesh.position.set(sideW / 2 + 3, h / 2, 0);
+        rightMesh.castShadow = true;
+        rightMesh.receiveShadow = true;
         wallGroup.add(rightMesh);
 
-        const topGeo = new THREE.BoxGeometry(6, h - 4.5, 0.6);
+        const topGeo = new THREE.BoxGeometry(6, h - 4.8, 0.6);
         const topMesh = new THREE.Mesh(topGeo, wallMat);
-        topMesh.position.set(0, h - (h - 4.5) / 2, 0);
+        topMesh.position.set(0, h - (h - 4.8) / 2, 0);
+        topMesh.castShadow = true;
         wallGroup.add(topMesh);
 
         // Lockable Metal Gate Mesh
-        const gateGeo = new THREE.BoxGeometry(5.8, 4.5, 0.2);
-        const gateMat = new THREE.MeshStandardMaterial({ map: tex.gateMetal, roughness: 0.5, metalness: 0.8 });
+        const gateGeo = new THREE.BoxGeometry(5.8, 4.8, 0.25);
+        const gateMat = new THREE.MeshStandardMaterial({ map: gateTex, roughness: 0.5, metalness: 0.8 });
         const gate = new THREE.Mesh(gateGeo, gateMat);
-        gate.position.set(0, 2.25, 0);
-        gate.visible = !this.cleared; // Hidden if cleared
+        gate.position.set(0, 2.4, 0);
+        gate.visible = !this.cleared; // Locked if uncleared
         wallGroup.add(gate);
         this.gateMeshes[dir] = gate;
 
-        // Torches on sides of doorway
-        const torch1 = new Torch(wallGroup, this.renderer, new THREE.Vector3(-3.4, 2.5, 0.4), 0);
-        const torch2 = new Torch(wallGroup, this.renderer, new THREE.Vector3(3.4, 2.5, 0.4), 0);
+        // Torches flanking doorway
+        const torch1 = new Torch(wallGroup, this.renderer, new THREE.Vector3(-3.5, 2.8, 0.45), 0);
+        const torch2 = new Torch(wallGroup, this.renderer, new THREE.Vector3(3.5, 2.8, 0.45), 0);
         this.torches.push(torch1, torch2);
       }
 
@@ -131,11 +135,11 @@ export class Room {
     wWall.rotation.y = Math.PI / 2;
     this.group.add(wWall);
 
-    // Add Central Decorative Pillars for larger room feel
+    // Central Decorative Pillars
     if (this.type === 'boss' || this.type === 'combat') {
-      const pillarGeo = new THREE.BoxGeometry(1.6, h, 1.6);
-      const pillarMat = new THREE.MeshStandardMaterial({ map: tex.stoneWall, roughness: 0.8 });
-      const offsets = [[-5, -5], [5, -5], [-5, 5], [5, 5]];
+      const pillarGeo = new THREE.BoxGeometry(1.8, h, 1.8);
+      const pillarMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8 });
+      const offsets = [[-5.5, -5.5], [5.5, -5.5], [-5.5, 5.5], [5.5, 5.5]];
       offsets.forEach(([px, pz]) => {
         const pillar = new THREE.Mesh(pillarGeo, pillarMat);
         pillar.position.set(px, h / 2, pz);

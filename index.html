@@ -35,6 +35,11 @@
       </div>
     </div>
 
+    <!-- Interaction Proximity Prompt -->
+    <div id="interaction-prompt" class="hidden">
+      <span id="prompt-text">PRESS [E] TO INTERACT</span>
+    </div>
+
     <!-- Bottom Center HUD: Health Bar + Weapon Selector -->
     <div id="bottom-hud">
       <!-- Health & Stamina (Just above Guns) -->
@@ -64,19 +69,19 @@
           <span class="name">REVOLVER</span>
           <span class="alt-cooldown" id="cd-1">ALT: READY</span>
         </div>
-        <div class="weapon-slot" data-slot="2">
+        <div class="weapon-slot locked" data-slot="2">
           <span class="num">2</span>
-          <span class="name">SHOTGUN</span>
+          <span class="name">LOCKED</span>
           <span class="alt-cooldown" id="cd-2">ALT: READY</span>
         </div>
-        <div class="weapon-slot" data-slot="3">
+        <div class="weapon-slot locked" data-slot="3">
           <span class="num">3</span>
-          <span class="name">NAILGUN</span>
+          <span class="name">LOCKED</span>
           <span class="alt-cooldown" id="cd-3">AMMO: 100</span>
         </div>
-        <div class="weapon-slot" data-slot="4">
+        <div class="weapon-slot locked" data-slot="4">
           <span class="num">4</span>
-          <span class="name">RAILCANNON</span>
+          <span class="name">LOCKED</span>
           <span class="alt-cooldown" id="cd-4">CHARGE: 100%</span>
         </div>
       </div>
@@ -102,6 +107,7 @@
         <div class="control-row"><span>WASD</span> Move</div>
         <div class="control-row"><span>SHIFT</span> Dash / Slide</div>
         <div class="control-row"><span>SPACE</span> Jump</div>
+        <div class="control-row"><span>E</span> Pickup Weapon / Item</div>
         <div class="control-row"><span>LEFT CLICK</span> Fire Primary</div>
         <div class="control-row"><span>RIGHT CLICK</span> Alt Fire</div>
         <div class="control-row"><span>1 - 4 / WHEEL</span> Switch Weapon</div>

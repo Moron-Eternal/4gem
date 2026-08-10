@@ -8,8 +8,8 @@ export class Player {
 
     // Movement Parameters
     this.moveSpeed = 16.0;
-    this.jumpForce = 12.0;
-    this.gravity = 30.0;
+    this.jumpForce = 11.0;
+    this.gravity = 28.0;
     this.velocity = new THREE.Vector3();
     this.direction = new THREE.Vector3();
 
@@ -18,7 +18,7 @@ export class Player {
     this.dashCharges = 3;
     this.dashRechargeRate = 1.8; // seconds per charge
     this.dashTimer = 0;
-    this.dashImpulse = 38.0;
+    this.dashImpulse = 36.0;
 
     // Stats & Health
     this.maxHealth = 100;
@@ -40,11 +40,14 @@ export class Player {
     // Key states
     this.keys = {
       w: false, a: false, s: false, d: false,
-      space: false, shift: false
+      space: false, shift: false, e: false
     };
 
     // Camera shake & recoil
     this.shakeIntensity = 0;
+
+    // Interaction Callback
+    this.onInteractCallback = null;
 
     this.initControls();
   }
@@ -69,8 +72,9 @@ export class Player {
       this.yaw -= e.movementX * sensitivity;
       this.pitch -= e.movementY * sensitivity;
 
-      // Clamp pitch to prevent flipping camera
-      this.pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, this.pitch));
+      // Clamp pitch to prevent flipping camera (-85 to +85 deg)
+      const maxPitch = Math.PI / 2.1;
+      this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
     });
   }
 
@@ -80,6 +84,12 @@ export class Player {
       case 'KeyA': this.keys.a = true; break;
       case 'KeyS': this.keys.s = true; break;
       case 'KeyD': this.keys.d = true; break;
+      case 'KeyE':
+        if (!this.keys.e && this.onInteractCallback) {
+          this.onInteractCallback();
+        }
+        this.keys.e = true;
+        break;
       case 'Space': this.keys.space = true; break;
       case 'ShiftLeft':
       case 'ShiftRight':
@@ -97,6 +107,7 @@ export class Player {
       case 'KeyA': this.keys.a = false; break;
       case 'KeyS': this.keys.s = false; break;
       case 'KeyD': this.keys.d = false; break;
+      case 'KeyE': this.keys.e = false; break;
       case 'Space': this.keys.space = false; break;
       case 'ShiftLeft':
       case 'ShiftRight': this.keys.shift = false; break;
@@ -108,15 +119,20 @@ export class Player {
       this.dashCharges--;
       sound.playDash();
 
-      // Compute forward/side direction relative to camera yaw
-      const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).normalize();
-      const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+      // Compute forward & right vectors relative to camera look
+      const forward = new THREE.Vector3();
+      this.camera.getWorldDirection(forward);
+      forward.y = 0;
+      if (forward.lengthSq() > 0) forward.normalize();
+
+      const right = new THREE.Vector3();
+      right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
       let dashDir = new THREE.Vector3();
       if (this.keys.w) dashDir.add(forward);
       if (this.keys.s) dashDir.sub(forward);
-      if (this.keys.d) dashDir.add(side);
-      if (this.keys.a) dashDir.sub(side);
+      if (this.keys.d) dashDir.add(right);
+      if (this.keys.a) dashDir.sub(right);
 
       if (dashDir.lengthSq() === 0) {
         dashDir.copy(forward); // Default forward dash
@@ -137,7 +153,6 @@ export class Player {
     sound.playPlayerHurt();
     this.shakeCamera(0.4);
 
-    // Damage vignette flash
     const vignette = document.getElementById('damage-vignette');
     if (vignette) {
       vignette.style.boxShadow = 'inset 0 0 120px rgba(255, 0, 40, 0.8)';
@@ -172,18 +187,23 @@ export class Player {
       }
     }
 
-    // WASD Direction Vector
-    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const side = new THREE.Vector3(forward.z, 0, -forward.x);
+    // WASD Movement Vectors calculated directly from Camera Direction
+    const forward = new THREE.Vector3();
+    this.camera.getWorldDirection(forward);
+    forward.y = 0;
+    if (forward.lengthSq() > 0) forward.normalize();
+
+    const right = new THREE.Vector3();
+    right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
     this.direction.set(0, 0, 0);
     if (this.keys.w) this.direction.add(forward);
     if (this.keys.s) this.direction.sub(forward);
-    if (this.keys.d) this.direction.add(side);
-    if (this.keys.a) this.direction.sub(side);
+    if (this.keys.d) this.direction.add(right);
+    if (this.keys.a) this.direction.sub(right);
     if (this.direction.lengthSq() > 0) this.direction.normalize();
 
-    // Horizontal Movement Drag & Acceleration
+    // Horizontal Movement Acceleration & Drag
     const speed = this.moveSpeed * this.statMultipliers.speed;
     this.velocity.x += (this.direction.x * speed - this.velocity.x) * Math.min(1.0, delta * 12.0);
     this.velocity.z += (this.direction.z * speed - this.velocity.z) * Math.min(1.0, delta * 12.0);
@@ -198,7 +218,7 @@ export class Player {
       }
     }
 
-    // Apply Position Velocity
+    // Apply Velocity to Camera Position
     this.camera.position.x += this.velocity.x * delta;
     this.camera.position.y += this.velocity.y * delta;
     this.camera.position.z += this.velocity.z * delta;
@@ -211,7 +231,7 @@ export class Player {
       this.shakeIntensity = Math.max(0, this.shakeIntensity - delta * 2.5);
     }
 
-    // Update Camera Rotation
+    // Update Camera Orientation
     const euler = new THREE.Euler(0, 0, 0, 'YXZ');
     euler.x = this.pitch + shakeY * 0.1;
     euler.y = this.yaw + shakeX * 0.1;

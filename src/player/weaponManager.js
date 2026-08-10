@@ -8,17 +8,16 @@ export class WeaponManager {
     this.player = player;
 
     this.weapons = [
-      { id: 1, name: 'REVOLVER', altCd: 0, altMaxCd: 2.0 },
-      { id: 2, name: 'SHOTGUN', altCd: 0, altMaxCd: 3.5 },
-      { id: 3, name: 'NAILGUN', ammo: 100, maxAmmo: 100, reloadCd: 0 },
-      { id: 4, name: 'RAILCANNON', charge: 100, rechargeRate: 20 } // % per sec
+      { id: 1, name: 'REVOLVER', unlocked: true, altCd: 0, altMaxCd: 2.0 },
+      { id: 2, name: 'SHOTGUN', unlocked: false, altCd: 0, altMaxCd: 3.5 },
+      { id: 3, name: 'NAILGUN', unlocked: false, ammo: 100, maxAmmo: 100, reloadCd: 0 },
+      { id: 4, name: 'RAILCANNON', unlocked: false, charge: 100, rechargeRate: 20 }
     ];
-    this.currentSlot = 0; // 0-indexed (Weapon 1)
+    this.currentSlot = 0; // Starts with Revolver
 
     this.viewmodels = [];
     this.viewmodelGroup = new THREE.Group();
     this.camera.add(this.viewmodelGroup);
-    this.scene.add(this.camera);
 
     this.fireTimer = 0;
     this.recoil = 0;
@@ -28,38 +27,61 @@ export class WeaponManager {
   }
 
   buildWeaponModels() {
-    const gunMat = new THREE.MeshStandardMaterial({ color: 0x222836, roughness: 0.6, metalness: 0.8 });
-    const accentMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const gunMat = new THREE.MeshStandardMaterial({ color: 0x1f2636, roughness: 0.4, metalness: 0.85 });
+    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x0f131c, roughness: 0.6, metalness: 0.9 });
+    const cyanGlow = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const redGlow = new THREE.MeshBasicMaterial({ color: 0xff2a4b });
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.3, metalness: 0.9 });
 
-    // 1. Revolver Viewmodel
+    // 1. REVOLVER VIEWMODEL
     const revGroup = new THREE.Group();
-    const revBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.5), gunMat);
-    revBarrel.position.set(0.2, -0.22, -0.45);
-    revGroup.add(revBarrel);
-    const revGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.3), accentMat);
-    revGlow.position.set(0.2, -0.16, -0.45);
-    revGroup.add(revGlow);
+    const revBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.55), gunMat);
+    revBarrel.position.set(0.28, -0.24, -0.65);
+    const revCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 8), darkSteel);
+    revCylinder.rotation.x = Math.PI / 2;
+    revCylinder.position.set(0.28, -0.27, -0.55);
+    const revGrip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.20, 0.09), darkSteel);
+    revGrip.rotation.x = Math.PI / 6;
+    revGrip.position.set(0.28, -0.34, -0.45);
+    const revSight = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.02, 0.40), cyanGlow);
+    revSight.position.set(0.28, -0.19, -0.65);
+    revGroup.add(revBarrel, revCylinder, revGrip, revSight);
 
-    // 2. Shotgun Viewmodel
+    // 2. SHOTGUN VIEWMODEL
     const shotGroup = new THREE.Group();
-    const shotBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.7, 8), gunMat);
-    shotBarrel.rotation.x = Math.PI / 2;
-    shotBarrel.position.set(0.22, -0.25, -0.5);
-    shotGroup.add(shotBarrel);
+    const shotBarrel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.75, 8), gunMat);
+    shotBarrel1.rotation.x = Math.PI / 2;
+    shotBarrel1.position.set(0.28, -0.26, -0.70);
+    const shotBarrel2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.75, 8), gunMat);
+    shotBarrel2.rotation.x = Math.PI / 2;
+    shotBarrel2.position.set(0.35, -0.26, -0.70);
+    const shotPump = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.09, 0.28), darkSteel);
+    shotPump.position.set(0.315, -0.28, -0.60);
+    const shotGlow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.40), redGlow);
+    shotGlow.position.set(0.315, -0.21, -0.68);
+    shotGroup.add(shotBarrel1, shotBarrel2, shotPump, shotGlow);
 
-    // 3. Nailgun Viewmodel
+    // 3. NAILGUN VIEWMODEL
     const nailGroup = new THREE.Group();
-    const nailBody = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.6), gunMat);
-    nailBody.position.set(0.25, -0.25, -0.45);
-    nailGroup.add(nailBody);
+    const nailBody = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.20, 0.65), gunMat);
+    nailBody.position.set(0.32, -0.26, -0.68);
+    const nailDrum = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.18, 12), brassMat);
+    nailDrum.position.set(0.32, -0.36, -0.58);
+    const nailBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 8), darkSteel);
+    nailBarrel.rotation.x = Math.PI / 2;
+    nailBarrel.position.set(0.32, -0.24, -0.80);
+    nailGroup.add(nailBody, nailDrum, nailBarrel);
 
-    // 4. Railcannon Viewmodel
+    // 4. RAILCANNON VIEWMODEL
     const railGroup = new THREE.Group();
-    const railBody = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.8), gunMat);
-    railBody.position.set(0.25, -0.25, -0.55);
-    const railCore = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff0044 }));
-    railCore.position.set(0.25, -0.25, -0.4);
-    railGroup.add(railBody, railCore);
+    const railBody = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.85), gunMat);
+    railBody.position.set(0.32, -0.28, -0.75);
+    const railCore = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), cyanGlow);
+    railCore.position.set(0.32, -0.28, -0.60);
+    const railCoil = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.02, 8, 16), brassMat);
+    railCoil.rotation.x = Math.PI / 2;
+    railCoil.position.set(0.32, -0.28, -0.75);
+    railGroup.add(railBody, railCore, railCoil);
 
     this.viewmodels = [revGroup, shotGroup, nailGroup, railGroup];
     this.viewmodels.forEach((vm, idx) => {
@@ -78,79 +100,110 @@ export class WeaponManager {
     window.addEventListener('keydown', (e) => {
       if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
         const slot = parseInt(e.code.replace('Digit', '')) - 1;
-        this.selectWeapon(slot);
+        if (this.weapons[slot].unlocked) {
+          this.selectWeapon(slot);
+        }
       }
     });
 
     window.addEventListener('wheel', (e) => {
       if (!this.player.isLocked) return;
+      const unlockedIndices = this.weapons.map((w, i) => w.unlocked ? i : -1).filter(i => i !== -1);
+      if (unlockedIndices.length <= 1) return;
+
+      const currentIdxPos = unlockedIndices.indexOf(this.currentSlot);
       if (e.deltaY > 0) {
-        this.selectWeapon((this.currentSlot + 1) % 4);
+        const nextPos = (currentIdxPos + 1) % unlockedIndices.length;
+        this.selectWeapon(unlockedIndices[nextPos]);
       } else {
-        this.selectWeapon((this.currentSlot + 3) % 4);
+        const nextPos = (currentIdxPos - 1 + unlockedIndices.length) % unlockedIndices.length;
+        this.selectWeapon(unlockedIndices[nextPos]);
       }
     });
   }
 
+  unlockWeapon(slotIndex) {
+    if (this.weapons[slotIndex]) {
+      this.weapons[slotIndex].unlocked = true;
+      this.updateUI();
+    }
+  }
+
   selectWeapon(index) {
-    if (index === this.currentSlot) return;
+    if (!this.weapons[index].unlocked) return;
     this.viewmodels[this.currentSlot].visible = false;
     this.currentSlot = index;
     this.viewmodels[this.currentSlot].visible = true;
+    this.updateUI();
+  }
 
-    // Update UI active slot
+  updateUI() {
     const slots = document.querySelectorAll('.weapon-slot');
     slots.forEach((s, idx) => {
-      if (idx === index) s.classList.add('active');
-      else s.classList.remove('active');
+      const w = this.weapons[idx];
+      const nameElem = s.querySelector('.name');
+
+      if (!w.unlocked) {
+        s.classList.add('locked');
+        s.classList.remove('active');
+        if (nameElem) nameElem.innerText = 'LOCKED';
+      } else {
+        s.classList.remove('locked');
+        if (nameElem) nameElem.innerText = w.name;
+        if (idx === this.currentSlot) s.classList.add('active');
+        else s.classList.remove('active');
+      }
     });
   }
 
   shootPrimary() {
     if (this.fireTimer > 0) return;
     const w = this.weapons[this.currentSlot];
+    if (!w.unlocked) return;
 
     if (w.id === 1) { // Revolver
       sound.playPistolShot();
-      this.fireTimer = 0.25;
+      this.fireTimer = 0.22;
       this.recoil = 0.08;
-      this.spawnRaycastShot(35 * this.player.statMultipliers.damage);
+      this.spawnRaycastShot(38 * this.player.statMultipliers.damage);
     } else if (w.id === 2) { // Shotgun
       sound.playShotgunShot();
-      this.fireTimer = 0.6;
+      this.fireTimer = 0.55;
       this.recoil = 0.16;
-      for (let i = 0; i < 8; i++) {
-        this.spawnRaycastShot(12 * this.player.statMultipliers.damage, 0.06);
+      for (let i = 0; i < 9; i++) {
+        this.spawnRaycastShot(14 * this.player.statMultipliers.damage, 0.06);
       }
     } else if (w.id === 3) { // Nailgun
       if (w.ammo <= 0) return;
       sound.playNailgunShot();
       w.ammo--;
-      this.fireTimer = 0.08;
+      this.fireTimer = 0.07;
       this.recoil = 0.03;
-      this.spawnRaycastShot(8 * this.player.statMultipliers.damage, 0.03);
+      this.spawnRaycastShot(9 * this.player.statMultipliers.damage, 0.03);
     } else if (w.id === 4) { // Railcannon
       if (w.charge < 100) return;
       sound.playRailcannonShot();
       w.charge = 0;
-      this.fireTimer = 1.0;
+      this.fireTimer = 0.9;
       this.recoil = 0.22;
-      this.spawnRaycastShot(200 * this.player.statMultipliers.damage, 0.0);
+      this.spawnRaycastShot(220 * this.player.statMultipliers.damage, 0.0);
     }
   }
 
   shootAlt() {
     const w = this.weapons[this.currentSlot];
-    if (w.id === 1 && w.altCd <= 0) { // Revolver Charged Shot
+    if (!w.unlocked) return;
+
+    if (w.id === 1 && w.altCd <= 0) { // Charged Ricochet
       sound.playRailcannonShot();
       w.altCd = w.altMaxCd;
       this.recoil = 0.15;
-      this.spawnRaycastShot(90 * this.player.statMultipliers.damage);
-    } else if (w.id === 2 && w.altCd <= 0) { // Shotgun Explosive Core
+      this.spawnRaycastShot(95 * this.player.statMultipliers.damage);
+    } else if (w.id === 2 && w.altCd <= 0) { // Shotgun Core Eject
       sound.playShotgunShot();
       w.altCd = w.altMaxCd;
       this.recoil = 0.18;
-      this.spawnRaycastShot(120 * this.player.statMultipliers.damage, 0.02);
+      this.spawnRaycastShot(130 * this.player.statMultipliers.damage, 0.02);
     }
   }
 
@@ -158,7 +211,6 @@ export class WeaponManager {
     const raycaster = new THREE.Raycaster();
     const center = new THREE.Vector2(0, 0);
 
-    // Apply random spread offset
     if (spread > 0) {
       center.x += (Math.random() * 2 - 1) * spread;
       center.y += (Math.random() * 2 - 1) * spread;
@@ -168,7 +220,6 @@ export class WeaponManager {
     const intersects = raycaster.intersectObjects(this.scene.children, true);
 
     for (const hit of intersects) {
-      // Ignore player or viewmodels
       if (hit.object.ancestorEnemy) {
         hit.object.ancestorEnemy.takeDamage(damage);
         sound.playHit();
@@ -176,7 +227,6 @@ export class WeaponManager {
         break;
       }
       if (hit.object.isMesh && hit.object.geometry.type === 'BoxGeometry') {
-        // Hit wall/floor spark effect
         break;
       }
     }
@@ -193,12 +243,11 @@ export class WeaponManager {
   update(delta) {
     if (this.fireTimer > 0) this.fireTimer -= delta;
 
-    // Cooldown updates
     this.weapons.forEach(w => {
       if (w.altCd > 0) w.altCd = Math.max(0, w.altCd - delta);
       if (w.id === 3 && w.ammo < w.maxAmmo) {
         w.reloadCd += delta;
-        if (w.reloadCd >= 0.15) {
+        if (w.reloadCd >= 0.12) {
           w.ammo = Math.min(w.maxAmmo, w.ammo + 2);
           w.reloadCd = 0;
         }
@@ -208,7 +257,6 @@ export class WeaponManager {
       }
     });
 
-    // Recoil recovery
     if (this.recoil > 0) {
       this.viewmodelGroup.position.z = this.recoil;
       this.recoil = Math.max(0, this.recoil - delta * 1.2);

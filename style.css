@@ -1,6 +1,6 @@
 :root {
   --bg-dark: #0a0b10;
-  --panel-bg: rgba(12, 14, 22, 0.85);
+  --panel-bg: rgba(12, 14, 22, 0.88);
   --panel-border: #2a3148;
   --accent-cyan: #00f0ff;
   --accent-red: #ff2a4b;
@@ -41,7 +41,7 @@ html, body {
   display: block;
 }
 
-/* CRT Overlay Effect */
+/* CRT Scanline Overlay */
 body::after {
   content: " ";
   display: block;
@@ -184,6 +184,26 @@ body::after {
   color: #9ab0d0;
 }
 
+/* Interaction Prompt */
+#interaction-prompt {
+  position: absolute;
+  bottom: 180px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 12, 18, 0.95);
+  border: 2px solid var(--accent-cyan);
+  padding: 10px 24px;
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+}
+
+#prompt-text {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--accent-cyan);
+  letter-spacing: 2px;
+}
+
 /* Bottom Center HUD */
 #bottom-hud {
   position: absolute;
@@ -291,9 +311,14 @@ body::after {
 }
 
 .weapon-slot.active {
-  background: rgba(0, 240, 255, 0.12);
+  background: rgba(0, 240, 255, 0.15);
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.4);
+}
+
+.weapon-slot.locked {
+  opacity: 0.4;
+  border-color: #1a2234;
 }
 
 .weapon-slot .num {
@@ -365,7 +390,7 @@ body::after {
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  background: rgba(10, 12, 18, 0.9);
+  background: rgba(10, 12, 18, 0.95);
   border: 2px solid var(--accent-gold);
   padding: 16px 36px;
   box-shadow: 0 0 30px rgba(255, 183, 0, 0.4);
