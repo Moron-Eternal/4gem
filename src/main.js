@@ -172,7 +172,11 @@ class Game {
 
   checkRoomClearing() {
     if (this.activeRoom && !this.activeRoom.cleared && this.activeEnemies.length > 0) {
-      this.activeEnemies = this.activeEnemies.filter(e => !e.isDead);
+      for (let i = this.activeEnemies.length - 1; i >= 0; i--) {
+        if (this.activeEnemies[i].isDead) {
+          this.activeEnemies.splice(i, 1);
+        }
+      }
 
       if (this.activeEnemies.length === 0) {
         this.activeRoom.cleared = true;
@@ -255,10 +259,12 @@ class Game {
     this.checkRoomClearing();
 
     // Projectiles Update
-    for (let i = 0; i < this.projectiles.length; i++) {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
       this.projectiles[i].update(delta);
+      if (this.projectiles[i].isDestroyed) {
+        this.projectiles.splice(i, 1);
+      }
     }
-    this.projectiles = this.projectiles.filter(p => !p.isDestroyed);
 
     // HUD & Dynamic Minimap Updates
     this.hud.updateHealth(this.player.health, this.player.maxHealth);

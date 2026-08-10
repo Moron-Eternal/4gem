@@ -60,7 +60,7 @@ export class Enemy {
       this.player.heal(15);
     }
 
-    this.spawnBloodParticles();
+    // this.spawnBloodParticles(); // Disabled to prevent RAF stuttering
     this.scene.remove(this.group);
   }
 
