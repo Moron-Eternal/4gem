@@ -9,35 +9,31 @@ export class GameRenderer {
     // Scene setup
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x08090e);
-    // Very light fog so distant rooms fade but nearby is fully visible
-    this.scene.fog = new THREE.Fog(0x08090e, 30, 80);
+    this.scene.fog = new THREE.Fog(0x08090e, 25, 75);
 
     // Camera setup
-    this.camera = new THREE.PerspectiveCamera(70, this.width / this.height, 0.05, 200);
+    this.camera = new THREE.PerspectiveCamera(70, this.width / this.height, 0.05, 150);
 
-    // WebGL Renderer - renders at LOW resolution for PS2 look
-    this.renderer = new THREE.WebGLRenderer({ antialias: false });
-    // PS2 pixelation: render at 1/3 resolution
-    const ps2Scale = 0.35;
+    // Optimized Pixelated WebGL Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setPixelRatio(ps2Scale);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.BasicShadowMap;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Performance scale
+    this.renderer.shadowMap.enabled = false; // Disable heavy shadow maps for smooth 60fps
     this.renderer.domElement.style.imageRendering = 'pixelated';
     this.container.appendChild(this.renderer.domElement);
 
-    // BRIGHT hemisphere light (sky/ground fill) so the dungeon is VISIBLE
-    this.hemiLight = new THREE.HemisphereLight(0x8090b0, 0x443322, 1.8);
+    // Bright Hemisphere Light (Sky/Ground)
+    this.hemiLight = new THREE.HemisphereLight(0x8090b0, 0x443322, 1.6);
     this.scene.add(this.hemiLight);
 
-    // Warm ambient fill
-    this.ambientLight = new THREE.AmbientLight(0xffeedd, 0.6);
+    // Warm Ambient Light
+    this.ambientLight = new THREE.AmbientLight(0xffeedd, 0.5);
     this.scene.add(this.ambientLight);
 
     // Torches registration
     this.torches = [];
 
-    // PS2 Texture Generator
+    // PS2 Texture Cache
     this.textures = this.generatePS2Textures();
 
     // Event Listeners
@@ -60,7 +56,6 @@ export class GameRenderer {
       return texture;
     };
 
-    // Stone Wall - brighter colors so it's visible
     const stoneWall = createTex((ctx, w, h) => {
       ctx.fillStyle = '#3a4258';
       ctx.fillRect(0, 0, w, h);
@@ -85,40 +80,25 @@ export class GameRenderer {
           ctx.stroke();
         }
       }
-      for (let i = 0; i < 200; i++) {
-        const x = Math.random() * w;
-        const y = Math.random() * h;
-        ctx.fillStyle = Math.random() > 0.5 ? '#4a5570' : '#2a3040';
-        ctx.fillRect(x, y, 2, 2);
-      }
     });
 
-    // Metal Floor
     const metalFloor = createTex((ctx, w, h) => {
       ctx.fillStyle = '#333c4e';
       ctx.fillRect(0, 0, w, h);
       ctx.strokeStyle = '#506080';
       ctx.lineWidth = 2;
       ctx.strokeRect(3, 3, w - 6, h - 6);
-      ctx.fillStyle = '#6a4530';
-      for (let i = 0; i < 30; i++) {
-        ctx.fillRect(Math.random() * w, Math.random() * h, 3, 3);
-      }
       ctx.fillStyle = '#7080a0';
       [[6,6], [w-6,6], [6,h-6], [w-6,h-6]].forEach(([cx, cy]) => {
         ctx.fillRect(cx - 2, cy - 2, 4, 4);
       });
     });
 
-    // Gate texture
     const gateMetal = createTex((ctx, w, h) => {
       ctx.fillStyle = '#181c28';
       ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = '#cc2244';
       ctx.fillRect(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
-      ctx.strokeStyle = '#661122';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
     });
 
     return { stoneWall, metalFloor, gateMetal };
@@ -140,10 +120,14 @@ export class GameRenderer {
   }
 
   updateTorches(time) {
-    this.torches.forEach((torch, idx) => {
-      const noise = Math.sin(time * 14 + idx * 3.7) * 0.5 + Math.cos(time * 23 + idx * 5.3) * 0.3;
-      torch.light.intensity = torch.baseIntensity + noise;
-    });
+    // Only animate a small subset of active torches to save CPU cycles
+    for (let i = 0; i < this.torches.length; i++) {
+      const torch = this.torches[i];
+      if (torch.light.visible) {
+        const noise = Math.sin(time * 12 + i * 2) * 0.4;
+        torch.light.intensity = torch.baseIntensity + noise;
+      }
+    }
   }
 
   onWindowResize() {

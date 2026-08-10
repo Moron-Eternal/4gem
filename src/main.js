@@ -67,7 +67,10 @@ class Game {
     this.hud = new HUDManager();
     this.minimap = new Minimap('minimap-canvas', this.dungeon);
 
-    // Initial HUD weapon status (starts with Revolver only)
+    // Pass active enemies reference to WeaponManager for 0ms raycasting
+    this.weapons.setActiveEnemiesRef(this.activeEnemies);
+
+    // Initial HUD weapon status
     this.weapons.updateUI();
 
     // Place Player in Start Room
@@ -126,6 +129,17 @@ class Game {
     this.activeRoom = room;
     room.visited = true;
 
+    // Light Culling Optimization: Only enable lights in active room & adjacent rooms
+    this.dungeon.roomsList.forEach(r => {
+      const dist = Math.hypot(r.gridX - room.gridX, r.gridZ - room.gridZ);
+      const isNearby = (dist <= 1.5);
+      r.group.traverse(child => {
+        if (child.isPointLight) {
+          child.visible = isNearby;
+        }
+      });
+    });
+
     if (!room.cleared) {
       room.setGatesLocked(true);
       sound.playDoorSlam();
@@ -142,7 +156,7 @@ class Game {
   }
 
   spawnRoomEnemies(room) {
-    const enemyCount = Math.floor(Math.random() * 3) + 3; // 3 to 5 enemies
+    const enemyCount = Math.floor(Math.random() * 3) + 3;
     const center = room.worldPos;
 
     for (let i = 0; i < enemyCount; i++) {
@@ -179,7 +193,6 @@ class Game {
           this.triggerVictory();
         } else {
           this.hud.showRoomBanner('ROOM CLEARED', 'GATES UNLOCKED');
-          // Spawn room reward pedestal
           const rewardData = ITEM_DATABASE[Math.floor(Math.random() * ITEM_DATABASE.length)];
           const iPed = new ItemPedestal(this.scene, this.activeRoom.worldPos, rewardData, this.player, this.hud);
           this.pedestals.push(iPed);
@@ -205,7 +218,7 @@ class Game {
   loop(currentTime) {
     if (this.state !== 'PLAYING') return;
 
-    const delta = Math.min(0.05, (currentTime - this.lastTime) / 1000.0);
+    const delta = Math.min(0.04, (currentTime - this.lastTime) / 1000.0);
     this.lastTime = currentTime;
 
     // Player Update
@@ -225,25 +238,36 @@ class Game {
     // Weapon Manager Update
     this.weapons.update(delta);
 
-    // Room & Pedestal Updates
-    this.dungeon.roomsList.forEach(r => r.update(currentTime / 1000.0));
+    // Update active room torches only
+    if (this.activeRoom) {
+      this.activeRoom.update(currentTime / 1000.0);
+    }
+
+    // Pedestals update
     let hasNearbyPedestal = false;
-    this.pedestals.forEach(p => {
-      p.update(currentTime / 1000.0, this.player.camera.position);
-      if (!p.collected && p.group.position.distanceTo(this.player.camera.position) < 2.5) {
-        hasNearbyPedestal = true;
+    for (let i = 0; i < this.pedestals.length; i++) {
+      const p = this.pedestals[i];
+      if (!p.collected) {
+        p.update(currentTime / 1000.0, this.player.camera.position);
+        if (p.group.position.distanceTo(this.player.camera.position) < 2.5) {
+          hasNearbyPedestal = true;
+        }
       }
-    });
+    }
     if (!hasNearbyPedestal) {
       this.hud.hideInteractionPrompt();
     }
 
-    // Active Enemies & Room Clearing Update
-    this.activeEnemies.forEach(e => e.update(delta, this.player.camera.position));
+    // Active Enemies Update
+    for (let i = 0; i < this.activeEnemies.length; i++) {
+      this.activeEnemies[i].update(delta, this.player.camera.position);
+    }
     this.checkRoomClearing();
 
     // Projectiles Update
-    this.projectiles.forEach(p => p.update(delta));
+    for (let i = 0; i < this.projectiles.length; i++) {
+      this.projectiles[i].update(delta);
+    }
     this.projectiles = this.projectiles.filter(p => !p.isDestroyed);
 
     // HUD & Dynamic Minimap Updates
@@ -252,7 +276,7 @@ class Game {
     this.hud.updateWeaponCooldowns(this.weapons.weapons);
     this.minimap.render(this.player.camera.position, this.activeRoom, this.player.yaw);
 
-    // Render Scene with PS2 Downsampled Pass
+    // Render Scene
     this.gameRenderer.render(currentTime / 1000.0);
 
     requestAnimationFrame((t) => this.loop(t));

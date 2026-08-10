@@ -18,18 +18,26 @@ export class WeaponManager {
     this.viewmodels = [];
     this.viewmodelGroup = new THREE.Group();
     this.camera.add(this.viewmodelGroup);
-    // CRITICAL: Camera must be in the scene for its children (guns) to render
     this.scene.add(this.camera);
 
     this.fireTimer = 0;
     this.recoil = 0;
 
+    // Raycaster scratchpad vector
+    this.raycaster = new THREE.Raycaster();
+    this.centerVec = new THREE.Vector2(0, 0);
+
+    this.activeEnemiesRef = []; // Reference to active enemies for fast raycasting
+
     this.buildWeaponModels();
     this.initEvents();
   }
 
+  setActiveEnemiesRef(enemiesList) {
+    this.activeEnemiesRef = enemiesList;
+  }
+
   buildWeaponModels() {
-    // Use MeshBasicMaterial so guns are ALWAYS visible regardless of lighting
     const gunMat = new THREE.MeshBasicMaterial({ color: 0x2a3040 });
     const darkMat = new THREE.MeshBasicMaterial({ color: 0x141820 });
     const cyanGlow = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
@@ -194,25 +202,27 @@ export class WeaponManager {
   }
 
   spawnRaycastShot(damage, spread = 0.0) {
-    const raycaster = new THREE.Raycaster();
-    const center = new THREE.Vector2(0, 0);
+    this.centerVec.set(0, 0);
     if (spread > 0) {
-      center.x += (Math.random() * 2 - 1) * spread;
-      center.y += (Math.random() * 2 - 1) * spread;
+      this.centerVec.x += (Math.random() * 2 - 1) * spread;
+      this.centerVec.y += (Math.random() * 2 - 1) * spread;
     }
-    raycaster.setFromCamera(center, this.camera);
-    const intersects = raycaster.intersectObjects(this.scene.children, true);
+    this.raycaster.setFromCamera(this.centerVec, this.camera);
 
-    for (const hit of intersects) {
-      if (hit.object.ancestorEnemy) {
-        hit.object.ancestorEnemy.takeDamage(damage);
-        sound.playHit();
-        this.showHitMarker();
-        break;
-      }
-      // Stop at walls/floors but skip viewmodel parts
-      if (hit.distance > 0.5 && hit.object.isMesh) {
-        break;
+    // Fast Raycast ONLY against active enemy target groups
+    const enemyTargetGroups = this.activeEnemiesRef
+      .filter(e => !e.isDead && e.group)
+      .map(e => e.group);
+
+    if (enemyTargetGroups.length > 0) {
+      const intersects = this.raycaster.intersectObjects(enemyTargetGroups, true);
+      for (const hit of intersects) {
+        if (hit.object.ancestorEnemy) {
+          hit.object.ancestorEnemy.takeDamage(damage);
+          sound.playHit();
+          this.showHitMarker();
+          break;
+        }
       }
     }
   }
