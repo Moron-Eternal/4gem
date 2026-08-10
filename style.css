@@ -15,6 +15,8 @@
   margin: 0;
   padding: 0;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
 html, body {
@@ -215,6 +217,8 @@ body::after {
   align-items: center;
   gap: 10px;
   width: 600px;
+  max-width: 92vw;
+  pointer-events: auto;
 }
 
 /* Status Panel (Health & Dash) */
@@ -308,6 +312,7 @@ body::after {
   align-items: center;
   gap: 2px;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .weapon-slot.active {
@@ -429,6 +434,7 @@ body::after {
 
 .screen-box {
   width: 480px;
+  max-width: 90vw;
   background: #0d101a;
   border: 2px solid var(--panel-border);
   padding: 36px;
@@ -502,3 +508,157 @@ body::after {
 
 .text-gold { color: var(--accent-gold); text-shadow: 0 0 10px rgba(255, 183, 0, 0.5); }
 .text-red { color: var(--accent-red); text-shadow: 0 0 10px rgba(255, 42, 75, 0.5); }
+
+/* MOBILE TOUCH CONTROLS STYLES */
+#touch-controls {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 15;
+}
+
+#touch-joystick-zone {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 45vw;
+  height: 60vh;
+  pointer-events: auto;
+}
+
+#joystick-base {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  margin-left: -50px;
+  margin-top: -50px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.12);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+  pointer-events: none;
+}
+
+#joystick-stick {
+  position: absolute;
+  top: 25px;
+  left: 25px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 14px var(--accent-cyan);
+}
+
+#touch-look-zone {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 55vw;
+  height: 70vh;
+  pointer-events: auto;
+}
+
+#touch-action-buttons {
+  position: absolute;
+  bottom: 120px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.touch-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2px solid var(--panel-border);
+  background: rgba(12, 16, 26, 0.9);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  touch-action: manipulation;
+  transition: transform 0.1s ease;
+}
+
+.touch-btn:active, .touch-btn.active {
+  transform: scale(0.9);
+}
+
+.fire-btn {
+  width: 72px;
+  height: 72px;
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+  box-shadow: 0 0 18px rgba(255, 42, 75, 0.4);
+  font-size: 13px;
+}
+
+.alt-btn {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.jump-btn {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.dash-btn {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.interact-btn {
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+/* RESPONSIVE LAYOUT FOR MOBILE / SMALL SCREENS */
+@media (max-width: 900px) {
+  #minimap-container {
+    width: 130px;
+    padding: 6px;
+    top: 10px;
+    right: 10px;
+  }
+
+  #minimap-canvas {
+    width: 115px;
+    height: 115px;
+  }
+
+  #items-container {
+    width: 140px;
+    top: 10px;
+    left: 10px;
+    padding: 6px;
+  }
+
+  #bottom-hud {
+    width: 95vw;
+    bottom: 10px;
+  }
+
+  #weapons-bar .weapon-slot {
+    padding: 4px;
+  }
+
+  .weapon-slot .name {
+    font-size: 10px;
+  }
+
+  .weapon-slot .num {
+    font-size: 8px;
+  }
+}

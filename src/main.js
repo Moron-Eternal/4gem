@@ -12,6 +12,7 @@ import { MaliciousSkull } from './entities/enemies/skull.js';
 import { MaliciousTitanBoss } from './entities/enemies/boss.js';
 import { Minimap } from './ui/minimap.js';
 import { HUDManager } from './ui/hud.js';
+import { TouchControls } from './ui/touchControls.js';
 
 class Game {
   constructor() {
@@ -25,7 +26,7 @@ class Game {
 
     this.state = 'START';
     this.lastTime = performance.now();
-    this.animFrameId = null; // Track RAF ID so we can cancel on restart
+    this.animFrameId = null;
 
     this.projectiles = [];
     this.activeRoom = null;
@@ -49,59 +50,49 @@ class Game {
   }
 
   cleanup() {
-    // Cancel any running animation frame
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
     }
 
-    // Cleanup player event listeners
     if (this.player) {
       this.player.dispose();
     }
 
-    // Cleanup weapon manager event listeners
     if (this.weapons) {
       this.weapons.dispose();
     }
 
-    // Dispose old renderer
     if (this.gameRenderer) {
       this.gameRenderer.dispose();
     }
 
-    // Clear projectiles from scene
     this.projectiles.forEach(p => {
       if (!p.isDestroyed) p.destroy();
     });
 
-    // Clear enemies from scene
     this.activeEnemies.forEach(e => {
       if (!e.isDead) {
         this.scene && this.scene.remove(e.group);
       }
     });
 
-    // Clear pedestals from scene
     this.pedestals.forEach(p => {
       if (!p.collected) {
         this.scene && this.scene.remove(p.group);
       }
     });
 
-    // Empty arrays in-place
     this.projectiles.length = 0;
     this.activeEnemies.length = 0;
     this.pedestals.length = 0;
   }
 
   startGame() {
-    // CLEAN UP previous game state completely
     this.cleanup();
 
     sound.init();
 
-    // Reset Containers
     this.container.innerHTML = '';
 
     // Core Systems
@@ -114,11 +105,9 @@ class Game {
     this.weapons = new WeaponManager(this.camera, this.scene, this.player);
     this.hud = new HUDManager();
     this.minimap = new Minimap('minimap-canvas', this.dungeon);
+    this.touchControls = new TouchControls(this.player, this.weapons);
 
-    // Pass stable projectiles array reference + dynamic enemies getter
     this.weapons.setGetActiveEnemiesFn(() => this.activeEnemies);
-
-    // Initial HUD weapon status
     this.weapons.updateUI();
 
     // Place Player in Start Room
@@ -135,7 +124,6 @@ class Game {
       { slot: 3, name: 'RAILCANNON' }
     ];
 
-    // Shuffle items so different runs get different item layouts
     const shuffledItems = [...ITEM_DATABASE].sort(() => Math.random() - 0.5);
     let itemIdx = 0;
 
@@ -152,8 +140,10 @@ class Game {
       }
     });
 
-    // Request Pointer Lock
-    document.body.requestPointerLock();
+    // Request Pointer Lock (for desktop mouse)
+    if (!this.touchControls.enabled) {
+      document.body.requestPointerLock();
+    }
 
     // UI state
     this.startScreen.classList.add('hidden');
@@ -170,14 +160,18 @@ class Game {
 
   pauseGame() {
     this.state = 'PAUSED';
-    document.exitPointerLock();
+    if (!this.touchControls?.enabled) {
+      document.exitPointerLock();
+    }
     this.pauseScreen.classList.remove('hidden');
   }
 
   resumeGame() {
     this.state = 'PLAYING';
     this.pauseScreen.classList.add('hidden');
-    document.body.requestPointerLock();
+    if (!this.touchControls?.enabled) {
+      document.body.requestPointerLock();
+    }
     this.lastTime = performance.now();
     this.animFrameId = requestAnimationFrame((t) => this.loop(t));
   }
@@ -228,7 +222,6 @@ class Game {
 
   checkRoomClearing() {
     if (this.activeRoom && !this.activeRoom.cleared && this.activeEnemies.length > 0) {
-      // In-place removal to keep array reference stable
       for (let i = this.activeEnemies.length - 1; i >= 0; i--) {
         if (this.activeEnemies[i].isDead) {
           this.activeEnemies.splice(i, 1);
@@ -244,7 +237,6 @@ class Game {
           this.triggerVictory();
         } else {
           this.hud.showRoomBanner('ROOM CLEARED', 'GATES UNLOCKED');
-          // Give a random unique reward item
           const unusedItems = ITEM_DATABASE.filter(item => {
             return !this.hud.collectedItems.some(ci => ci.id === item.id);
           });
@@ -260,14 +252,14 @@ class Game {
 
   triggerVictory() {
     this.state = 'VICTORY';
-    document.exitPointerLock();
+    if (!this.touchControls?.enabled) document.exitPointerLock();
     this.victoryScreen.classList.remove('hidden');
     this.hudOverlay.classList.add('hidden');
   }
 
   triggerGameOver() {
     this.state = 'GAMEOVER';
-    document.exitPointerLock();
+    if (!this.touchControls?.enabled) document.exitPointerLock();
     this.gameoverScreen.classList.remove('hidden');
     this.hudOverlay.classList.add('hidden');
   }
@@ -284,7 +276,7 @@ class Game {
       this.onRoomEntered(currentRoom);
     }
 
-    // Player Update with wall collision
+    // Player Update
     this.player.update(delta, this.activeRoom);
 
     if (this.player.isDead) {
@@ -292,7 +284,7 @@ class Game {
       return;
     }
 
-    // Weapon Manager Update (handles auto-fire)
+    // Weapon Manager Update
     this.weapons.update(delta);
 
     // Update active room torches only
@@ -321,7 +313,7 @@ class Game {
     }
     this.checkRoomClearing();
 
-    // Projectiles Update (in-place removal)
+    // Projectiles Update
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       this.projectiles[i].update(delta);
       if (this.projectiles[i].isDestroyed) {

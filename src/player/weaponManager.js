@@ -59,6 +59,19 @@ export class WeaponManager {
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('wheel', this._onWheel);
     window.addEventListener('contextmenu', this._onContextMenu);
+
+    // Tap weapon slots to switch (Mobile friendly)
+    const slots = document.querySelectorAll('.weapon-slot');
+    slots.forEach((s, idx) => {
+      s.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.weapons[idx].unlocked) this.selectWeapon(idx);
+      });
+      s.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        if (this.weapons[idx].unlocked) this.selectWeapon(idx);
+      }, { passive: true });
+    });
   }
 
   dispose() {

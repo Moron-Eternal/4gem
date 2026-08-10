@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ULTRA-DUNGEON // PS2 Roguelike FPS</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -87,6 +87,28 @@
       </div>
     </div>
 
+    <!-- Mobile Touch Controls -->
+    <div id="touch-controls" class="hidden">
+      <!-- Left Movement Joystick Zone -->
+      <div id="touch-joystick-zone">
+        <div id="joystick-base" class="hidden">
+          <div id="joystick-stick"></div>
+        </div>
+      </div>
+
+      <!-- Right Camera Look Zone -->
+      <div id="touch-look-zone"></div>
+
+      <!-- Right Action Buttons -->
+      <div id="touch-action-buttons">
+        <button id="btn-touch-fire" class="touch-btn fire-btn">FIRE</button>
+        <button id="btn-touch-alt" class="touch-btn alt-btn">ALT</button>
+        <button id="btn-touch-jump" class="touch-btn jump-btn">JUMP</button>
+        <button id="btn-touch-dash" class="touch-btn dash-btn">DASH</button>
+        <button id="btn-touch-interact" class="touch-btn interact-btn">E</button>
+      </div>
+    </div>
+
     <!-- Crosshair & Visual Feedback -->
     <div id="crosshair"></div>
     <div id="hit-marker"></div>
@@ -104,13 +126,13 @@
       <p class="subtitle">PS2 ROGUELIKE FPS DEMO</p>
       
       <div class="controls-guide">
-        <div class="control-row"><span>WASD</span> Move</div>
-        <div class="control-row"><span>SHIFT</span> Dash / Slide</div>
-        <div class="control-row"><span>SPACE</span> Jump</div>
-        <div class="control-row"><span>E</span> Pickup Weapon / Item</div>
-        <div class="control-row"><span>LEFT CLICK</span> Fire Primary</div>
-        <div class="control-row"><span>RIGHT CLICK</span> Alt Fire</div>
-        <div class="control-row"><span>1 - 4 / WHEEL</span> Switch Weapon</div>
+        <div class="control-row"><span>WASD / TOUCH JOYSTICK</span> Move</div>
+        <div class="control-row"><span>SHIFT / DASH BTN</span> Dash / Slide</div>
+        <div class="control-row"><span>SPACE / JUMP BTN</span> Jump</div>
+        <div class="control-row"><span>E / INTERACT BTN</span> Pickup Weapon / Item</div>
+        <div class="control-row"><span>LEFT CLICK / FIRE BTN</span> Fire Primary</div>
+        <div class="control-row"><span>RIGHT CLICK / ALT BTN</span> Alt Fire</div>
+        <div class="control-row"><span>1 - 4 / TAP GUNS</span> Switch Weapon</div>
       </div>
 
       <button id="btn-start" class="btn-ps2">INITIALIZE DESCENT</button>
