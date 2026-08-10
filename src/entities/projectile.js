@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as THREE from '../vendor/three.module.js';
 
 export class EnemyProjectile {
   constructor(scene, startPos, direction, damage, player, speed = 16.0) {

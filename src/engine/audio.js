@@ -22,7 +22,10 @@ class SoundEngine {
 
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      try {
+        const p = this.ctx.resume();
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) {}
     }
   }
 
