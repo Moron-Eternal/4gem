@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { CreatureInstance, GoalCheckpoint, SimulationConfig } from '../types/creature';
 import { getTerrain } from '../physics/VerletEngine';
-import { Eye, Crosshair, ZoomIn, ZoomOut, Flag, AlertOctagon } from 'lucide-react';
+import { Eye, Crosshair, ZoomIn, ZoomOut, Flag, AlertOctagon, Compass } from 'lucide-react';
 
 interface SimulationViewportProps {
   population: CreatureInstance[];
@@ -407,6 +407,15 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
     cameraRef.current.zoom = Math.max(0.3, Math.min(2.0, cameraRef.current.zoom * zoomDelta));
   };
 
+  const leaderCreature = population.find(c => c.isLeader) || population[0];
+  const leaderMeters = leaderCreature ? Math.max(0, leaderCreature.currentDistance / 100) : 0;
+  
+  const maxCheckpointDistance = config.checkpoints.length > 0
+    ? Math.max(...config.checkpoints.map(cp => cp.distanceMeters))
+    : 50;
+  
+  const minimapMaxMeters = Math.max(80, Math.ceil((Math.max(leaderMeters + 15, maxCheckpointDistance + 10)) / 20) * 20);
+
   return (
     <div className="relative w-full h-full bg-[#080c16] overflow-hidden">
       <canvas
@@ -419,6 +428,95 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
         onWheel={handleWheel}
         className="w-full h-full cursor-grab active:cursor-grabbing select-none"
       />
+
+      {/* Course Minimap Radar */}
+      <div className="absolute top-4 left-72 right-80 max-w-xl mx-auto bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl px-4 py-2 shadow-2xl flex flex-col gap-1.5 pointer-events-auto z-10">
+        <div className="flex justify-between items-center text-[10px] font-mono text-slate-400">
+          <span className="flex items-center gap-1.5 font-bold text-slate-200">
+            <Compass size={13} className="text-cyan-400" />
+            COURSE TRACKER
+          </span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-amber-400 font-bold flex items-center gap-1">
+              👑 {leaderMeters.toFixed(1)}m
+            </span>
+            <span className="text-slate-500">Track: {minimapMaxMeters}m</span>
+          </div>
+        </div>
+
+        {/* Track Line with Gates and Creature Dots */}
+        <div className="relative w-full h-3 bg-slate-950/90 rounded-full border border-slate-800 overflow-visible flex items-center px-1">
+          {/* Subtle grid ticks every 25% */}
+          <div className="absolute inset-0 flex justify-between px-2 items-center pointer-events-none opacity-20">
+            <span className="w-px h-2 bg-slate-400" />
+            <span className="w-px h-2 bg-slate-400" />
+            <span className="w-px h-2 bg-slate-400" />
+            <span className="w-px h-2 bg-slate-400" />
+          </div>
+
+          {/* Checkpoint Gate Markers */}
+          {config.checkpoints.map((cp) => {
+            const leftPct = Math.min(100, Math.max(0, (cp.distanceMeters / minimapMaxMeters) * 100));
+            const isExpired = simTime > cp.allottedTime;
+            return (
+              <div
+                key={cp.id}
+                className="absolute -top-3.5 -translate-x-1/2 flex flex-col items-center pointer-events-none z-10"
+                style={{ left: `${leftPct}%` }}
+              >
+                <div className={`px-1 py-0.5 rounded shadow-sm flex items-center gap-0.5 text-[8px] font-mono font-bold ${
+                  isExpired 
+                    ? 'bg-rose-950/90 text-rose-300 border border-rose-700/60' 
+                    : 'bg-amber-950/90 text-amber-300 border border-amber-600/60'
+                }`}>
+                  <Flag size={8} className={isExpired ? 'text-rose-400' : 'text-amber-400'} />
+                  <span>{cp.distanceMeters}m</span>
+                </div>
+                <div className={`w-0.5 h-4.5 ${isExpired ? 'bg-rose-500/40' : 'bg-amber-400/60'}`} />
+              </div>
+            );
+          })}
+
+          {/* Creature Position Dots */}
+          {population.map((c) => {
+            if (c.eliminated) return null;
+            const distM = Math.max(0, c.currentDistance / 100);
+            const leftPct = Math.min(98, Math.max(2, (distM / minimapMaxMeters) * 100));
+
+            if (c.isLeader) {
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => onSelectCreature(c.id)}
+                  title={`Leader #${c.id}: ${distM.toFixed(1)}m`}
+                  className="absolute -top-0.5 -translate-x-1/2 w-4 h-4 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 ring-2 ring-amber-300 ring-offset-1 ring-offset-slate-950 shadow-lg shadow-amber-500/60 z-20 flex items-center justify-center cursor-pointer transition-transform hover:scale-125"
+                  style={{ left: `${leftPct}%` }}
+                >
+                  <span className="text-[7px] font-black text-slate-950">★</span>
+                </div>
+              );
+            }
+
+            const isSelected = selectedCreatureId === c.id;
+            return (
+              <div
+                key={c.id}
+                onClick={() => onSelectCreature(c.id)}
+                title={`Creature #${c.id}: ${distM.toFixed(1)}m`}
+                className={`absolute -translate-x-1/2 rounded-full cursor-pointer transition-all hover:scale-150 z-10 ${
+                  isSelected 
+                    ? 'w-3 h-3 ring-2 ring-cyan-200 ring-offset-1 ring-offset-slate-950' 
+                    : 'w-2 h-2 hover:brightness-125'
+                }`}
+                style={{ 
+                  left: `${leftPct}%`,
+                  backgroundColor: isSelected ? '#38bdf8' : (c.color || '#94a3b8')
+                }}
+              />
+            );
+          })}
+        </div>
+      </div>
 
       {/* Floating Camera Mode Buttons */}
       <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 flex items-center gap-1 shadow-xl">

@@ -10,13 +10,16 @@ import { BrainVisualizer } from './components/BrainVisualizer';
 import { GenerationGraph } from './components/GenerationGraph';
 import { Leaderboard } from './components/Leaderboard';
 
+import { sounds } from './utils/sound';
+
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'workshop' | 'arena'>('workshop');
   const [blueprint, setBlueprint] = useState<CreatureBlueprint>(PRESET_CREATURES[0]);
 
   const [config, setConfig] = useState<SimulationConfig>({
     populationSize: 20,
-    generationDuration: 16,
+    generationDuration: 30,
+    autoSyncCheckpointTime: true,
     simSpeed: 1,
     gravity: 850,
     groundFriction: 0.95,
@@ -27,15 +30,24 @@ export const App: React.FC = () => {
     ghostMode: true,
     followMode: 'leader',
     checkpoints: [
-      { id: 'cp_1', distanceMeters: 20, allottedTime: 7 },
-      { id: 'cp_2', distanceMeters: 45, allottedTime: 14 },
+      { id: 'cp_1', distanceMeters: 20, allottedTime: 8 },
+      { id: 'cp_2', distanceMeters: 50, allottedTime: 18 },
     ],
     minSpeedThreshold: 0.4, // m/s
+    soundEnabled: true,
   });
+
+  const maxCheckpointTime = config.checkpoints.length > 0
+    ? Math.max(...config.checkpoints.map(cp => cp.allottedTime))
+    : 0;
+
+  const effectiveDuration = (config.autoSyncCheckpointTime !== false && maxCheckpointTime > 0)
+    ? Math.max(config.generationDuration, maxCheckpointTime + 3)
+    : config.generationDuration;
 
   const [isRunning, setIsRunning] = useState<boolean>(true);
   const [generation, setGeneration] = useState<number>(1);
-  const [timeRemaining, setTimeRemaining] = useState<number>(config.generationDuration);
+  const [timeRemaining, setTimeRemaining] = useState<number>(effectiveDuration);
   const [population, setPopulation] = useState<CreatureInstance[]>([]);
   const [selectedCreatureId, setSelectedCreatureId] = useState<number | null>(null);
   const [history, setHistory] = useState<GenerationRecord[]>([]);
@@ -49,19 +61,20 @@ export const App: React.FC = () => {
     physicsWorldRef.current.terrainType = config.terrainType;
     physicsWorldRef.current.groundFriction = config.groundFriction;
     physicsWorldRef.current.gravity = config.gravity;
-  }, [config.terrainType, config.groundFriction, config.gravity]);
+    sounds.enabled = config.soundEnabled !== false;
+  }, [config.terrainType, config.groundFriction, config.gravity, config.soundEnabled]);
 
   const initPopulation = useCallback((bp: CreatureBlueprint, popSize: number) => {
     evoManagerRef.current.reset();
     const newPop = evoManagerRef.current.createPopulation(bp, popSize);
     setPopulation(newPop);
     setGeneration(1);
-    setTimeRemaining(config.generationDuration);
+    setTimeRemaining(effectiveDuration);
     setHistory([]);
     setSelectedCreatureId(null);
     simTimeRef.current = 0;
     setSimTime(0);
-  }, [config.generationDuration]);
+  }, [effectiveDuration]);
 
   useEffect(() => {
     initPopulation(blueprint, config.populationSize);
@@ -75,14 +88,15 @@ export const App: React.FC = () => {
   };
 
   const triggerEvolution = useCallback(() => {
+    sounds.playNewGeneration();
     const nextPop = evoManagerRef.current.evolve(population, blueprint, config);
     setPopulation(nextPop);
     setGeneration(evoManagerRef.current.generation);
     setHistory([...evoManagerRef.current.history]);
-    setTimeRemaining(config.generationDuration);
+    setTimeRemaining(effectiveDuration);
     simTimeRef.current = 0;
     setSimTime(0);
-  }, [population, blueprint, config]);
+  }, [population, blueprint, config, effectiveDuration]);
 
   const handleSkipGeneration = useCallback(() => {
     const fixedDt = 1 / 60;
@@ -123,13 +137,20 @@ export const App: React.FC = () => {
         simTimeRef.current += stepDt;
 
         for (let i = 0; i < population.length; i++) {
+          const c = population[i];
+          const prevCpCount = c.checkpointsReached.length;
+
           physicsWorldRef.current.updateCreature(
-            population[i], 
+            c, 
             stepDt, 
             simTimeRef.current,
             config.checkpoints,
             config.minSpeedThreshold
           );
+
+          if (c.checkpointsReached.length > prevCpCount) {
+            sounds.playCheckpointPassed();
+          }
         }
 
         // Rank and crown leader
@@ -153,7 +174,7 @@ export const App: React.FC = () => {
         const next = prev - timerDec;
         if (next <= 0) {
           triggerEvolution();
-          return config.generationDuration;
+          return effectiveDuration;
         }
         return next;
       });
@@ -163,7 +184,7 @@ export const App: React.FC = () => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [currentTab, isRunning, population, config.simSpeed, config.generationDuration, config.checkpoints, config.minSpeedThreshold, triggerEvolution]);
+  }, [currentTab, isRunning, population, config.simSpeed, config.checkpoints, config.minSpeedThreshold, effectiveDuration, triggerEvolution]);
 
   const leaderCreature = population.find(c => c.isLeader) || population[0] || null;
   const focusedCreature = selectedCreatureId 

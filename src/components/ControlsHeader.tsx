@@ -14,7 +14,10 @@ import {
   Trash2,
   Zap,
   Clock,
-  Gauge
+  Gauge,
+  Volume2,
+  VolumeX,
+  Check
 } from 'lucide-react';
 import { GoalCheckpoint, SimulationConfig, TerrainType } from '../types/creature';
 
@@ -49,10 +52,19 @@ export const ControlsHeader: React.FC<ControlsHeaderProps> = ({
   onResetEvolution,
 }) => {
   const [showCheckpointModal, setShowCheckpointModal] = useState<boolean>(false);
+  const [showTimerModal, setShowTimerModal] = useState<boolean>(false);
   const [newCpDist, setNewCpDist] = useState<number>(25);
   const [newCpTime, setNewCpTime] = useState<number>(8);
 
-  const progressPercent = Math.max(0, Math.min(100, ((config.generationDuration - timeRemaining) / config.generationDuration) * 100));
+  const maxCheckpointTime = config.checkpoints.length > 0
+    ? Math.max(...config.checkpoints.map(cp => cp.allottedTime))
+    : 0;
+  const isAutoSynced = config.autoSyncCheckpointTime !== false && maxCheckpointTime > 0;
+  const currentEffectiveDuration = isAutoSynced
+    ? Math.max(config.generationDuration, maxCheckpointTime + 3)
+    : config.generationDuration;
+
+  const progressPercent = Math.max(0, Math.min(100, ((currentEffectiveDuration - timeRemaining) / currentEffectiveDuration) * 100));
 
   const addCheckpoint = () => {
     if (newCpDist <= 0 || newCpTime <= 0) return;
@@ -151,18 +163,95 @@ export const ControlsHeader: React.FC<ControlsHeaderProps> = ({
       {/* Arena Simulation Controls */}
       {currentTab === 'arena' && (
         <div className="flex items-center gap-3.5">
-          {/* Generation & Timer Bar */}
-          <div className="flex flex-col gap-1 w-44 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
-            <div className="flex justify-between items-center text-xs font-mono">
-              <span className="text-cyan-400 font-bold">Gen #{generation}</span>
-              <span className="text-slate-400 text-[11px]">{timeRemaining.toFixed(1)}s</span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-100 ease-linear"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+          {/* Generation & Timer Bar with Settings Popover */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowTimerModal(!showTimerModal); setShowCheckpointModal(false); }}
+              title="Click to adjust Generation Duration and Auto-Sync"
+              className="flex flex-col gap-1 w-48 bg-slate-900/90 hover:bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-800 text-left transition group cursor-pointer"
+            >
+              <div className="flex justify-between items-center text-xs font-mono">
+                <span className="text-cyan-400 font-bold flex items-center gap-1">
+                  Gen #{generation}
+                  <Clock size={11} className="text-slate-500 group-hover:text-cyan-400 transition" />
+                </span>
+                <span className="text-slate-300 font-semibold text-[11px]">
+                  {timeRemaining.toFixed(1)}s <span className="text-slate-500 font-normal">/ {currentEffectiveDuration}s</span>
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-100 ease-linear"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </button>
+
+            {/* Timer Popover */}
+            {showTimerModal && (
+              <div className="absolute left-0 top-12 w-72 bg-[#0e1422] border border-slate-700 rounded-xl p-4 shadow-2xl z-50 flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                    <Clock size={14} /> Generation Timer Settings
+                  </span>
+                  <button onClick={() => setShowTimerModal(false)} className="text-slate-400 hover:text-slate-200 text-xs">
+                    ✕
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-slate-400">Duration:</span>
+                    <span className="text-cyan-400 font-bold">{config.generationDuration}s</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="60"
+                    step="5"
+                    value={config.generationDuration}
+                    onChange={(e) => onChangeConfig({ ...config, generationDuration: parseInt(e.target.value) })}
+                    className="w-full accent-cyan-500 cursor-pointer"
+                  />
+                  <div className="flex justify-between gap-1">
+                    {[15, 25, 30, 45, 60].map(sec => (
+                      <button
+                        key={sec}
+                        onClick={() => onChangeConfig({ ...config, generationDuration: sec })}
+                        className={`flex-1 py-1 text-[10px] font-mono rounded border transition ${
+                          config.generationDuration === sec
+                            ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 font-bold'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        {sec}s
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Auto-sync with checkpoints toggle */}
+                <div className="border-t border-slate-800 pt-2.5 flex flex-col gap-1.5">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="text-xs text-slate-300 font-medium">Auto-Sync with Gates</span>
+                    <input
+                      type="checkbox"
+                      checked={config.autoSyncCheckpointTime !== false}
+                      onChange={(e) => onChangeConfig({ ...config, autoSyncCheckpointTime: e.target.checked })}
+                      className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                    />
+                  </label>
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    Automatically extends the generation timer so creatures have time to reach all active checkpoint gates before advancing.
+                  </p>
+                  {isAutoSynced && (
+                    <div className="bg-amber-950/40 border border-amber-800/40 rounded-lg px-2 py-1 text-[10px] font-mono text-amber-300">
+                      ⚡ Active Duration: {currentEffectiveDuration}s (max gate: {maxCheckpointTime}s + 3s buffer)
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Timed Checkpoints Button */}
@@ -287,6 +376,24 @@ export const ControlsHeader: React.FC<ControlsHeaderProps> = ({
                   />
                   <span className="text-[9px] text-slate-500">Creatures failing to reach this speed after 3s are culled.</span>
                 </div>
+
+                {/* Auto-Sync with Gates */}
+                <div className="border-t border-slate-800 pt-2 flex flex-col gap-1">
+                  <label className="flex items-center justify-between cursor-pointer text-xs">
+                    <span className="text-slate-300 font-medium flex items-center gap-1">
+                      <Clock size={12} className="text-amber-400" /> Auto-Sync Gen Timer
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={config.autoSyncCheckpointTime !== false}
+                      onChange={(e) => onChangeConfig({ ...config, autoSyncCheckpointTime: e.target.checked })}
+                      className="w-3.5 h-3.5 accent-amber-500 rounded cursor-pointer"
+                    />
+                  </label>
+                  <span className="text-[9px] text-slate-500">
+                    Auto-extends generation to {currentEffectiveDuration}s so creatures can complete all gates.
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -374,13 +481,26 @@ export const ControlsHeader: React.FC<ControlsHeaderProps> = ({
           <button
             onClick={() => onChangeConfig({ ...config, ghostMode: !config.ghostMode })}
             title={`Ghost Mode: ${config.ghostMode ? 'ON' : 'OFF'}`}
-            className={`p-2 rounded-xl border transition ${
+            className={`p-2 rounded-xl border transition cursor-pointer ${
               config.ghostMode
                 ? 'bg-purple-950/40 text-purple-300 border-purple-800/40'
                 : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
             }`}
           >
             <Ghost size={16} />
+          </button>
+
+          {/* Sound Effects Toggle */}
+          <button
+            onClick={() => onChangeConfig({ ...config, soundEnabled: config.soundEnabled === false ? true : false })}
+            title={`Sound Effects: ${config.soundEnabled !== false ? 'ON' : 'MUTED'}`}
+            className={`p-2 rounded-xl border transition cursor-pointer ${
+              config.soundEnabled !== false
+                ? 'bg-cyan-950/40 text-cyan-300 border-cyan-800/40 hover:bg-cyan-900/40'
+                : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-slate-300'
+            }`}
+          >
+            {config.soundEnabled !== false ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
         </div>
       )}

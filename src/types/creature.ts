@@ -47,13 +47,14 @@ export interface JointLimitDef {
 
 export interface GoalCheckpoint {
   id: string;
-  distanceMeters: number; // in meters (100px = 1m)
-  allottedTime: number;   // seconds allowed from start of generation to cross gate
+  distanceMeters: number;
+  allottedTime: number;
 }
 
 export interface CreatureBlueprint {
   id: string;
   name: string;
+  category?: string;
   nodes: NodeDef[];
   bones: BoneDef[];
   muscles: MuscleDef[];
@@ -128,12 +129,11 @@ export interface CreatureInstance {
   startX: number;
   currentDistance: number;
   maxDistance: number;
-  averageSpeed: number; // in m/s
-  stabilityScore: number; // 0 to 1
+  averageSpeed: number;
+  stabilityScore: number;
   fitness: number;
   rank: number;
   isLeader: boolean;
-  // Biomechanical diagnostics & slowness culling
   timeAirborne: number;
   isFlyingDisqualified: boolean;
   isUpsideDown: boolean;
@@ -150,7 +150,8 @@ export type TerrainType = 'flat' | 'hills' | 'hurdles' | 'stairs';
 
 export interface SimulationConfig {
   populationSize: number;
-  generationDuration: number;
+  generationDuration: number; // 10 to 60 seconds
+  autoSyncCheckpointTime: boolean; // automatically extend generation duration to match longest checkpoint
   simSpeed: number;
   gravity: number;
   groundFriction: number;
@@ -160,9 +161,9 @@ export interface SimulationConfig {
   terrainType: TerrainType;
   ghostMode: boolean;
   followMode: 'leader' | 'free' | 'selected';
-  // Checkpoint & Slowness config
   checkpoints: GoalCheckpoint[];
-  minSpeedThreshold: number; // in m/s (e.g. 0.4 m/s)
+  minSpeedThreshold: number;
+  soundEnabled: boolean;
 }
 
 export interface GenerationRecord {

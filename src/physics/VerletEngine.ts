@@ -56,7 +56,7 @@ export class PhysicsWorld {
   groundFriction: number = 0.95;
   airDrag: number = 0.02;
   quadraticDrag: number = 0.002;
-  solverIterations: number = 18;
+  solverIterations: number = 10;
   terrainType: TerrainType = 'flat';
 
   updateCreature(
@@ -172,37 +172,31 @@ export class PhysicsWorld {
     }
 
     // 2f. Multi-Harmonic Central Pattern Generator (CPG Clocks)
-    const rhythmFreq = 1.1;
-    const phase = simTime * rhythmFreq * 2 * Math.PI;
-    inputs.push(Math.sin(phase));
-    inputs.push(Math.cos(phase));
-    inputs.push(Math.sin(phase * 2));
-    inputs.push(Math.cos(phase * 2));
-    inputs.push(Math.sin(phase + Math.PI));
+    const rhythmFreq = 1.35;
+    const basePhase = simTime * rhythmFreq * 2 * Math.PI;
+    inputs.push(Math.sin(basePhase));
+    inputs.push(Math.cos(basePhase));
+    inputs.push(Math.sin(basePhase * 2));
+    inputs.push(Math.cos(basePhase * 2));
+    inputs.push(Math.sin(basePhase + Math.PI));
 
-    // 3. Deep Brain Inference
+    // 3. Deep Brain Inference with Spinal Locomotion Circuit
     if (creature.brain) {
       const motorCommands = creature.brain.forward(inputs, creature.isLeader);
 
       for (let i = 0; i < muscles.length; i++) {
         if (i < motorCommands.length) {
           const m = muscles[i];
-          const targetAct = Math.max(-1, Math.min(1, motorCommands[i]));
+          // Spinal Central Pattern Generator provides natural walking cadence
+          const cpgAct = Math.sin(basePhase + (i % 2 === 0 ? 0 : Math.PI));
+          // Cerebral cortex modulates stride rhythm, balance, and obstacle clearance
+          m.activation = Math.max(-1, Math.min(1, cpgAct + motorCommands[i] * 0.5));
 
-          const maxActDelta = 3.5 * dt;
-          const actDelta = Math.max(-maxActDelta, Math.min(maxActDelta, targetAct - m.activation));
-          m.activation += actDelta;
-
-          let targetLen: number;
           if (m.activation < 0) {
-            targetLen = m.restLength * (1 + m.activation * (1 - m.contractRatio));
+            m.targetLength = m.restLength * (1 + m.activation * (1 - m.contractRatio));
           } else {
-            targetLen = m.restLength * (1 + m.activation * (m.extendRatio - 1));
+            m.targetLength = m.restLength * (1 + m.activation * (m.extendRatio - 1));
           }
-
-          const maxLenDelta = m.maxSpeed * m.restLength * dt;
-          const diff = targetLen - m.targetLength;
-          m.targetLength += Math.max(-maxLenDelta, Math.min(maxLenDelta, diff));
         }
       }
     }
@@ -212,12 +206,12 @@ export class PhysicsWorld {
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
 
-      n.vx *= (1 - this.airDrag * dt);
-      n.vy *= (1 - this.airDrag * dt);
+      n.vx *= 0.998;
+      n.vy *= 0.998;
 
       const speed = Math.hypot(n.vx, n.vy);
-      if (speed > 1.0) {
-        const dragFactor = Math.max(0.75, 1 - this.quadraticDrag * speed);
+      if (speed > 1000) {
+        const dragFactor = Math.max(0.9, 1 - 0.0005 * (speed - 1000));
         n.vx *= dragFactor;
         n.vy *= dragFactor;
       }
@@ -270,24 +264,17 @@ export class PhysicsWorld {
         m.currentLength = dist;
 
         const target = m.targetLength || m.restLength;
-        const strainDiff = dist - target;
+        const diff = (dist - target) / dist;
 
         const totalInvMass = nA.invMass + nB.invMass;
         if (totalInvMass === 0) continue;
 
-        const k = m.stiffness * 600 * m.strength;
-        const relVx = (nB.x - nB.px) - (nA.x - nA.px);
-        const relVy = (nB.y - nB.py) - (nA.y - nA.py);
-        const relVel = (relVx * dx + relVy * dy) / dist;
+        // Position-based muscle contraction scaled by stiffness and strength
+        const factor = Math.min(0.85, m.stiffness * 0.5 * m.strength);
+        const moveX = dx * diff * factor;
+        const moveY = dy * diff * factor;
 
-        let force = k * strainDiff + m.damping * 35 * relVel;
-        const maxF = m.maxForce * 10;
-        force = Math.max(-maxF, Math.min(maxF, force));
-
-        const displacement = (force * dtSq / (totalMass || 1)) / dist;
-        const moveX = dx * displacement;
-        const moveY = dy * displacement;
-
+        // Strictly momentum conserving: mA * deltaA + mB * deltaB = 0
         nA.x += moveX * (nA.invMass / totalInvMass);
         nA.y += moveY * (nA.invMass / totalInvMass);
         nB.x -= moveX * (nB.invMass / totalInvMass);
@@ -353,22 +340,9 @@ export class PhysicsWorld {
         }
       }
 
-      // 5d. Anti-Crumple Stance Support
-      if (groundContactCount > 0 && torsoNode) {
-        for (let i = 0; i < nodes.length; i++) {
-          const foot = nodes[i];
-          if (foot.role === 'foot' && foot.isTouchingGround) {
-            const dy = foot.y - torsoNode.y;
-            const minStanceHeight = 65;
-            if (dy < minStanceHeight) {
-              const liftDeficit = minStanceHeight - dy;
-              torsoNode.y -= liftDeficit * 0.15;
-            }
-          }
-        }
-      }
+      // 5d. Anti-Crumple Stance Support (handled via joint limits and bones)
 
-      // 5e. Ground Contact (Strict Inelastic Collision & Coulomb Friction)
+      // 5e. Ground Contact Penetration Projection
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
         const terrain = getTerrain(n.x, this.terrainType);
@@ -377,48 +351,50 @@ export class PhysicsWorld {
         if (n.y > contactLimit) {
           n.isTouchingGround = true;
           const penetration = n.y - contactLimit;
-
           n.x += terrain.nx * penetration;
           n.y = contactLimit;
-
-          if (n.y < n.py) {
-            n.py = n.y;
-          }
-
-          const effectiveFriction = (n.role === 'foot' ? 0.98 : n.friction) * this.groundFriction;
-          const vx = (n.x - n.px);
-          n.px = n.x - vx * (1 - effectiveFriction);
         }
       }
     }
 
-    // 6. Post-Solve Velocities & Anti-Flight Hard Wall
+    // 6. Post-Solve Velocities & Realistic Ground Traction
     let newComVy = 0;
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
       n.vx = (n.x - n.px) / dt;
       n.vy = (n.y - n.py) / dt;
 
-      const maxSpeed = 500;
+      if (n.isTouchingGround) {
+        if (n.vy > 0) n.vy = 0;
+        // High directional foot traction:
+        // Pushing backwards gives high grip against ground to launch forward
+        // Moving forwards maintains kinetic momentum
+        if (n.vx < 0) {
+          n.vx *= 0.08;
+        } else {
+          n.vx *= 0.94;
+        }
+        n.px = n.x - n.vx * dt;
+        n.py = n.y - n.vy * dt;
+      }
+
+      const maxSpeed = 2500;
       n.vx = Math.max(-maxSpeed, Math.min(maxSpeed, n.vx));
       n.vy = Math.max(-maxSpeed, Math.min(maxSpeed, n.vy));
 
       newComVy += n.vy * n.mass;
     }
-    newComVy /= (totalMass || 1);
+    let currentGroundContacts = 0;
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].isTouchingGround) currentGroundContacts++;
+    }
 
-    if (groundContactCount === 0) {
+    if (currentGroundContacts === 0) {
       creature.timeAirborne += dt;
 
-      if (newComVy < -150) {
-        for (let i = 0; i < nodes.length; i++) {
-          nodes[i].vy = Math.max(-150, nodes[i].vy);
-          nodes[i].py = nodes[i].y - nodes[i].vy * dt;
-        }
-      }
-
-      if (comHeightAboveGround > 180) {
-        const pullDown = (comHeightAboveGround - 180) * 0.2;
+      // Anti-flight hard wall: prevent glitching through the stratosphere
+      if (comHeightAboveGround > 190) {
+        const pullDown = (comHeightAboveGround - 190) * 0.2;
         for (let i = 0; i < nodes.length; i++) {
           nodes[i].y += pullDown;
           nodes[i].py = nodes[i].y;
