@@ -21,15 +21,15 @@ export class EvolutionManager {
     const population: CreatureInstance[] = [];
 
     const numJointLimits = blueprint.jointLimits ? blueprint.jointLimits.length : 0;
-    const inputSize = blueprint.muscles.length + blueprint.nodes.length + numJointLimits + 6;
-    const hiddenSize = Math.max(16, blueprint.muscles.length * 2 + 8);
+    // Expanded sensory inputs + recurrent memory
+    const inputSize = blueprint.muscles.length * 3 + blueprint.nodes.length * 2 + numJointLimits + 10;
+    const hidden1Size = 32; // Deep Layer 1
+    const hidden2Size = 24; // Deep Layer 2
     const outputSize = blueprint.muscles.length;
 
-    // Node ID to index map
     const nodeIndexMap = new Map<string, number>();
     blueprint.nodes.forEach((n, idx) => nodeIndexMap.set(n.id, idx));
 
-    // Find minX to normalize spawn position
     let minX = Infinity;
     blueprint.nodes.forEach(n => {
       if (n.x < minX) minX = n.x;
@@ -37,7 +37,6 @@ export class EvolutionManager {
     const spawnOffsetX = 100 - minX;
 
     for (let i = 0; i < count; i++) {
-      // Clone nodes
       const simNodes: SimNode[] = blueprint.nodes.map(n => ({
         id: n.id,
         x: n.x + spawnOffsetX,
@@ -56,7 +55,6 @@ export class EvolutionManager {
         groundContactDuration: 0,
       }));
 
-      // Clone bones
       const simBones: SimBone[] = [];
       for (const b of blueprint.bones) {
         const idxA = nodeIndexMap.get(b.nodeAId);
@@ -70,12 +68,11 @@ export class EvolutionManager {
             nodeAIndex: idxA,
             nodeBIndex: idxB,
             length: len,
-            thickness: b.thickness || 5,
+            thickness: b.thickness || 6,
           });
         }
       }
 
-      // Clone muscles with Hill-type parameters
       const simMuscles: SimMuscle[] = [];
       for (const m of blueprint.muscles) {
         const idxA = nodeIndexMap.get(m.nodeAId);
@@ -91,11 +88,11 @@ export class EvolutionManager {
             restLength: len,
             currentLength: len,
             targetLength: len,
-            contractRatio: m.contractRatio || 0.65,
-            extendRatio: m.extendRatio || 1.35,
-            strength: m.strength || 1.0,
-            stiffness: m.stiffness || 0.85,
-            maxForce: m.maxForce || 180,
+            contractRatio: m.contractRatio || 0.7,
+            extendRatio: m.extendRatio || 1.3,
+            strength: m.strength || 1.2,
+            stiffness: m.stiffness || 0.9,
+            maxForce: m.maxForce || 220,
             maxSpeed: m.maxSpeed || 3.5,
             damping: m.damping || 0.25,
             activation: 0,
@@ -103,7 +100,6 @@ export class EvolutionManager {
         }
       }
 
-      // Clone joint angle limits
       const simJointLimits: SimJointLimit[] = [];
       if (blueprint.jointLimits) {
         for (const jl of blueprint.jointLimits) {
@@ -118,19 +114,18 @@ export class EvolutionManager {
               nodeBIndex: idxB,
               minAngleRad: (jl.minAngle * Math.PI) / 180,
               maxAngleRad: (jl.maxAngle * Math.PI) / 180,
-              stiffness: jl.stiffness || 0.85,
+              stiffness: jl.stiffness || 0.9,
               currentAngleDeg: jl.minAngle,
             });
           }
         }
       }
 
-      // Brain initialization
       let brain: NeuralNetwork;
       if (inheritedBrains && inheritedBrains[i]) {
         brain = inheritedBrains[i];
       } else {
-        brain = new NeuralNetwork(inputSize, hiddenSize, outputSize);
+        brain = new NeuralNetwork(inputSize, hidden1Size, hidden2Size, outputSize);
       }
 
       population.push({
@@ -197,12 +192,12 @@ export class EvolutionManager {
     // Slot 0: Champion clone (Elitism)
     nextBrains.push(currentBest.brain.clone());
 
-    // Slot 1: If population >= 4, keep #2 performer intact
+    // Slot 1: If population >= 4, keep #2 performer
     if (config.populationSize >= 4 && sorted[1]) {
       nextBrains.push(sorted[1].brain.clone());
     }
 
-    // Fill remaining population with crossover and mutated offspring
+    // Breed remaining slots with crossover and adaptive mutation
     while (nextBrains.length < config.populationSize) {
       const parentA = this.selectParent(elitePool);
       const parentB = this.selectParent(elitePool);
@@ -214,7 +209,6 @@ export class EvolutionManager {
         childBrain = parentA.brain.clone();
       }
 
-      // Apply mutation
       childBrain.mutate(config.mutationRate, config.mutationAmount);
       nextBrains.push(childBrain);
     }
