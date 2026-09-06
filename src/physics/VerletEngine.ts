@@ -1,4 +1,4 @@
-import { CreatureInstance, SimNode, SimJointLimit, TerrainType } from '../types/creature';
+import { CreatureInstance, GoalCheckpoint, SimNode, SimJointLimit, TerrainType } from '../types/creature';
 
 export interface TerrainSample {
   y: number;
@@ -54,12 +54,18 @@ export function getTerrain(x: number, type: TerrainType): TerrainSample {
 export class PhysicsWorld {
   gravity: number = 850; // px/s^2
   groundFriction: number = 0.95;
-  airDrag: number = 0.02; // linear air drag
-  quadraticDrag: number = 0.002; // aerodynamic velocity dampening
-  solverIterations: number = 18; // High stiffness for bones & anti-crumple
+  airDrag: number = 0.02;
+  quadraticDrag: number = 0.002;
+  solverIterations: number = 18;
   terrainType: TerrainType = 'flat';
 
-  updateCreature(creature: CreatureInstance, dt: number, simTime: number): void {
+  updateCreature(
+    creature: CreatureInstance, 
+    dt: number, 
+    simTime: number, 
+    checkpoints: GoalCheckpoint[] = [],
+    minSpeedThreshold: number = 0.4
+  ): void {
     const nodes = creature.nodes;
     const bones = creature.bones;
     const muscles = creature.muscles;
@@ -67,7 +73,7 @@ export class PhysicsWorld {
 
     if (nodes.length === 0) return;
 
-    // 1. Calculate Center of Mass, Torso Height, Foot Contacts
+    // 1. Calculate Center of Mass, Torso Height, and Foot Contacts
     let comX = 0;
     let comY = 0;
     let totalMass = 0;
@@ -93,10 +99,18 @@ export class PhysicsWorld {
     const groundSampleAtCom = getTerrain(comX, this.terrainType);
     const comHeightAboveGround = groundSampleAtCom.y - comY;
 
-    // 2. Gather Rich Sensory Inputs for Deep Brain
+    // Running distance & speed (100px = 1 meter)
+    creature.currentDistance = comX - creature.startX;
+    if (creature.currentDistance > creature.maxDistance) {
+      creature.maxDistance = creature.currentDistance;
+    }
+    const currentMeters = Math.max(0, creature.currentDistance / 100);
+    creature.averageSpeed = currentMeters / Math.max(0.1, simTime);
+
+    // 2. Gather Sensory Inputs for Deep Brain
     const inputs: number[] = [];
 
-    // 2a. Muscle Strains & Activation Velocities
+    // 2a. Muscle Strains & Motor Activations
     for (let i = 0; i < muscles.length; i++) {
       const m = muscles[i];
       const strain = (m.currentLength - m.restLength) / (m.restLength || 1);
@@ -128,20 +142,26 @@ export class PhysicsWorld {
     inputs.push(Math.max(-2, Math.min(2, comVy / 150)));
     inputs.push(Math.max(-1, Math.min(2, comHeightAboveGround / 100)));
 
-    // 2d. Torso Pitch & Angular Tilt
+    // 2d. Torso Pitch & Stability
+    let tiltSin = 0;
     if (headNode && torsoNode) {
       const angle = Math.atan2(headNode.y - torsoNode.y, headNode.x - torsoNode.x);
-      inputs.push(Math.sin(angle));
+      tiltSin = Math.sin(angle);
+      inputs.push(tiltSin);
       inputs.push(Math.cos(angle));
       creature.isUpsideDown = (headNode.y > torsoNode.y + 15);
     } else if (nodes.length >= 2) {
       const angle = Math.atan2(nodes[1].y - nodes[0].y, nodes[1].x - nodes[0].x);
-      inputs.push(Math.sin(angle));
+      tiltSin = Math.sin(angle);
+      inputs.push(tiltSin);
       inputs.push(Math.cos(angle));
     } else {
       inputs.push(0);
       inputs.push(1);
     }
+
+    // Stability Score: penalizes horizontal wobble / head tilting
+    creature.stabilityScore = Math.max(0.15, 1.0 - Math.abs(tiltSin) * 0.4);
 
     // 2e. Joint Angles Relative to Limits
     for (let j = 0; j < jointLimits.length; j++) {
@@ -152,13 +172,13 @@ export class PhysicsWorld {
     }
 
     // 2f. Multi-Harmonic Central Pattern Generator (CPG Clocks)
-    const rhythmFreq = 1.1; // 1.1 Hz natural walking stride
+    const rhythmFreq = 1.1;
     const phase = simTime * rhythmFreq * 2 * Math.PI;
-    inputs.push(Math.sin(phase));                    // Fundamental CPG
+    inputs.push(Math.sin(phase));
     inputs.push(Math.cos(phase));
-    inputs.push(Math.sin(phase * 2));                // Harmonic CPG (double cadence)
+    inputs.push(Math.sin(phase * 2));
     inputs.push(Math.cos(phase * 2));
-    inputs.push(Math.sin(phase + Math.PI));          // Contralateral phase (inverted for opposite leg)
+    inputs.push(Math.sin(phase + Math.PI));
 
     // 3. Deep Brain Inference
     if (creature.brain) {
@@ -169,12 +189,10 @@ export class PhysicsWorld {
           const m = muscles[i];
           const targetAct = Math.max(-1, Math.min(1, motorCommands[i]));
 
-          // Smooth motor activation rate
           const maxActDelta = 3.5 * dt;
           const actDelta = Math.max(-maxActDelta, Math.min(maxActDelta, targetAct - m.activation));
           m.activation += actDelta;
 
-          // Compute target length from activation
           let targetLen: number;
           if (m.activation < 0) {
             targetLen = m.restLength * (1 + m.activation * (1 - m.contractRatio));
@@ -182,7 +200,6 @@ export class PhysicsWorld {
             targetLen = m.restLength * (1 + m.activation * (m.extendRatio - 1));
           }
 
-          // Limit contraction rate (Hill force-velocity property)
           const maxLenDelta = m.maxSpeed * m.restLength * dt;
           const diff = targetLen - m.targetLength;
           m.targetLength += Math.max(-maxLenDelta, Math.min(maxLenDelta, diff));
@@ -190,12 +207,11 @@ export class PhysicsWorld {
       }
     }
 
-    // 4. Position-Based Dynamics (PBD) - Phase 1: Unconstrained Motion
+    // 4. Position-Based Dynamics (PBD) - Unconstrained Motion
     const dtSq = dt * dt;
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
 
-      // Explicit velocity damping & aerodynamic drag
       n.vx *= (1 - this.airDrag * dt);
       n.vy *= (1 - this.airDrag * dt);
 
@@ -206,20 +222,18 @@ export class PhysicsWorld {
         n.vy *= dragFactor;
       }
 
-      // Save previous position
       n.px = n.x;
       n.py = n.y;
 
-      // Predict position
       n.x += n.vx * dt;
       n.y += n.vy * dt + this.gravity * dtSq;
 
       n.isTouchingGround = false;
     }
 
-    // 5. Phase 2: High-Stiffness Constraint Solver Loop
+    // 5. Stiff Constraint Solver Loop
     for (let iter = 0; iter < this.solverIterations; iter++) {
-      // 5a. Stiff Rigid Bones (Zero-Stretch Distance Constraints)
+      // 5a. Stiff Rigid Bones
       for (let i = 0; i < bones.length; i++) {
         const b = bones[i];
         const nA = nodes[b.nodeAIndex];
@@ -234,7 +248,6 @@ export class PhysicsWorld {
         const totalInvMass = nA.invMass + nB.invMass;
         if (totalInvMass === 0) continue;
 
-        // Fully stiff projection (factor = 1.0)
         const moveX = dx * diff;
         const moveY = dy * diff;
 
@@ -262,7 +275,6 @@ export class PhysicsWorld {
         const totalInvMass = nA.invMass + nB.invMass;
         if (totalInvMass === 0) continue;
 
-        // Elastic muscle spring with viscous damping
         const k = m.stiffness * 600 * m.strength;
         const relVx = (nB.x - nB.px) - (nA.x - nA.px);
         const relVy = (nB.y - nB.py) - (nA.y - nA.py);
@@ -276,14 +288,13 @@ export class PhysicsWorld {
         const moveX = dx * displacement;
         const moveY = dy * displacement;
 
-        // Momentum conserving: mA * deltaA + mB * deltaB = 0
         nA.x += moveX * (nA.invMass / totalInvMass);
         nA.y += moveY * (nA.invMass / totalInvMass);
         nB.x -= moveX * (nB.invMass / totalInvMass);
         nB.y -= moveY * (nB.invMass / totalInvMass);
       }
 
-      // 5c. Angular Joint Limits (Momentum Conserving: Zero Translation of CoM)
+      // 5c. Angular Joint Limits (Zero Translation of CoM)
       for (let j = 0; j < jointLimits.length; j++) {
         const jl = jointLimits[j];
         const nA = nodes[jl.nodeAIndex];
@@ -325,13 +336,11 @@ export class PhysicsWorld {
           const newBx = nC.x + (vBx * cosB - vBy * sinB);
           const newBy = nC.y + (vBx * sinB + vBy * cosB);
 
-          // Calculate displacement of A and B
           const dAx = (newAx - nA.x) * 0.4;
           const dAy = (newAy - nA.y) * 0.4;
           const dBx = (newBx - nB.x) * 0.4;
           const dBy = (newBy - nB.y) * 0.4;
 
-          // Center of mass translation correction (cancel out any net linear push)
           const netMoveX = (dAx * nA.mass + dBx * nB.mass) / (nA.mass + nB.mass + nC.mass);
           const netMoveY = (dAy * nA.mass + dBy * nB.mass) / (nA.mass + nB.mass + nC.mass);
 
@@ -344,17 +353,16 @@ export class PhysicsWorld {
         }
       }
 
-      // 5d. Anti-Crumple Stance Extensor Support (When feet are grounded, support body weight)
+      // 5d. Anti-Crumple Stance Support
       if (groundContactCount > 0 && torsoNode) {
         for (let i = 0; i < nodes.length; i++) {
           const foot = nodes[i];
           if (foot.role === 'foot' && foot.isTouchingGround) {
             const dy = foot.y - torsoNode.y;
-            // If torso is sagging below minimum height (e.g. 70px above foot), push torso up
             const minStanceHeight = 65;
             if (dy < minStanceHeight) {
               const liftDeficit = minStanceHeight - dy;
-              torsoNode.y -= liftDeficit * 0.15; // Anti-gravity stance spring
+              torsoNode.y -= liftDeficit * 0.15;
             }
           }
         }
@@ -373,12 +381,10 @@ export class PhysicsWorld {
           n.x += terrain.nx * penetration;
           n.y = contactLimit;
 
-          // Inelastic contact: absorb downward kinetic energy
           if (n.y < n.py) {
             n.py = n.y;
           }
 
-          // Coulomb Friction
           const effectiveFriction = (n.role === 'foot' ? 0.98 : n.friction) * this.groundFriction;
           const vx = (n.x - n.px);
           n.px = n.x - vx * (1 - effectiveFriction);
@@ -386,15 +392,14 @@ export class PhysicsWorld {
       }
     }
 
-    // 6. Phase 3: Post-Solve Velocities & STRICT ANTI-FLIGHT GUARANTEE
+    // 6. Post-Solve Velocities & Anti-Flight Hard Wall
     let newComVy = 0;
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
       n.vx = (n.x - n.px) / dt;
       n.vy = (n.y - n.py) / dt;
 
-      // Absolute biological velocity clamp (prevents any physics explosion)
-      const maxSpeed = 500; // px/sec
+      const maxSpeed = 500;
       n.vx = Math.max(-maxSpeed, Math.min(maxSpeed, n.vx));
       n.vy = Math.max(-maxSpeed, Math.min(maxSpeed, n.vy));
 
@@ -402,12 +407,9 @@ export class PhysicsWorld {
     }
     newComVy /= (totalMass || 1);
 
-    // ANTI-FLIGHT HARD WALL:
-    // If creature has NO ground contact, it CANNOT accelerate upward!
     if (groundContactCount === 0) {
       creature.timeAirborne += dt;
 
-      // If creature is moving upward without ground contact, clamp upward velocity to maximum natural jump limit
       if (newComVy < -150) {
         for (let i = 0; i < nodes.length; i++) {
           nodes[i].vy = Math.max(-150, nodes[i].vy);
@@ -415,7 +417,6 @@ export class PhysicsWorld {
         }
       }
 
-      // If creature height exceeds natural limit (180px above ground), pull it down immediately
       if (comHeightAboveGround > 180) {
         const pullDown = (comHeightAboveGround - 180) * 0.2;
         for (let i = 0; i < nodes.length; i++) {
@@ -430,33 +431,63 @@ export class PhysicsWorld {
       creature.footContactCount++;
     }
 
-    // 7. Locomotion Fitness Evaluation
-    let currComX = 0;
-    for (let i = 0; i < nodes.length; i++) {
-      currComX += nodes[i].x;
-    }
-    currComX /= nodes.length;
-
-    creature.currentDistance = currComX - creature.startX;
-    if (creature.currentDistance > creature.maxDistance) {
-      creature.maxDistance = creature.currentDistance;
-    }
-
-    // Fitness favors:
-    // 1. Forward progression along ground
-    // 2. Maintained torso height (anti-crumple posture reward)
-    // 3. Cadence (regular foot contact)
-    let score = Math.max(0, creature.maxDistance);
-
-    // Anti-crumple bonus: reward keeping torso elevated off the ground
-    if (torsoNode) {
-      const torsoHeight = getTerrain(torsoNode.x, this.terrainType).y - torsoNode.y;
-      if (torsoHeight > 50) {
-        score += Math.min(50, torsoHeight * 0.4);
+    // 7. CHECKPOINT PROGRESS & TIMED EVALUATION
+    if (checkpoints && checkpoints.length > 0) {
+      for (const cp of checkpoints) {
+        // Did creature cross this checkpoint?
+        if (currentMeters >= cp.distanceMeters) {
+          if (!creature.checkpointsReached.includes(cp.id)) {
+            creature.checkpointsReached.push(cp.id);
+          }
+        } else {
+          // Has the allotted time for this checkpoint expired?
+          if (simTime > cp.allottedTime && !creature.checkpointsReached.includes(cp.id)) {
+            creature.isCheckpointTimedOut = true;
+            creature.eliminated = true;
+            creature.disqualificationReason = `TIMED OUT (${cp.distanceMeters}m)`;
+          }
+        }
       }
     }
 
-    // Flight penalty
+    // 8. HARSH SLOWNESS PENALTY & CULLING
+    // If after 3.0s the creature has failed to maintain minimum average speed:
+    if (simTime > 3.0 && !creature.eliminated) {
+      if (creature.averageSpeed < minSpeedThreshold) {
+        creature.isSlowDisqualified = true;
+        creature.eliminated = true;
+        creature.disqualificationReason = 'TOO SLOW';
+      }
+    }
+
+    // 9. HIGH-SPEED + STABILITY FITNESS EVALUATION
+    // Base distance
+    let score = Math.max(0, creature.maxDistance);
+
+    // Speed Multiplier: Going faster grants huge bonus rewards!
+    const speedMultiplier = 1.0 + Math.min(3.5, creature.averageSpeed * 1.5);
+    score *= speedMultiplier;
+
+    // Stability Factor: Stable, upright posture increases score
+    score *= creature.stabilityScore;
+
+    // Torso clearance bonus
+    if (torsoNode) {
+      const torsoHeight = getTerrain(torsoNode.x, this.terrainType).y - torsoNode.y;
+      if (torsoHeight > 45) {
+        score += Math.min(60, torsoHeight * 0.5);
+      }
+    }
+
+    // Major Bonus for Crossing Timed Checkpoints! (+1000 per checkpoint)
+    score += creature.checkpointsReached.length * 1000;
+
+    // HARSH PENALTY FOR SLOWNESS OR DISQUALIFICATIONS:
+    if (creature.eliminated || creature.isSlowDisqualified || creature.isCheckpointTimedOut) {
+      score *= 0.05; // 95% harsh punishment!
+    }
+
+    // Flying penalty
     if (creature.isFlyingDisqualified || creature.timeAirborne > 1.0) {
       score *= 0.05;
     }

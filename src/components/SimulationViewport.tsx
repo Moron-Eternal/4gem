@@ -1,12 +1,13 @@
 import React, { useRef, useEffect } from 'react';
-import { CreatureInstance, SimulationConfig } from '../types/creature';
+import { CreatureInstance, GoalCheckpoint, SimulationConfig } from '../types/creature';
 import { getTerrain } from '../physics/VerletEngine';
-import { Eye, Crosshair, ZoomIn, ZoomOut, AlertTriangle } from 'lucide-react';
+import { Eye, Crosshair, ZoomIn, ZoomOut, Flag, AlertOctagon } from 'lucide-react';
 
 interface SimulationViewportProps {
   population: CreatureInstance[];
   config: SimulationConfig;
   selectedCreatureId: number | null;
+  simTime: number;
   onSelectCreature: (id: number | null) => void;
   onConfigChange: (config: SimulationConfig) => void;
 }
@@ -15,6 +16,7 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
   population,
   config,
   selectedCreatureId,
+  simTime,
   onSelectCreature,
   onConfigChange,
 }) => {
@@ -84,7 +86,7 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
       const visibleLeft = cam.x - screenOffsetX / cam.zoom - 100;
       const visibleRight = cam.x + (width - screenOffsetX) / cam.zoom + 100;
 
-      // 1. Distance Markers
+      // 1. Distance Ground Markers
       const markerInterval = 100;
       const startMarker = Math.floor(visibleLeft / markerInterval) * markerInterval;
 
@@ -101,24 +103,13 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
 
         ctx.beginPath();
         ctx.moveTo(mx, terrain.y);
-        ctx.lineTo(mx, terrain.y - (meters % 5 === 0 ? 90 : 40));
+        ctx.lineTo(mx, terrain.y - (meters % 5 === 0 ? 70 : 35));
         ctx.stroke();
         ctx.setLineDash([]);
 
         if (meters % 5 === 0) {
-          ctx.fillStyle = '#38bdf8';
-          ctx.fillText(`${meters}m`, mx, terrain.y - 100);
-
-          ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
-          ctx.beginPath();
-          ctx.moveTo(mx, terrain.y - 90);
-          ctx.lineTo(mx + 18, terrain.y - 82);
-          ctx.lineTo(mx, terrain.y - 74);
-          ctx.closePath();
-          ctx.fill();
-        } else {
           ctx.fillStyle = '#64748b';
-          ctx.fillText(`${meters}m`, mx, terrain.y - 45);
+          ctx.fillText(`${meters}m`, mx, terrain.y - 80);
         }
       }
 
@@ -152,7 +143,92 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
       ctx.lineWidth = 4;
       ctx.stroke();
 
-      // 3. Render Creatures
+      // 3. Render TIMED GOAL CHECKPOINTS (Neon Holographic Laser Gates)
+      if (config.checkpoints && config.checkpoints.length > 0) {
+        config.checkpoints.forEach((cp, idx) => {
+          const cpX = cp.distanceMeters * 100;
+          const terrain = getTerrain(cpX, config.terrainType);
+          const gateHeight = 180;
+          const gateTopY = terrain.y - gateHeight;
+
+          const timeLeft = Math.max(0, cp.allottedTime - simTime);
+          const isExpired = timeLeft === 0;
+          const isPassedByLeader = population.some(c => c.isLeader && c.checkpointsReached.includes(cp.id));
+
+          // Gate Theme Color
+          let gateColor = '#38bdf8'; // Cyan
+          let gateGlow = 'rgba(56, 189, 248, 0.25)';
+          if (isPassedByLeader) {
+            gateColor = '#10b981'; // Emerald
+            gateGlow = 'rgba(16, 185, 129, 0.35)';
+          } else if (isExpired) {
+            gateColor = '#ef4444'; // Red expired
+            gateGlow = 'rgba(239, 68, 68, 0.25)';
+          } else if (timeLeft < 3.0) {
+            gateColor = '#f59e0b'; // Amber warning
+            gateGlow = 'rgba(245, 158, 11, 0.35)';
+          }
+
+          // Laser Gate Pillars
+          ctx.save();
+          ctx.strokeStyle = gateColor;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(cpX - 12, terrain.y);
+          ctx.lineTo(cpX - 12, gateTopY);
+          ctx.moveTo(cpX + 12, terrain.y);
+          ctx.lineTo(cpX + 12, gateTopY);
+          ctx.stroke();
+
+          // Top Arch Crossbar
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(cpX - 25, gateTopY);
+          ctx.lineTo(cpX + 25, gateTopY);
+          ctx.stroke();
+
+          // Vertical Holographic Laser Beam Curtain
+          ctx.fillStyle = gateGlow;
+          ctx.fillRect(cpX - 10, gateTopY, 20, gateHeight);
+
+          // Pulsing central laser line
+          ctx.strokeStyle = gateColor;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 6]);
+          ctx.beginPath();
+          ctx.moveTo(cpX, gateTopY);
+          ctx.lineTo(cpX, terrain.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Holographic Gate Signboard
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(cpX - 65, gateTopY - 45, 130, 40);
+          ctx.strokeStyle = gateColor;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(cpX - 65, gateTopY - 45, 130, 40);
+
+          ctx.font = 'bold 11px JetBrains Mono, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = gateColor;
+          ctx.fillText(`GATE #${idx + 1} (${cp.distanceMeters}m)`, cpX, gateTopY - 28);
+
+          ctx.font = 'bold 12px JetBrains Mono, monospace';
+          if (isPassedByLeader) {
+            ctx.fillStyle = '#10b981';
+            ctx.fillText('✓ CLEARED', cpX, gateTopY - 12);
+          } else if (isExpired) {
+            ctx.fillStyle = '#ef4444';
+            ctx.fillText('✕ EXPIRED', cpX, gateTopY - 12);
+          } else {
+            ctx.fillStyle = timeLeft < 3 ? '#f59e0b' : '#f8fafc';
+            ctx.fillText(`⏱️ ${timeLeft.toFixed(1)}s`, cpX, gateTopY - 12);
+          }
+          ctx.restore();
+        });
+      }
+
+      // 4. Render Creatures
       const sortedToRender = [...population].sort((a, b) => {
         if (a.isLeader) return 1;
         if (b.isLeader) return -1;
@@ -164,7 +240,8 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
       for (const creature of sortedToRender) {
         const isLeader = creature.isLeader;
         const isSelected = creature.id === selectedCreatureId;
-        const opacity = config.ghostMode && !isLeader && !isSelected ? 0.35 : 1.0;
+        const isEliminated = creature.eliminated;
+        const opacity = isEliminated ? 0.25 : (config.ghostMode && !isLeader && !isSelected ? 0.35 : 1.0);
 
         ctx.globalAlpha = opacity;
 
@@ -245,14 +322,13 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
             ctx.fill();
           }
 
-          // Foot grip pad
           if (n.role === 'foot') {
             ctx.fillStyle = '#047857';
             ctx.fillRect(n.x - 6, n.y + n.radius - 2, 12, 3);
           }
         }
 
-        // Leader Crown 👑 or Status Warnings
+        // Leader Crown 👑 & Status Badges
         if (creature.nodes.length > 0) {
           let highestY = Infinity;
           let headX = 0;
@@ -275,20 +351,20 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
 
             ctx.font = 'bold 11px JetBrains Mono, monospace';
             ctx.fillStyle = '#fef08a';
-            ctx.fillText(`${creature.name} (${Math.round(creature.fitness / 10)}m)`, headX, highestY - 32);
+            ctx.fillText(`${creature.name} (${Math.round(creature.fitness / 10)}m | ${creature.averageSpeed.toFixed(1)}m/s)`, headX, highestY - 32);
           }
 
-          // Show airborne warning if creature tried flying
-          if (creature.isFlyingDisqualified && (isLeader || isSelected)) {
+          // Disqualification / Elimination Status
+          if (creature.eliminated) {
+            ctx.font = 'bold 10px JetBrains Mono, monospace';
             ctx.fillStyle = '#f43f5e';
-            ctx.font = 'bold 9px JetBrains Mono, monospace';
             ctx.textAlign = 'center';
-            ctx.fillText('⚠️ AIRBORNE PENALTY', headX, highestY - (isLeader ? 46 : 20));
-          } else if (creature.isUpsideDown && (isLeader || isSelected)) {
-            ctx.fillStyle = '#f59e0b';
-            ctx.font = 'bold 9px JetBrains Mono, monospace';
+            ctx.fillText(`💀 ${creature.disqualificationReason || 'ELIMINATED'}`, headX, highestY - (isLeader ? 46 : 22));
+          } else if (creature.checkpointsReached.length > 0) {
+            ctx.font = 'bold 10px JetBrains Mono, monospace';
+            ctx.fillStyle = '#10b981';
             ctx.textAlign = 'center';
-            ctx.fillText('🔄 INVERTED', headX, highestY - (isLeader ? 46 : 20));
+            ctx.fillText(`🚩 GATE #${creature.checkpointsReached.length} CLEARED`, headX, highestY - (isLeader ? 46 : 22));
           }
         }
       }
@@ -300,7 +376,7 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [population, config, selectedCreatureId]);
+  }, [population, config, selectedCreatureId, simTime]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     isDraggingCamRef.current = true;
@@ -344,6 +420,7 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
         className="w-full h-full cursor-grab active:cursor-grabbing select-none"
       />
 
+      {/* Floating Camera Mode Buttons */}
       <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl p-1.5 flex items-center gap-1 shadow-xl">
         <button
           onClick={() => onConfigChange({ ...config, followMode: 'leader' })}
@@ -389,6 +466,7 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
         </button>
       </div>
 
+      {/* Muscle Tension & Checkpoints Legend */}
       <div className="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-xl px-3 py-2 flex items-center gap-4 text-xs font-mono shadow-xl">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
@@ -398,13 +476,12 @@ export const SimulationViewport: React.FC<SimulationViewportProps> = ({
           <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
           <span className="text-cyan-300">Extending</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-pink-500" />
-          <span className="text-pink-300">Resting</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-purple-300 border-l border-slate-800 pl-3">
-          <span>Angular Ligaments Active</span>
-        </div>
+        {config.checkpoints.length > 0 && (
+          <div className="flex items-center gap-1.5 text-amber-300 border-l border-slate-800 pl-3">
+            <Flag size={12} className="text-amber-400" />
+            <span>{config.checkpoints.length} Timed Gates Active</span>
+          </div>
+        )}
       </div>
     </div>
   );

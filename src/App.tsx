@@ -16,16 +16,21 @@ export const App: React.FC = () => {
 
   const [config, setConfig] = useState<SimulationConfig>({
     populationSize: 20,
-    generationDuration: 15, // seconds
+    generationDuration: 16,
     simSpeed: 1,
-    gravity: 980,
-    groundFriction: 0.85,
+    gravity: 850,
+    groundFriction: 0.95,
     airResistance: 0.995,
     mutationRate: 0.12,
     mutationAmount: 0.3,
     terrainType: 'flat',
     ghostMode: true,
     followMode: 'leader',
+    checkpoints: [
+      { id: 'cp_1', distanceMeters: 20, allottedTime: 7 },
+      { id: 'cp_2', distanceMeters: 45, allottedTime: 14 },
+    ],
+    minSpeedThreshold: 0.4, // m/s
   });
 
   const [isRunning, setIsRunning] = useState<boolean>(true);
@@ -34,20 +39,18 @@ export const App: React.FC = () => {
   const [population, setPopulation] = useState<CreatureInstance[]>([]);
   const [selectedCreatureId, setSelectedCreatureId] = useState<number | null>(null);
   const [history, setHistory] = useState<GenerationRecord[]>([]);
+  const [simTime, setSimTime] = useState<number>(0);
 
-  // Physics and Evolution managers
   const physicsWorldRef = useRef<PhysicsWorld>(new PhysicsWorld());
   const evoManagerRef = useRef<EvolutionManager>(new EvolutionManager());
   const simTimeRef = useRef<number>(0);
 
-  // Sync physics world terrain and params with config
   useEffect(() => {
     physicsWorldRef.current.terrainType = config.terrainType;
     physicsWorldRef.current.groundFriction = config.groundFriction;
     physicsWorldRef.current.gravity = config.gravity;
   }, [config.terrainType, config.groundFriction, config.gravity]);
 
-  // Initialize or reset population whenever blueprint changes or user restarts
   const initPopulation = useCallback((bp: CreatureBlueprint, popSize: number) => {
     evoManagerRef.current.reset();
     const newPop = evoManagerRef.current.createPopulation(bp, popSize);
@@ -57,14 +60,13 @@ export const App: React.FC = () => {
     setHistory([]);
     setSelectedCreatureId(null);
     simTimeRef.current = 0;
+    setSimTime(0);
   }, [config.generationDuration]);
 
-  // Initial population setup on mount
   useEffect(() => {
     initPopulation(blueprint, config.populationSize);
   }, []);
 
-  // Update population when population size config changes
   const handleConfigChange = (newConfig: SimulationConfig) => {
     if (newConfig.populationSize !== config.populationSize) {
       initPopulation(blueprint, newConfig.populationSize);
@@ -72,7 +74,6 @@ export const App: React.FC = () => {
     setConfig(newConfig);
   };
 
-  // Evolve generation step
   const triggerEvolution = useCallback(() => {
     const nextPop = evoManagerRef.current.evolve(population, blueprint, config);
     setPopulation(nextPop);
@@ -80,24 +81,29 @@ export const App: React.FC = () => {
     setHistory([...evoManagerRef.current.history]);
     setTimeRemaining(config.generationDuration);
     simTimeRef.current = 0;
+    setSimTime(0);
   }, [population, blueprint, config]);
 
-  // Skip generation fast-forward
   const handleSkipGeneration = useCallback(() => {
-    // Fast-forward physics synchronously for remaining time
     const fixedDt = 1 / 60;
     const remainingSteps = Math.ceil(timeRemaining / fixedDt);
-    const stepsToRun = Math.min(600, remainingSteps); // run up to 10s of simulation instantly
+    const stepsToRun = Math.min(600, remainingSteps);
 
     for (let s = 0; s < stepsToRun; s++) {
       simTimeRef.current += fixedDt;
       for (let i = 0; i < population.length; i++) {
-        physicsWorldRef.current.updateCreature(population[i], fixedDt, simTimeRef.current);
+        physicsWorldRef.current.updateCreature(
+          population[i], 
+          fixedDt, 
+          simTimeRef.current,
+          config.checkpoints,
+          config.minSpeedThreshold
+        );
       }
     }
 
     triggerEvolution();
-  }, [timeRemaining, population, triggerEvolution]);
+  }, [timeRemaining, population, config.checkpoints, config.minSpeedThreshold, triggerEvolution]);
 
   // Main Simulation Loop
   useEffect(() => {
@@ -107,11 +113,9 @@ export const App: React.FC = () => {
     let lastTime = performance.now();
 
     const loop = (currentTime: number) => {
-      const elapsedSec = Math.min(0.1, (currentTime - lastTime) / 1000);
       lastTime = currentTime;
 
       const baseDt = 1 / 60;
-      // Calculate physics sub-steps according to speed
       const subSteps = Math.min(20, Math.max(1, Math.round(config.simSpeed)));
       const stepDt = baseDt;
 
@@ -119,10 +123,16 @@ export const App: React.FC = () => {
         simTimeRef.current += stepDt;
 
         for (let i = 0; i < population.length; i++) {
-          physicsWorldRef.current.updateCreature(population[i], stepDt, simTimeRef.current);
+          physicsWorldRef.current.updateCreature(
+            population[i], 
+            stepDt, 
+            simTimeRef.current,
+            config.checkpoints,
+            config.minSpeedThreshold
+          );
         }
 
-        // Check leader
+        // Rank and crown leader
         let bestFit = -1;
         let leaderIdx = 0;
         for (let i = 0; i < population.length; i++) {
@@ -136,7 +146,8 @@ export const App: React.FC = () => {
         }
       }
 
-      // Decrement generation timer
+      setSimTime(simTimeRef.current);
+
       const timerDec = subSteps * baseDt;
       setTimeRemaining(prev => {
         const next = prev - timerDec;
@@ -152,9 +163,8 @@ export const App: React.FC = () => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [currentTab, isRunning, population, config.simSpeed, config.generationDuration, triggerEvolution]);
+  }, [currentTab, isRunning, population, config.simSpeed, config.generationDuration, config.checkpoints, config.minSpeedThreshold, triggerEvolution]);
 
-  // Identify focused creature for HUD
   const leaderCreature = population.find(c => c.isLeader) || population[0] || null;
   const focusedCreature = selectedCreatureId 
     ? (population.find(c => c.id === selectedCreatureId) || leaderCreature)
@@ -170,6 +180,7 @@ export const App: React.FC = () => {
         onToggleRunning={() => setIsRunning(!isRunning)}
         generation={generation}
         timeRemaining={timeRemaining}
+        simTime={simTime}
         config={config}
         onChangeConfig={handleConfigChange}
         onSkipGeneration={handleSkipGeneration}
@@ -195,6 +206,7 @@ export const App: React.FC = () => {
               population={population}
               config={config}
               selectedCreatureId={selectedCreatureId}
+              simTime={simTime}
               onSelectCreature={setSelectedCreatureId}
               onConfigChange={setConfig}
             />
@@ -209,7 +221,7 @@ export const App: React.FC = () => {
               />
             </div>
 
-            {/* Right Floating HUD: Live Neural Brain Visualizer */}
+            {/* Right Floating HUD: Live Deep Neural Brain Visualizer */}
             <div className="absolute bottom-4 right-4 pointer-events-auto">
               <BrainVisualizer creature={focusedCreature} />
             </div>

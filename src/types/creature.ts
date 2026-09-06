@@ -25,24 +25,30 @@ export interface MuscleDef {
   nodeAId: string;
   nodeBId: string;
   restLength: number;
-  contractRatio: number; // e.g. 0.7 = can contract to 70% of rest length
-  extendRatio: number;   // e.g. 1.3 = can extend to 130% of rest length
-  strength: number;      // muscle force scale
-  stiffness: number;     // spring stiffness (0.1 to 1.0)
-  maxForce?: number;     // max force in Newtons (default ~200)
-  maxSpeed?: number;     // max contraction speed in restLengths/sec (default ~3.5)
-  damping?: number;      // internal muscle damping (default ~0.2)
+  contractRatio: number;
+  extendRatio: number;
+  strength: number;
+  stiffness: number;
+  maxForce?: number;
+  maxSpeed?: number;
+  damping?: number;
   color?: string;
 }
 
 export interface JointLimitDef {
   id: string;
-  nodeAId: string;     // first outer bone node
-  centerNodeId: string;// joint pivot node
-  nodeBId: string;     // second outer bone node
-  minAngle: number;    // minimum allowable bend angle in degrees (e.g. 20°)
-  maxAngle: number;    // maximum allowable bend angle in degrees (e.g. 150°)
-  stiffness?: number;  // ligament stiffness (default 0.8)
+  nodeAId: string;
+  centerNodeId: string;
+  nodeBId: string;
+  minAngle: number;
+  maxAngle: number;
+  stiffness?: number;
+}
+
+export interface GoalCheckpoint {
+  id: string;
+  distanceMeters: number; // in meters (100px = 1m)
+  allottedTime: number;   // seconds allowed from start of generation to cross gate
 }
 
 export interface CreatureBlueprint {
@@ -122,13 +128,20 @@ export interface CreatureInstance {
   startX: number;
   currentDistance: number;
   maxDistance: number;
+  averageSpeed: number; // in m/s
+  stabilityScore: number; // 0 to 1
   fitness: number;
   rank: number;
   isLeader: boolean;
-  // Biomechanical diagnostics
+  // Biomechanical diagnostics & slowness culling
   timeAirborne: number;
   isFlyingDisqualified: boolean;
   isUpsideDown: boolean;
+  isSlowDisqualified: boolean;
+  isCheckpointTimedOut: boolean;
+  eliminated: boolean;
+  disqualificationReason?: string;
+  checkpointsReached: string[];
   metabolicCost: number;
   footContactCount: number;
 }
@@ -147,6 +160,9 @@ export interface SimulationConfig {
   terrainType: TerrainType;
   ghostMode: boolean;
   followMode: 'leader' | 'free' | 'selected';
+  // Checkpoint & Slowness config
+  checkpoints: GoalCheckpoint[];
+  minSpeedThreshold: number; // in m/s (e.g. 0.4 m/s)
 }
 
 export interface GenerationRecord {
@@ -154,5 +170,7 @@ export interface GenerationRecord {
   bestFitness: number;
   avgFitness: number;
   bestDistance: number;
+  bestSpeed: number;
+  checkpointsPassed: number;
   championName: string;
 }

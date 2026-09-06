@@ -21,10 +21,9 @@ export class EvolutionManager {
     const population: CreatureInstance[] = [];
 
     const numJointLimits = blueprint.jointLimits ? blueprint.jointLimits.length : 0;
-    // Expanded sensory inputs + recurrent memory
     const inputSize = blueprint.muscles.length * 3 + blueprint.nodes.length * 2 + numJointLimits + 10;
-    const hidden1Size = 32; // Deep Layer 1
-    const hidden2Size = 24; // Deep Layer 2
+    const hidden1Size = 32;
+    const hidden2Size = 24;
     const outputSize = blueprint.muscles.length;
 
     const nodeIndexMap = new Map<string, number>();
@@ -140,12 +139,18 @@ export class EvolutionManager {
         startX: 100,
         currentDistance: 0,
         maxDistance: 0,
+        averageSpeed: 0,
+        stabilityScore: 1.0,
         fitness: 0,
         rank: i + 1,
         isLeader: i === 0,
         timeAirborne: 0,
         isFlyingDisqualified: false,
         isUpsideDown: false,
+        isSlowDisqualified: false,
+        isCheckpointTimedOut: false,
+        eliminated: false,
+        checkpointsReached: [],
         metabolicCost: 0,
         footContactCount: 0,
       });
@@ -175,6 +180,8 @@ export class EvolutionManager {
       bestFitness: Math.round(currentBest.fitness),
       avgFitness: Math.round(avgFitness),
       bestDistance: Math.round(currentBest.maxDistance),
+      bestSpeed: Math.round(currentBest.averageSpeed * 10) / 10,
+      checkpointsPassed: currentBest.checkpointsReached.length,
       championName: currentBest.name,
     });
 
@@ -186,24 +193,28 @@ export class EvolutionManager {
     this.generation++;
 
     const nextBrains: NeuralNetwork[] = [];
-    const poolSize = Math.max(2, Math.floor(sorted.length * 0.25));
-    const elitePool = sorted.slice(0, poolSize);
+
+    // Filter parent pool to favor creatures that were not eliminated
+    const nonEliminated = sorted.filter(c => !c.eliminated);
+    const candidatePool = nonEliminated.length >= 2 ? nonEliminated : sorted;
+
+    const poolSize = Math.max(2, Math.floor(candidatePool.length * 0.3));
+    const elitePool = candidatePool.slice(0, poolSize);
 
     // Slot 0: Champion clone (Elitism)
     nextBrains.push(currentBest.brain.clone());
 
     // Slot 1: If population >= 4, keep #2 performer
-    if (config.populationSize >= 4 && sorted[1]) {
-      nextBrains.push(sorted[1].brain.clone());
+    if (config.populationSize >= 4 && candidatePool[1]) {
+      nextBrains.push(candidatePool[1].brain.clone());
     }
 
-    // Breed remaining slots with crossover and adaptive mutation
     while (nextBrains.length < config.populationSize) {
       const parentA = this.selectParent(elitePool);
       const parentB = this.selectParent(elitePool);
 
       let childBrain: NeuralNetwork;
-      if (Math.random() < 0.7 && parentA !== parentB) {
+      if (Math.random() < 0.75 && parentA !== parentB) {
         childBrain = parentA.brain.crossover(parentB.brain);
       } else {
         childBrain = parentA.brain.clone();
