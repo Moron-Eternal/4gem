@@ -1,0 +1,32 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:gilded_brass"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "SC",
+      "CS"
+    ],
+    "key": {
+      "S": {
+        "item": "auralis:solarium_ingot"
+      },
+      "C": {
+        "item": "minecraft:copper_ingot"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:solarium_ingot"
+      }
+    ],
+    "result": {
+      "item": "auralis:gilded_brass",
+      "count": 4
+    }
+  }
+}

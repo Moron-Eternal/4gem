@@ -1,0 +1,29 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "auralis:tuning_fork",
+      "menu_category": {
+        "category": "equipment"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "auralis_tuning_fork"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.auralis:tuning_fork.name"
+      },
+      "minecraft:max_stack_size": 1,
+      "minecraft:glint": true,
+      "minecraft:hand_equipped": true,
+      "minecraft:cooldown": {
+        "category": "auralis_tuning_fork",
+        "duration": 2.0
+      },
+      "auralis:tuning_fork_use": {}
+    }
+  }
+}

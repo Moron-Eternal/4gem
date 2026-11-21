@@ -1,0 +1,47 @@
+{
+  "format_version": "1.21.50",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "auralis:astral_bolt",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:collision_box": {
+        "width": 0.35,
+        "height": 0.35
+      },
+      "minecraft:projectile": {
+        "on_hit": {
+          "impact_damage": {
+            "damage": 6,
+            "knockback": true,
+            "semi_random_diff_damage": false
+          },
+          "particle_on_hit": {
+            "particle_type": "endrod",
+            "num_particles": 8,
+            "on_entity_hit": true,
+            "on_other_hit": true
+          },
+          "remove_on_hit": {}
+        },
+        "power": 1.45,
+        "gravity": 0.005,
+        "inertia": 1.0,
+        "liquid_inertia": 0.95,
+        "uncertainty_base": 2.5,
+        "hit_sound": "auralis.crystal.step"
+      },
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": true
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      }
+    }
+  }
+}

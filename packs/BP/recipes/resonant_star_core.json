@@ -1,0 +1,36 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:resonant_star_core"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "PSP",
+      "SDS",
+      "PSP"
+    ],
+    "key": {
+      "S": {
+        "item": "auralis:solarium_ingot"
+      },
+      "P": {
+        "item": "auralis:prism_shard"
+      },
+      "D": {
+        "item": "minecraft:diamond"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:solarium_ingot"
+      }
+    ],
+    "result": {
+      "item": "auralis:resonant_star_core",
+      "count": 1
+    }
+  }
+}

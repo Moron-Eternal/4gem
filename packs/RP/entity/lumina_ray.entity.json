@@ -1,0 +1,36 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:lumina_ray",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/lumina_ray"
+      },
+      "geometry": {
+        "default": "geometry.auralis_lumina_ray"
+      },
+      "animations": {
+        "main_anim": "animation.auralis.lumina_ray.glide",
+        "ctrl": "controller.animation.auralis.always_active"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#2EC8C8",
+        "overlay_color": "#FFE082"
+      },
+      "particle_effects": {
+        "aura": "auralis:manta_trail"
+      }
+    }
+  }
+}

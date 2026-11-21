@@ -1,0 +1,29 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "auralis:astral_lyre",
+      "menu_category": {
+        "category": "equipment"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "auralis_astral_lyre"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.auralis:astral_lyre.name"
+      },
+      "minecraft:max_stack_size": 1,
+      "minecraft:glint": true,
+      "minecraft:hand_equipped": true,
+      "minecraft:cooldown": {
+        "category": "auralis_lyre",
+        "duration": 2.5
+      },
+      "auralis:astral_lyre_use": {}
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "astrolabe_pedestal_attuned",
+    "metalness_emissive_roughness": "astrolabe_pedestal_attuned_mer",
+    "heightmap": "astrolabe_pedestal_attuned_heightmap"
+  }
+}

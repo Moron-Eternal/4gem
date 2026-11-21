@@ -1,0 +1,8 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "vespera_altar",
+    "metalness_emissive_roughness": "vespera_altar_mer",
+    "heightmap": "vespera_altar_heightmap"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shapeless": {
+    "description": {
+      "identifier": "auralis:celestial_nectar"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "ingredients": [
+      {
+        "item": "minecraft:glass_bottle"
+      },
+      {
+        "item": "auralis:prism_berry"
+      },
+      {
+        "item": "auralis:prism_shard"
+      },
+      {
+        "item": "auralis:raw_solarium"
+      }
+    ],
+    "unlock": [
+      {
+        "item": "auralis:prism_berry"
+      }
+    ],
+    "result": {
+      "item": "auralis:celestial_nectar",
+      "count": 1
+    }
+  }
+}

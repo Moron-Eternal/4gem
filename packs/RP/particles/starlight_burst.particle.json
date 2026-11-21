@@ -1,0 +1,71 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:particle_effect": {
+    "description": {
+      "identifier": "auralis:starlight_burst",
+      "basic_render_parameters": {
+        "material": "particles_add",
+        "texture": "textures/particle/auralis_particles"
+      }
+    },
+    "components": {
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 48
+      },
+      "minecraft:emitter_lifetime_once": {
+        "active_time": 0.2
+      },
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": "math.random(1.0, 2.0)"
+      },
+      "minecraft:particle_initial_speed": "math.random(2.2, 6.2)",
+      "minecraft:particle_motion_dynamic": {
+        "linear_acceleration": [
+          0,
+          -0.5,
+          0
+        ],
+        "linear_drag_coefficient": 1.6
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          "0.34 * (1.0 - v.particle_age / v.particle_lifetime)",
+          "0.34 * (1.0 - v.particle_age / v.particle_lifetime)"
+        ],
+        "facing_camera_mode": "rotate_xyz",
+        "uv": {
+          "texture_width": 128,
+          "texture_height": 128,
+          "uv": [
+            0,
+            32
+          ],
+          "uv_size": [
+            32,
+            32
+          ]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": {
+          "interpolant": "v.particle_age / v.particle_lifetime",
+          "gradient": {
+            "0.0": "#FFFFFFFF",
+            "0.25": "#FFFFDE8A",
+            "0.65": "#CC7AF4F0",
+            "1.0": "#00D696FF"
+          }
+        }
+      },
+      "minecraft:particle_initial_spin": {
+        "initial_rotation": "math.random(0, 360)",
+        "rotation_rate": 180
+      },
+      "minecraft:emitter_shape_sphere": {
+        "radius": 0.4,
+        "surface_only": true,
+        "direction": "outwards"
+      }
+    }
+  }
+}

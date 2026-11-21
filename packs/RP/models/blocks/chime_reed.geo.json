@@ -1,0 +1,47 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.auralis_chime_reed",
+        "texture_width": 16,
+        "texture_height": 16,
+        "visible_bounds_width": 1.5,
+        "visible_bounds_height": 1.5,
+        "visible_bounds_offset": [0, 0.5, 0]
+      },
+      "bones": [
+        {
+          "name": "cross_a",
+          "pivot": [0, 0, 0],
+          "rotation": [0, 45, 0],
+          "cubes": [
+            {
+              "origin": [-7.5, 0, 0],
+              "size": [15, 16, 0],
+              "uv": {
+                "north": { "uv": [0, 0], "uv_size": [16, 16] },
+                "south": { "uv": [0, 0], "uv_size": [16, 16] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "cross_b",
+          "pivot": [0, 0, 0],
+          "rotation": [0, -45, 0],
+          "cubes": [
+            {
+              "origin": [-7.5, 0, 0],
+              "size": [15, 16, 0],
+              "uv": {
+                "north": { "uv": [0, 0], "uv_size": [16, 16] },
+                "south": { "uv": [0, 0], "uv_size": [16, 16] }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

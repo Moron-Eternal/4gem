@@ -1,0 +1,84 @@
+{
+  "format_version": "1.21.50",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "auralis:choir_wisp",
+      "is_spawnable": true,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "auralis",
+          "choir_wisp",
+          "mob"
+        ]
+      },
+      "minecraft:collision_box": {
+        "width": 0.65,
+        "height": 0.9
+      },
+      "minecraft:health": {
+        "value": 16,
+        "max": 16
+      },
+      "minecraft:flying_speed": {
+        "value": 0.16
+      },
+      "minecraft:movement": {
+        "value": 0.25
+      },
+      "minecraft:navigation.float": {
+        "can_path_over_water": true
+      },
+      "minecraft:movement.hover": {},
+      "minecraft:jump.static": {},
+      "minecraft:can_fly": {},
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": true
+      },
+      "minecraft:pushable": {
+        "is_pushable": true,
+        "is_pushable_by_piston": true
+      },
+      "minecraft:loot": {
+        "table": "loot_tables/entities/choir_wisp.json"
+      },
+      "minecraft:damage_sensor": {
+        "triggers": [
+          {
+            "cause": "fall",
+            "deals_damage": "no"
+          }
+        ]
+      },
+      "minecraft:behavior.tempt": {
+        "priority": 1,
+        "speed_multiplier": 1.35,
+        "items": [
+          "auralis:tuning_fork",
+          "auralis:solarium_ingot",
+          "auralis:astral_lyre"
+        ],
+        "within_radius": 18.0
+      },
+      "minecraft:behavior.float_wander": {
+        "priority": 2,
+        "xz_dist": 14,
+        "y_dist": 5,
+        "y_offset": 1.0,
+        "random_reselect": true,
+        "float_duration": [
+          2.0,
+          5.0
+        ]
+      },
+      "minecraft:behavior.look_at_player": {
+        "priority": 3,
+        "look_distance": 10.0
+      }
+    }
+  }
+}

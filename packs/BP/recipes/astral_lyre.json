@@ -1,0 +1,33 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:astral_lyre"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "S S",
+      "SPS",
+      "SSS"
+    ],
+    "key": {
+      "S": {
+        "item": "auralis:solarium_ingot"
+      },
+      "P": {
+        "item": "auralis:prism_shard"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:solarium_ingot"
+      }
+    ],
+    "result": {
+      "item": "auralis:astral_lyre",
+      "count": 1
+    }
+  }
+}

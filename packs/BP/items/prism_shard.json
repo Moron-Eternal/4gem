@@ -1,0 +1,22 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "auralis:prism_shard",
+      "menu_category": {
+        "category": "items"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "auralis_prism_shard"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.auralis:prism_shard.name"
+      },
+      "minecraft:max_stack_size": 64
+    }
+  }
+}

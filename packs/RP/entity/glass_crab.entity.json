@@ -1,0 +1,33 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:glass_crab",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/glass_crab"
+      },
+      "geometry": {
+        "default": "geometry.auralis_glass_crab"
+      },
+      "animations": {
+        "main_anim": "animation.auralis.glass_crab.walk",
+        "ctrl": "controller.animation.auralis.always_active"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#E4DACB",
+        "overlay_color": "#52E6E2"
+      }
+    }
+  }
+}

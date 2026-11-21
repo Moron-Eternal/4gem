@@ -1,0 +1,69 @@
+{
+  "pools": [
+    {
+      "rolls": {
+        "min": 3,
+        "max": 5
+      },
+      "entries": [
+        {
+          "type": "item",
+          "name": "auralis:solarium_ingot",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 2,
+                "max": 5
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "auralis:prism_shard",
+          "weight": 25,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 3,
+                "max": 8
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "auralis:prism_berry",
+          "weight": 20,
+          "functions": [
+            {
+              "function": "set_count",
+              "count": {
+                "min": 3,
+                "max": 6
+              }
+            }
+          ]
+        },
+        {
+          "type": "item",
+          "name": "auralis:celestial_nectar",
+          "weight": 15
+        },
+        {
+          "type": "item",
+          "name": "auralis:tide_glider_charm",
+          "weight": 8
+        },
+        {
+          "type": "item",
+          "name": "auralis:resonant_star_core",
+          "weight": 7
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "lantern_bloom",
+    "metalness_emissive_roughness": "lantern_bloom_mer",
+    "heightmap": "lantern_bloom_heightmap"
+  }
+}

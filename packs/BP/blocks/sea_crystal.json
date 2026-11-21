@@ -1,0 +1,60 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:block": {
+    "description": {
+      "identifier": "auralis:sea_crystal",
+      "menu_category": {
+        "category": "nature"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "geometry.auralis_sea_crystal",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "auralis_sea_crystal",
+          "render_method": "alpha_test",
+          "ambient_occlusion": false,
+          "face_dimming": false
+        }
+      },
+      "minecraft:collision_box": {
+        "origin": [
+          -4,
+          0,
+          -4
+        ],
+        "size": [
+          8,
+          12,
+          8
+        ]
+      },
+      "minecraft:selection_box": {
+        "origin": [
+          -5,
+          0,
+          -5
+        ],
+        "size": [
+          10,
+          14,
+          10
+        ]
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 0.9
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 2.0
+      },
+      "minecraft:light_emission": 13,
+      "minecraft:light_dampening": 0,
+      "minecraft:map_color": "#6CECE8",
+      "minecraft:loot": "loot_tables/blocks/sea_crystal.json",
+      "auralis:chime_block": {
+        "pitch": 1.15
+      },
+      "tag:minecraft:is_pickaxe_item_destructible": {}
+    }
+  }
+}

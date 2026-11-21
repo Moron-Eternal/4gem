@@ -1,0 +1,58 @@
+{
+  "format_version": [
+    1,
+    1,
+    0
+  ],
+  "auralis:auralite_stone": {
+    "sound": "calcite"
+  },
+  "auralis:starstone": {
+    "sound": "deepslate"
+  },
+  "auralis:tide_moss": {
+    "sound": "moss_block"
+  },
+  "auralis:gilded_travertine": {
+    "sound": "calcite"
+  },
+  "auralis:solarium_ore": {
+    "sound": "amethyst_block"
+  },
+  "auralis:solarium_block": {
+    "sound": "copper"
+  },
+  "auralis:prism_log": {
+    "sound": "cherry_wood"
+  },
+  "auralis:prism_planks": {
+    "sound": "cherry_wood"
+  },
+  "auralis:prism_leaves": {
+    "sound": "cherry_leaves"
+  },
+  "auralis:starlight_glass": {
+    "sound": "glass"
+  },
+  "auralis:sea_crystal": {
+    "sound": "amethyst_cluster"
+  },
+  "auralis:lantern_bloom": {
+    "sound": "amethyst_block"
+  },
+  "auralis:chime_reed": {
+    "sound": "amethyst_cluster"
+  },
+  "auralis:gilded_brass": {
+    "sound": "copper"
+  },
+  "auralis:astrolabe_pedestal": {
+    "sound": "amethyst_block"
+  },
+  "auralis:starlight_veil": {
+    "sound": "amethyst_cluster"
+  },
+  "auralis:vespera_altar": {
+    "sound": "amethyst_block"
+  }
+}

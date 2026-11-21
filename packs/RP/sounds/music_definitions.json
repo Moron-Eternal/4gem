@@ -1,0 +1,7 @@
+{
+  "auralis_firmament": {
+    "event_name": "music.auralis.firmament",
+    "max_delay": 45,
+    "min_delay": 10
+  }
+}

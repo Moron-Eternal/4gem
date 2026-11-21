@@ -1,0 +1,42 @@
+{
+  "resource_pack_name": "auralis_firmament",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "auralis_tuning_fork": {
+      "textures": "textures/items/tuning_fork"
+    },
+    "auralis_raw_solarium": {
+      "textures": "textures/items/raw_solarium"
+    },
+    "auralis_solarium_ingot": {
+      "textures": "textures/items/solarium_ingot"
+    },
+    "auralis_prism_shard": {
+      "textures": "textures/items/prism_shard"
+    },
+    "auralis_prism_berry": {
+      "textures": "textures/items/prism_berry"
+    },
+    "auralis_celestial_nectar": {
+      "textures": "textures/items/celestial_nectar"
+    },
+    "auralis_resonant_star_core": {
+      "textures": "textures/items/resonant_star_core"
+    },
+    "auralis_solarium_pickaxe": {
+      "textures": "textures/items/solarium_pickaxe"
+    },
+    "auralis_starblade": {
+      "textures": "textures/items/starblade"
+    },
+    "auralis_tide_glider_charm": {
+      "textures": "textures/items/tide_glider_charm"
+    },
+    "auralis_astral_lyre": {
+      "textures": "textures/items/astral_lyre"
+    },
+    "auralis_chronicle_of_auralis": {
+      "textures": "textures/items/chronicle_of_auralis"
+    }
+  }
+}

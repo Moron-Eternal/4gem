@@ -1,0 +1,95 @@
+{
+  "individual_named_sounds": {
+    "sounds": {
+      "ambient.auralis.wind": {
+        "sound": "ambient.auralis.wind",
+        "volume": 0.55,
+        "pitch": [
+          0.96,
+          1.04
+        ]
+      },
+      "ambient.auralis.chimes": {
+        "sound": "ambient.auralis.chimes",
+        "volume": 0.55,
+        "pitch": [
+          0.92,
+          1.08
+        ]
+      },
+      "ambient.auralis.mood": {
+        "sound": "ambient.auralis.mood",
+        "volume": 0.45,
+        "pitch": [
+          0.95,
+          1.05
+        ]
+      }
+    }
+  },
+  "entity_sounds": {
+    "entities": {
+      "auralis:lumina_ray": {
+        "volume": 0.85,
+        "pitch": [
+          0.92,
+          1.08
+        ],
+        "events": {
+          "ambient": "auralis.mob.manta_call",
+          "hurt": "auralis.crystal.step",
+          "death": "auralis.mob.manta_call"
+        }
+      },
+      "auralis:choir_wisp": {
+        "volume": 0.75,
+        "pitch": [
+          0.95,
+          1.12
+        ],
+        "events": {
+          "ambient": "auralis.mob.wisp_sing",
+          "hurt": "auralis.crystal.step",
+          "death": "auralis.crystal.break"
+        }
+      },
+      "auralis:glass_crab": {
+        "volume": 0.72,
+        "pitch": [
+          0.9,
+          1.12
+        ],
+        "events": {
+          "ambient": "auralis.mob.crab_click",
+          "hurt": "auralis.crystal.break",
+          "death": "auralis.crystal.break",
+          "step": "auralis.crystal.step"
+        }
+      },
+      "auralis:gilded_sentinel": {
+        "volume": 0.9,
+        "pitch": [
+          0.92,
+          1.06
+        ],
+        "events": {
+          "ambient": "auralis.mob.sentinel_hum",
+          "hurt": "auralis.mob.sentinel_hurt",
+          "death": "auralis.crystal.break"
+        }
+      },
+      "auralis:astral_seraph": {
+        "volume": 1.0,
+        "pitch": [
+          0.95,
+          1.05
+        ],
+        "events": {
+          "ambient": "auralis.mob.sentinel_hum",
+          "hurt": "auralis.mob.sentinel_hurt",
+          "death": "auralis.boss.seraph_defeat"
+        }
+      }
+    }
+  }
+}

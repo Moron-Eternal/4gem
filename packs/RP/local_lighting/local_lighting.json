@@ -1,0 +1,41 @@
+{
+  "format_version": "1.21.120",
+  "minecraft:local_light_settings": {
+    "auralis:lantern_bloom": {
+      "light_color": "#FFB870",
+      "light_type": "point_light"
+    },
+    "auralis:astrolabe_pedestal": {
+      "light_color": "#FFD278",
+      "light_type": "point_light"
+    },
+    "auralis:vespera_altar": {
+      "light_color": "#F09EFF",
+      "light_type": "point_light"
+    },
+    "auralis:sea_crystal": {
+      "light_color": "#58F2E6",
+      "light_type": "point_light"
+    },
+    "auralis:starlight_veil": {
+      "light_color": "#94F5FF",
+      "light_type": "static_light"
+    },
+    "auralis:solarium_block": {
+      "light_color": "#FFC95C",
+      "light_type": "static_light"
+    },
+    "auralis:solarium_ore": {
+      "light_color": "#F5B84B",
+      "light_type": "static_light"
+    },
+    "auralis:prism_leaves": {
+      "light_color": "#6EE8DF",
+      "light_type": "static_light"
+    },
+    "auralis:chime_reed": {
+      "light_color": "#FFE0A8",
+      "light_type": "static_light"
+    }
+  }
+}

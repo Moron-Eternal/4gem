@@ -1,0 +1,25 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shapeless": {
+    "description": {
+      "identifier": "auralis:prism_planks"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "ingredients": [
+      {
+        "item": "auralis:prism_log"
+      }
+    ],
+    "unlock": [
+      {
+        "item": "auralis:prism_log"
+      }
+    ],
+    "result": {
+      "item": "auralis:prism_planks",
+      "count": 4
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.auralis_astrolabe_pedestal",
+        "texture_width": 16,
+        "texture_height": 16,
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 0.75, 0]
+      },
+      "bones": [
+        {
+          "name": "pedestal",
+          "pivot": [0, 0, 0],
+          "cubes": [
+            { "origin": [-7, 0, -7], "size": [14, 2, 14], "uv": [0, 0] },
+            { "origin": [-5, 2, -5], "size": [10, 2, 10], "uv": [0, 0] },
+            { "origin": [-3, 4, -3], "size": [6, 6, 6], "uv": [0, 0] },
+            { "origin": [-5, 10, -5], "size": [10, 1.5, 10], "uv": [0, 0] }
+          ]
+        },
+        {
+          "name": "core",
+          "pivot": [0, 14, 0],
+          "rotation": [45, 45, 0],
+          "cubes": [
+            { "origin": [-2, 12, -2], "size": [4, 4, 4], "uv": [6, 6] }
+          ]
+        },
+        {
+          "name": "ring_outer",
+          "pivot": [0, 14, 0],
+          "rotation": [22, 0, 18],
+          "cubes": [
+            { "origin": [-6, 13.5, -6], "size": [12, 1, 1], "uv": [0, 0] },
+            { "origin": [-6, 13.5, 5], "size": [12, 1, 1], "uv": [0, 0] },
+            { "origin": [-6, 13.5, -5], "size": [1, 1, 10], "uv": [0, 0] },
+            { "origin": [5, 13.5, -5], "size": [1, 1, 10], "uv": [0, 0] }
+          ]
+        },
+        {
+          "name": "ring_inner",
+          "pivot": [0, 14, 0],
+          "rotation": [-35, 35, -24],
+          "cubes": [
+            { "origin": [-4.5, 13.5, -4.5], "size": [9, 1, 1], "uv": [0, 14] },
+            { "origin": [-4.5, 13.5, 3.5], "size": [9, 1, 1], "uv": [0, 14] },
+            { "origin": [-4.5, 13.5, -3.5], "size": [1, 1, 7], "uv": [0, 14] },
+            { "origin": [3.5, 13.5, -3.5], "size": [1, 1, 7], "uv": [0, 14] }
+          ]
+        }
+      ]
+    }
+  ]
+}

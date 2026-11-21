@@ -1,0 +1,36 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:astral_seraph",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/astral_seraph"
+      },
+      "geometry": {
+        "default": "geometry.auralis_astral_seraph"
+      },
+      "animations": {
+        "main_anim": "animation.auralis.astral_seraph.majesty",
+        "ctrl": "controller.animation.auralis.always_active"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#F4C95D",
+        "overlay_color": "#D67CFF"
+      },
+      "particle_effects": {
+        "aura": "auralis:ambient_motes"
+      }
+    }
+  }
+}

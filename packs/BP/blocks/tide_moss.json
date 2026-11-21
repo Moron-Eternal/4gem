@@ -1,0 +1,39 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:block": {
+    "description": {
+      "identifier": "auralis:tide_moss",
+      "menu_category": {
+        "category": "nature"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:material_instances": {
+        "up": {
+          "texture": "auralis_tide_moss_top",
+          "render_method": "opaque"
+        },
+        "down": {
+          "texture": "auralis_auralite_stone",
+          "render_method": "opaque"
+        },
+        "*": {
+          "texture": "auralis_tide_moss_side",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 0.8
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 3.0
+      },
+      "minecraft:light_emission": 2,
+      "minecraft:light_dampening": 15,
+      "minecraft:map_color": "#48CFC5",
+      "tag:minecraft:is_hoe_item_destructible": {},
+      "tag:minecraft:is_pickaxe_item_destructible": {}
+    }
+  }
+}

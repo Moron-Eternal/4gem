@@ -1,0 +1,29 @@
+{
+  "format_version": "1.21.40",
+  "minecraft:biome": {
+    "description": {
+      "identifier": "auralis:firmament"
+    },
+    "components": {
+      "minecraft:climate": {
+        "downfall": 0.0,
+        "snow_accumulation": [0.0, 0.0],
+        "temperature": 0.72,
+        "ash": 0.0,
+        "blue_spores": 0.0,
+        "red_spores": 0.0,
+        "white_ash": 0.0
+      },
+      "minecraft:creature_spawn_probability": {
+        "probability": 0.0
+      },
+      "minecraft:tags": {
+        "tags": [
+          "auralis",
+          "auralis_firmament",
+          "no_legacy_worldgen"
+        ]
+      }
+    }
+  }
+}

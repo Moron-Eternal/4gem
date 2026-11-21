@@ -1,0 +1,36 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:tide_glider_charm"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "P P",
+      "PSP",
+      " F "
+    ],
+    "key": {
+      "P": {
+        "item": "auralis:prism_shard"
+      },
+      "S": {
+        "item": "auralis:solarium_ingot"
+      },
+      "F": {
+        "item": "minecraft:feather"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:prism_shard"
+      }
+    ],
+    "result": {
+      "item": "auralis:tide_glider_charm",
+      "count": 1
+    }
+  }
+}

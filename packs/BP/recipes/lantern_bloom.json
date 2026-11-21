@@ -1,0 +1,36 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:lantern_bloom"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      " S ",
+      "PBP",
+      " S "
+    ],
+    "key": {
+      "S": {
+        "item": "auralis:solarium_ingot"
+      },
+      "P": {
+        "item": "auralis:prism_shard"
+      },
+      "B": {
+        "item": "auralis:prism_berry"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:solarium_ingot"
+      }
+    ],
+    "result": {
+      "item": "auralis:lantern_bloom",
+      "count": 2
+    }
+  }
+}

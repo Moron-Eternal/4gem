@@ -1,0 +1,8 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "chime_reed",
+    "metalness_emissive_roughness": "chime_reed_mer",
+    "heightmap": "chime_reed_heightmap"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:gilded_sentinel",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/gilded_sentinel"
+      },
+      "geometry": {
+        "default": "geometry.auralis_gilded_sentinel"
+      },
+      "animations": {
+        "main_anim": "animation.auralis.gilded_sentinel.hover",
+        "ctrl": "controller.animation.auralis.always_active"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#E6D294",
+        "overlay_color": "#5CF0F0"
+      }
+    }
+  }
+}

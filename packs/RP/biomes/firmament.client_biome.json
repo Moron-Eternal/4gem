@@ -1,0 +1,50 @@
+{
+  "format_version": "1.21.70",
+  "minecraft:client_biome": {
+    "description": {
+      "identifier": "auralis:firmament"
+    },
+    "components": {
+      "minecraft:sky_color": {
+        "sky_color": "#2A2256"
+      },
+      "minecraft:fog_appearance": {
+        "fog_identifier": "auralis:firmament_fog"
+      },
+      "minecraft:water_appearance": {
+        "surface_color": "#3EE2D2",
+        "surface_opacity": 0.55
+      },
+      "minecraft:grass_appearance": {
+        "color": "#5CE0CE"
+      },
+      "minecraft:foliage_appearance": {
+        "color": "#7AF0E0"
+      },
+      "minecraft:dry_foliage_color": {
+        "color": "#F2B58A"
+      },
+      "minecraft:biome_music": {
+        "music_definition": "auralis_firmament",
+        "volume_multiplier": 1.0
+      },
+      "minecraft:ambient_sounds": {
+        "loop": "ambient.auralis.wind",
+        "addition": "ambient.auralis.chimes",
+        "mood": "ambient.auralis.mood"
+      },
+      "minecraft:atmosphere_identifier": {
+        "atmosphere_identifier": "auralis:firmament_atmosphere"
+      },
+      "minecraft:lighting_identifier": {
+        "lighting_identifier": "auralis:firmament_lighting"
+      },
+      "minecraft:color_grading_identifier": {
+        "color_grading_identifier": "auralis:firmament_color_grading"
+      },
+      "minecraft:water_identifier": {
+        "water_identifier": "auralis:firmament_water"
+      }
+    }
+  }
+}

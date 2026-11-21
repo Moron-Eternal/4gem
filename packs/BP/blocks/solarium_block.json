@@ -1,0 +1,31 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:block": {
+    "description": {
+      "identifier": "auralis:solarium_block",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "auralis_solarium_block",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 3.2
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 10.0
+      },
+      "minecraft:light_emission": 12,
+      "minecraft:light_dampening": 15,
+      "minecraft:map_color": "#F5C95A",
+      "tag:minecraft:is_pickaxe_item_destructible": {},
+      "tag:metal": {}
+    }
+  }
+}

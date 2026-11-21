@@ -1,0 +1,225 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.auralis_lumina_ray",
+        "texture_width": 64,
+        "texture_height": 64,
+        "visible_bounds_width": 4.0,
+        "visible_bounds_height": 2.0,
+        "visible_bounds_offset": [
+          0,
+          0.5,
+          0
+        ]
+      },
+      "bones": [
+        {
+          "name": "root",
+          "pivot": [
+            0,
+            6,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -7,
+                4,
+                -8
+              ],
+              "size": [
+                14,
+                4,
+                16
+              ],
+              "uv": [
+                0,
+                0
+              ]
+            },
+            {
+              "origin": [
+                -3,
+                7,
+                -5
+              ],
+              "size": [
+                6,
+                2,
+                6
+              ],
+              "uv": [
+                28,
+                52
+              ]
+            }
+          ]
+        },
+        {
+          "name": "wing_l",
+          "parent": "root",
+          "pivot": [
+            7,
+            6,
+            -1
+          ],
+          "cubes": [
+            {
+              "origin": [
+                7,
+                5,
+                -6
+              ],
+              "size": [
+                14,
+                2,
+                12
+              ],
+              "uv": [
+                0,
+                22
+              ]
+            }
+          ]
+        },
+        {
+          "name": "wing_l_tip",
+          "parent": "wing_l",
+          "pivot": [
+            21,
+            6,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                21,
+                5.5,
+                -4
+              ],
+              "size": [
+                8,
+                1,
+                8
+              ],
+              "uv": [
+                0,
+                22
+              ]
+            }
+          ]
+        },
+        {
+          "name": "wing_r",
+          "parent": "root",
+          "pivot": [
+            -7,
+            6,
+            -1
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -21,
+                5,
+                -6
+              ],
+              "size": [
+                14,
+                2,
+                12
+              ],
+              "uv": [
+                0,
+                38
+              ]
+            }
+          ]
+        },
+        {
+          "name": "wing_r_tip",
+          "parent": "wing_r",
+          "pivot": [
+            -21,
+            6,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -29,
+                5.5,
+                -4
+              ],
+              "size": [
+                8,
+                1,
+                8
+              ],
+              "uv": [
+                0,
+                38
+              ]
+            }
+          ]
+        },
+        {
+          "name": "tail_1",
+          "parent": "root",
+          "pivot": [
+            0,
+            6,
+            8
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -1,
+                5,
+                8
+              ],
+              "size": [
+                2,
+                2,
+                10
+              ],
+              "uv": [
+                0,
+                52
+              ]
+            }
+          ]
+        },
+        {
+          "name": "tail_2",
+          "parent": "tail_1",
+          "pivot": [
+            0,
+            6,
+            18
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -0.5,
+                5.5,
+                18
+              ],
+              "size": [
+                1,
+                1,
+                10
+              ],
+              "uv": [
+                0,
+                52
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

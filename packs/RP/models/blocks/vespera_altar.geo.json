@@ -1,0 +1,38 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.auralis_vespera_altar",
+        "texture_width": 16,
+        "texture_height": 16,
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 0.75, 0]
+      },
+      "bones": [
+        {
+          "name": "altar_base",
+          "pivot": [0, 0, 0],
+          "cubes": [
+            { "origin": [-8, 0, -8], "size": [16, 4, 16], "uv": [0, 0] },
+            { "origin": [-6, 4, -6], "size": [12, 6, 12], "uv": [0, 0] },
+            { "origin": [-7, 10, -7], "size": [14, 2, 14], "uv": [0, 0] },
+            { "origin": [-7, 12, -7], "size": [2, 4, 2], "uv": [0, 0] },
+            { "origin": [5, 12, -7], "size": [2, 4, 2], "uv": [0, 0] },
+            { "origin": [-7, 12, 5], "size": [2, 4, 2], "uv": [0, 0] },
+            { "origin": [5, 12, 5], "size": [2, 4, 2], "uv": [0, 0] }
+          ]
+        },
+        {
+          "name": "star_prism",
+          "pivot": [0, 14.0, 0],
+          "rotation": [45, 45, 0],
+          "cubes": [
+            { "origin": [-2, 12, -2], "size": [4, 4, 4], "uv": [6, 6] }
+          ]
+        }
+      ]
+    }
+  ]
+}

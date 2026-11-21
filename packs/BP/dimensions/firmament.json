@@ -1,0 +1,23 @@
+{
+  "format_version": "1.26.50",
+  "minecraft:dimension": {
+    "description": {
+      "identifier": "auralis:firmament"
+    },
+    "components": {
+      "minecraft:dimension_height": {
+        "min_y": -64,
+        "height_range": 384
+      },
+      "minecraft:generation": {
+        "generator_type": "void"
+      },
+      "minecraft:default_biome": {
+        "biome": "auralis:firmament"
+      },
+      "minecraft:clouds": {
+        "height": 32
+      }
+    }
+  }
+}

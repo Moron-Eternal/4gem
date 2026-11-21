@@ -1,0 +1,8 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "tide_moss_side",
+    "metalness_emissive_roughness": "tide_moss_side_mer",
+    "heightmap": "tide_moss_side_heightmap"
+  }
+}

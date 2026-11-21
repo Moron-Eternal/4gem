@@ -1,0 +1,52 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.auralis_astral_bolt",
+        "texture_width": 32,
+        "texture_height": 32,
+        "visible_bounds_width": 1.0,
+        "visible_bounds_height": 1.0,
+        "visible_bounds_offset": [
+          0,
+          0.25,
+          0
+        ]
+      },
+      "bones": [
+        {
+          "name": "bolt",
+          "pivot": [
+            0,
+            4,
+            0
+          ],
+          "rotation": [
+            45,
+            45,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -2.5,
+                1.5,
+                -2.5
+              ],
+              "size": [
+                5,
+                5,
+                5
+              ],
+              "uv": [
+                0,
+                0
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

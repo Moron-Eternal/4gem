@@ -1,0 +1,34 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:water_settings": {
+    "description": {
+      "identifier": "auralis:firmament_water"
+    },
+    "particle_concentrations": {
+      "chlorophyll": 0.18,
+      "suspended_sediment": 0.08,
+      "cdom": 0.12
+    },
+    "waves": {
+      "enabled": true,
+      "depth": 0.55,
+      "direction_increment": 72.0,
+      "frequency": 0.95,
+      "frequency_scaling": 1.18,
+      "mix": 0.25,
+      "octaves": 18,
+      "pull": 0.32,
+      "sampleWidth": 0.02,
+      "shape": 1.35,
+      "speed": 1.45,
+      "speed_scaling": 1.04
+    },
+    "caustics": {
+      "enabled": true,
+      "frame_length": 0.05,
+      "power": 3,
+      "scale": 0.55
+    },
+    "biome_water_color_contribution": 0.65
+  }
+}

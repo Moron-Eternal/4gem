@@ -1,0 +1,31 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:block": {
+    "description": {
+      "identifier": "auralis:gilded_brass",
+      "menu_category": {
+        "category": "construction"
+      }
+    },
+    "components": {
+      "minecraft:geometry": "minecraft:geometry.full_block",
+      "minecraft:material_instances": {
+        "*": {
+          "texture": "auralis_gilded_brass",
+          "render_method": "opaque"
+        }
+      },
+      "minecraft:destructible_by_mining": {
+        "seconds_to_destroy": 2.6
+      },
+      "minecraft:destructible_by_explosion": {
+        "explosion_resistance": 9.0
+      },
+      "minecraft:light_emission": 2,
+      "minecraft:light_dampening": 15,
+      "minecraft:map_color": "#D9A84C",
+      "tag:minecraft:is_pickaxe_item_destructible": {},
+      "tag:metal": {}
+    }
+  }
+}

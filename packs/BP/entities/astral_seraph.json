@@ -1,0 +1,127 @@
+{
+  "format_version": "1.21.50",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "auralis:astral_seraph",
+      "is_spawnable": true,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "auralis",
+          "astral_seraph",
+          "boss",
+          "monster",
+          "mob"
+        ]
+      },
+      "minecraft:boss": {
+        "name": "\u00a7e\u2726 \u00a7dThe Astral Seraph \u00a7e\u2726",
+        "hud_range": 72,
+        "should_darken_sky": false
+      },
+      "minecraft:collision_box": {
+        "width": 2.0,
+        "height": 3.8
+      },
+      "minecraft:health": {
+        "value": 360,
+        "max": 360
+      },
+      "minecraft:knockback_resistance": {
+        "value": 0.85
+      },
+      "minecraft:fire_immune": true,
+      "minecraft:flying_speed": {
+        "value": 0.22
+      },
+      "minecraft:movement": {
+        "value": 0.34
+      },
+      "minecraft:attack": {
+        "damage": 11
+      },
+      "minecraft:navigation.hover": {
+        "can_path_over_water": true,
+        "can_path_from_air": true
+      },
+      "minecraft:movement.hover": {},
+      "minecraft:jump.static": {},
+      "minecraft:can_fly": {},
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": true
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:persistent": {},
+      "minecraft:loot": {
+        "table": "loot_tables/entities/astral_seraph.json"
+      },
+      "minecraft:experience_reward": {
+        "on_death": "250"
+      },
+      "minecraft:shooter": {
+        "def": "auralis:astral_bolt"
+      },
+      "minecraft:damage_sensor": {
+        "triggers": [
+          {
+            "cause": "fall",
+            "deals_damage": "no"
+          },
+          {
+            "cause": "drowning",
+            "deals_damage": "no"
+          }
+        ]
+      },
+      "minecraft:behavior.hurt_by_target": {
+        "priority": 1
+      },
+      "minecraft:behavior.nearest_attackable_target": {
+        "priority": 2,
+        "must_see": false,
+        "reselect_targets": true,
+        "within_radius": 48.0,
+        "entity_types": [
+          {
+            "filters": {
+              "test": "is_family",
+              "subject": "other",
+              "value": "player"
+            },
+            "max_dist": 48.0
+          }
+        ]
+      },
+      "minecraft:behavior.ranged_attack": {
+        "priority": 3,
+        "attack_interval_min": 1.6,
+        "attack_interval_max": 2.4,
+        "attack_radius": 32.0,
+        "burst_shots": 3,
+        "burst_interval": 0.25
+      },
+      "minecraft:behavior.float_wander": {
+        "priority": 5,
+        "xz_dist": 16,
+        "y_dist": 6,
+        "y_offset": 3.0,
+        "random_reselect": true,
+        "float_duration": [
+          2.0,
+          4.0
+        ]
+      },
+      "minecraft:behavior.look_at_player": {
+        "priority": 6,
+        "look_distance": 36.0
+      }
+    }
+  }
+}

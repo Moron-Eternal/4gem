@@ -1,0 +1,36 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:choir_wisp",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/choir_wisp"
+      },
+      "geometry": {
+        "default": "geometry.auralis_choir_wisp"
+      },
+      "animations": {
+        "main_anim": "animation.auralis.choir_wisp.float",
+        "ctrl": "controller.animation.auralis.always_active"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#F5ECE0",
+        "overlay_color": "#FF9EB8"
+      },
+      "particle_effects": {
+        "aura": "auralis:wisp_notes"
+      }
+    }
+  }
+}

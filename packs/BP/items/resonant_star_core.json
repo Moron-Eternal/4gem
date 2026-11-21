@@ -1,0 +1,24 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "auralis:resonant_star_core",
+      "menu_category": {
+        "category": "items"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "auralis_resonant_star_core"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.auralis:resonant_star_core.name"
+      },
+      "minecraft:max_stack_size": 16,
+      "minecraft:glint": true,
+      "auralis:star_core_use": {}
+    }
+  }
+}

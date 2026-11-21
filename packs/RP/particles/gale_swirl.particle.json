@@ -1,0 +1,72 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:particle_effect": {
+    "description": {
+      "identifier": "auralis:gale_swirl",
+      "basic_render_parameters": {
+        "material": "particles_add",
+        "texture": "textures/particle/auralis_particles"
+      }
+    },
+    "components": {
+      "minecraft:emitter_rate_instant": {
+        "num_particles": 24
+      },
+      "minecraft:emitter_lifetime_once": {
+        "active_time": 0.2
+      },
+      "minecraft:particle_lifetime_expression": {
+        "max_lifetime": "math.random(0.8, 1.4)"
+      },
+      "minecraft:particle_initial_speed": "math.random(2.0, 4.2)",
+      "minecraft:particle_motion_dynamic": {
+        "linear_acceleration": [
+          0,
+          2.2,
+          0
+        ],
+        "linear_drag_coefficient": 1.4
+      },
+      "minecraft:particle_appearance_billboard": {
+        "size": [
+          0.35,
+          0.35
+        ],
+        "facing_camera_mode": "rotate_xyz",
+        "uv": {
+          "texture_width": 128,
+          "texture_height": 128,
+          "uv": [
+            96,
+            32
+          ],
+          "uv_size": [
+            32,
+            32
+          ]
+        }
+      },
+      "minecraft:particle_appearance_tinting": {
+        "color": {
+          "interpolant": "v.particle_age / v.particle_lifetime",
+          "gradient": {
+            "0.0": "#FFFFD2A6",
+            "0.35": "#FFF49EC4",
+            "0.75": "#AA88F4F2",
+            "1.0": "#0088F4F2"
+          }
+        }
+      },
+      "minecraft:particle_initial_spin": {
+        "initial_rotation": "math.random(0, 360)",
+        "rotation_rate": 320
+      },
+      "minecraft:emitter_shape_disc": {
+        "radius": 1.2,
+        "plane_normal": "y",
+        "surface_only": false,
+        "direction": "outwards"
+      }
+    }
+  }
+}

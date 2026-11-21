@@ -1,0 +1,283 @@
+{
+  "format_version": "1.20.20",
+  "sound_definitions": {
+    "music.auralis.firmament": {
+      "category": "music",
+      "sounds": [
+        {
+          "name": "sounds/music/auralis/glass_horizon",
+          "stream": true,
+          "volume": 0.72,
+          "load_on_low_memory": true
+        },
+        {
+          "name": "sounds/music/auralis/drifting_atolls",
+          "stream": true,
+          "volume": 0.72,
+          "load_on_low_memory": true
+        },
+        {
+          "name": "sounds/music/auralis/sunken_chimes",
+          "stream": true,
+          "volume": 0.72,
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "music.auralis.glass_horizon": {
+      "category": "music",
+      "sounds": [
+        {
+          "name": "sounds/music/auralis/glass_horizon",
+          "stream": true,
+          "volume": 0.78,
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "music.auralis.drifting_atolls": {
+      "category": "music",
+      "sounds": [
+        {
+          "name": "sounds/music/auralis/drifting_atolls",
+          "stream": true,
+          "volume": 0.78,
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "music.auralis.sunken_chimes": {
+      "category": "music",
+      "sounds": [
+        {
+          "name": "sounds/music/auralis/sunken_chimes",
+          "stream": true,
+          "volume": 0.78,
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "music.auralis.seraph_boss": {
+      "category": "music",
+      "sounds": [
+        {
+          "name": "sounds/music/auralis/seraph_crescendo",
+          "stream": true,
+          "volume": 0.85,
+          "load_on_low_memory": true
+        }
+      ]
+    },
+    "ambient.auralis.wind": {
+      "category": "ambient",
+      "sounds": [
+        {
+          "name": "sounds/auralis/ambient_wind",
+          "stream": true,
+          "volume": 0.38
+        }
+      ]
+    },
+    "ambient.auralis.chimes": {
+      "category": "ambient",
+      "sounds": [
+        {
+          "name": "sounds/auralis/ambient_chime_1",
+          "volume": 0.45
+        },
+        {
+          "name": "sounds/auralis/ambient_chime_2",
+          "volume": 0.45
+        }
+      ]
+    },
+    "ambient.auralis.mood": {
+      "category": "ambient",
+      "sounds": [
+        {
+          "name": "sounds/auralis/ambient_mood",
+          "volume": 0.4
+        }
+      ]
+    },
+    "auralis.ritual.chime": {
+      "category": "block",
+      "sounds": [
+        {
+          "name": "sounds/auralis/ritual_chime",
+          "volume": 0.9
+        }
+      ]
+    },
+    "auralis.ritual.swell": {
+      "category": "block",
+      "sounds": [
+        {
+          "name": "sounds/auralis/ritual_swell",
+          "volume": 0.95
+        }
+      ]
+    },
+    "auralis.portal.ascend": {
+      "category": "player",
+      "sounds": [
+        {
+          "name": "sounds/auralis/portal_ascend",
+          "volume": 0.95
+        }
+      ]
+    },
+    "auralis.portal.return": {
+      "category": "player",
+      "sounds": [
+        {
+          "name": "sounds/auralis/portal_return",
+          "volume": 0.92
+        }
+      ]
+    },
+    "auralis.portal.hum": {
+      "category": "block",
+      "sounds": [
+        {
+          "name": "sounds/auralis/portal_hum",
+          "volume": 0.45
+        }
+      ]
+    },
+    "auralis.crystal.step": {
+      "category": "block",
+      "sounds": [
+        {
+          "name": "sounds/auralis/crystal_step",
+          "volume": 0.65
+        }
+      ]
+    },
+    "auralis.crystal.break": {
+      "category": "block",
+      "sounds": [
+        {
+          "name": "sounds/auralis/crystal_break",
+          "volume": 0.8
+        }
+      ]
+    },
+    "auralis.item.gale_prism": {
+      "category": "player",
+      "sounds": [
+        {
+          "name": "sounds/auralis/gale_prism",
+          "volume": 0.88
+        }
+      ]
+    },
+    "auralis.item.starblade": {
+      "category": "player",
+      "sounds": [
+        {
+          "name": "sounds/auralis/starblade_slash",
+          "volume": 0.9
+        }
+      ]
+    },
+    "auralis.item.lyre": {
+      "category": "player",
+      "sounds": [
+        {
+          "name": "sounds/auralis/lyre_chord_1",
+          "volume": 0.85
+        },
+        {
+          "name": "sounds/auralis/lyre_chord_2",
+          "volume": 0.85
+        },
+        {
+          "name": "sounds/auralis/lyre_chord_3",
+          "volume": 0.85
+        }
+      ]
+    },
+    "auralis.mob.manta_call": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/auralis/manta_call",
+          "volume": 0.72
+        }
+      ]
+    },
+    "auralis.mob.wisp_sing": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/auralis/wisp_sing",
+          "volume": 0.68
+        }
+      ]
+    },
+    "auralis.mob.crab_click": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/auralis/crab_click",
+          "volume": 0.65
+        }
+      ]
+    },
+    "auralis.mob.sentinel_hum": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/sentinel_hum",
+          "volume": 0.7
+        }
+      ]
+    },
+    "auralis.mob.sentinel_blast": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/sentinel_blast",
+          "volume": 0.85
+        }
+      ]
+    },
+    "auralis.mob.sentinel_hurt": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/sentinel_hurt",
+          "volume": 0.82
+        }
+      ]
+    },
+    "auralis.boss.seraph_awaken": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/seraph_awaken",
+          "volume": 1.0
+        }
+      ]
+    },
+    "auralis.boss.seraph_pulse": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/seraph_pulse",
+          "volume": 0.95
+        }
+      ]
+    },
+    "auralis.boss.seraph_defeat": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/seraph_defeat",
+          "volume": 1.0
+        }
+      ]
+    }
+  }
+}

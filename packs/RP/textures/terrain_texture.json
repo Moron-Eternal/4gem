@@ -1,0 +1,68 @@
+{
+  "resource_pack_name": "auralis_firmament",
+  "texture_name": "atlas.terrain",
+  "padding": 8,
+  "num_mip_levels": 4,
+  "texture_data": {
+    "auralis_auralite_stone": {
+      "textures": "textures/blocks/auralite_stone"
+    },
+    "auralis_starstone": {
+      "textures": "textures/blocks/starstone"
+    },
+    "auralis_tide_moss_top": {
+      "textures": "textures/blocks/tide_moss_top"
+    },
+    "auralis_tide_moss_side": {
+      "textures": "textures/blocks/tide_moss_side"
+    },
+    "auralis_gilded_travertine": {
+      "textures": "textures/blocks/gilded_travertine"
+    },
+    "auralis_solarium_ore": {
+      "textures": "textures/blocks/solarium_ore"
+    },
+    "auralis_solarium_block": {
+      "textures": "textures/blocks/solarium_block"
+    },
+    "auralis_prism_log_side": {
+      "textures": "textures/blocks/prism_log_side"
+    },
+    "auralis_prism_log_top": {
+      "textures": "textures/blocks/prism_log_top"
+    },
+    "auralis_prism_planks": {
+      "textures": "textures/blocks/prism_planks"
+    },
+    "auralis_prism_leaves": {
+      "textures": "textures/blocks/prism_leaves"
+    },
+    "auralis_starlight_glass": {
+      "textures": "textures/blocks/starlight_glass"
+    },
+    "auralis_sea_crystal": {
+      "textures": "textures/blocks/sea_crystal"
+    },
+    "auralis_lantern_bloom": {
+      "textures": "textures/blocks/lantern_bloom"
+    },
+    "auralis_chime_reed": {
+      "textures": "textures/blocks/chime_reed"
+    },
+    "auralis_gilded_brass": {
+      "textures": "textures/blocks/gilded_brass"
+    },
+    "auralis_astrolabe_pedestal": {
+      "textures": "textures/blocks/astrolabe_pedestal"
+    },
+    "auralis_astrolabe_pedestal_attuned": {
+      "textures": "textures/blocks/astrolabe_pedestal_attuned"
+    },
+    "auralis_starlight_veil": {
+      "textures": "textures/blocks/starlight_veil"
+    },
+    "auralis_vespera_altar": {
+      "textures": "textures/blocks/vespera_altar"
+    }
+  }
+}

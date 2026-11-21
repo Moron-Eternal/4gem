@@ -1,0 +1,32 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:astral_bolt",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/astral_bolt"
+      },
+      "geometry": {
+        "default": "geometry.auralis_astral_bolt"
+      },
+      "animations": {
+        "main_anim": "animation.auralis.astral_bolt.spin",
+        "ctrl": "controller.animation.auralis.always_active"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "particle_effects": {
+        "aura": "auralis:sentinel_beam"
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "auralis:raw_solarium",
+      "menu_category": {
+        "category": "items"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "auralis_raw_solarium"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.auralis:raw_solarium.name"
+      },
+      "minecraft:max_stack_size": 64
+    }
+  }
+}

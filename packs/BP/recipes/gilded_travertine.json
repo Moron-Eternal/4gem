@@ -1,0 +1,36 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:gilded_travertine"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "ASA",
+      "SPS",
+      "ASA"
+    ],
+    "key": {
+      "A": {
+        "item": "auralis:auralite_stone"
+      },
+      "S": {
+        "item": "auralis:solarium_ingot"
+      },
+      "P": {
+        "item": "auralis:prism_shard"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:auralite_stone"
+      }
+    ],
+    "result": {
+      "item": "auralis:gilded_travertine",
+      "count": 4
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "format_version": "1.21.50",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "auralis:glass_crab",
+      "is_spawnable": true,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "auralis",
+          "glass_crab",
+          "arthropod",
+          "mob"
+        ]
+      },
+      "minecraft:collision_box": {
+        "width": 0.95,
+        "height": 0.8
+      },
+      "minecraft:health": {
+        "value": 28,
+        "max": 28
+      },
+      "minecraft:movement": {
+        "value": 0.24
+      },
+      "minecraft:attack": {
+        "damage": 5
+      },
+      "minecraft:navigation.walk": {
+        "can_path_over_water": true,
+        "avoid_damage_blocks": true
+      },
+      "minecraft:movement.basic": {},
+      "minecraft:jump.static": {},
+      "minecraft:breathable": {
+        "breathes_air": true,
+        "breathes_water": true
+      },
+      "minecraft:physics": {},
+      "minecraft:pushable": {
+        "is_pushable": true,
+        "is_pushable_by_piston": true
+      },
+      "minecraft:loot": {
+        "table": "loot_tables/entities/glass_crab.json"
+      },
+      "minecraft:behavior.hurt_by_target": {
+        "priority": 1
+      },
+      "minecraft:behavior.melee_attack": {
+        "priority": 2,
+        "speed_multiplier": 1.35,
+        "track_target": true
+      },
+      "minecraft:behavior.random_stroll": {
+        "priority": 4,
+        "speed_multiplier": 0.85
+      },
+      "minecraft:behavior.look_at_player": {
+        "priority": 5,
+        "look_distance": 8.0
+      },
+      "minecraft:behavior.random_look_around": {
+        "priority": 6
+      }
+    }
+  }
+}

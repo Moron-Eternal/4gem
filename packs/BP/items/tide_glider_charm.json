@@ -1,0 +1,28 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "auralis:tide_glider_charm",
+      "menu_category": {
+        "category": "equipment"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "auralis_tide_glider_charm"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.auralis:tide_glider_charm.name"
+      },
+      "minecraft:max_stack_size": 1,
+      "minecraft:glint": true,
+      "minecraft:cooldown": {
+        "category": "auralis_gale_prism",
+        "duration": 3.0
+      },
+      "auralis:gale_prism_use": {}
+    }
+  }
+}

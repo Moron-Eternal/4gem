@@ -1,0 +1,57 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.auralis_sea_crystal",
+        "texture_width": 16,
+        "texture_height": 16,
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 0.5, 0]
+      },
+      "bones": [
+        {
+          "name": "center_spire",
+          "pivot": [0, 0, 0],
+          "rotation": [4, 15, -3],
+          "cubes": [
+            { "origin": [-2, 0, -2], "size": [4, 14, 4], "uv": [0, 0] }
+          ]
+        },
+        {
+          "name": "spire_ne",
+          "pivot": [2, 0, -2],
+          "rotation": [-24, 25, 22],
+          "cubes": [
+            { "origin": [0.5, 0, -3.5], "size": [3, 10, 3], "uv": [4, 2] }
+          ]
+        },
+        {
+          "name": "spire_sw",
+          "pivot": [-2, 0, 2],
+          "rotation": [26, -15, -24],
+          "cubes": [
+            { "origin": [-3.5, 0, 0.5], "size": [3, 9, 3], "uv": [2, 4] }
+          ]
+        },
+        {
+          "name": "spire_nw",
+          "pivot": [-2.5, 0, -2],
+          "rotation": [-20, -30, -28],
+          "cubes": [
+            { "origin": [-3.5, 0, -3], "size": [2.5, 7, 2.5], "uv": [6, 5] }
+          ]
+        },
+        {
+          "name": "spire_se",
+          "pivot": [2.5, 0, 2],
+          "rotation": [22, 20, 26],
+          "cubes": [
+            { "origin": [1.5, 0, 1], "size": [2.5, 6.5, 2.5], "uv": [8, 6] }
+          ]
+        }
+      ]
+    }
+  ]
+}

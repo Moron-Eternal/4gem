@@ -1,0 +1,33 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:item": {
+    "description": {
+      "identifier": "auralis:prism_berry",
+      "menu_category": {
+        "category": "nature"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "textures": {
+          "default": "auralis_prism_berry"
+        }
+      },
+      "minecraft:display_name": {
+        "value": "item.auralis:prism_berry.name"
+      },
+      "minecraft:max_stack_size": 64,
+      "minecraft:food": {
+        "nutrition": 4,
+        "saturation_modifier": 0.65,
+        "can_always_eat": true
+      },
+      "minecraft:use_modifiers": {
+        "use_duration": 1.2,
+        "movement_modifier": 0.45
+      },
+      "minecraft:use_animation": "eat",
+      "auralis:prism_berry_eat": {}
+    }
+  }
+}
