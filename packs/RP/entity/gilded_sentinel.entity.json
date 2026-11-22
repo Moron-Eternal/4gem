@@ -13,9 +13,10 @@
         "default": "geometry.auralis_gilded_sentinel"
       },
       "animations": {
-        "main_anim": "animation.auralis.gilded_sentinel.hover",
+        "hover": "animation.auralis.gilded_sentinel.hover",
+        "alert": "animation.auralis.gilded_sentinel.alert",
         "look": "animation.auralis.look_at_target",
-        "ctrl": "controller.animation.auralis.always_active"
+        "ctrl": "controller.animation.auralis.sentinel"
       },
       "scripts": {
         "animate": [

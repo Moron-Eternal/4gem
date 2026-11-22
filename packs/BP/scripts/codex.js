@@ -11,19 +11,30 @@ import {
   safePlaySound,
 } from "./constants.js";
 import { setPlayerJukeboxTrack } from "./ambience.js";
-import { getGeneratedSectorCount } from "./worldgen.js";
+import { getWorldGenStatus } from "./worldgen.js";
+import { getNearestCitadel } from "./noise.js";
 import { transitPlayer } from "./ritual.js";
 
 export function openCodexUI(player) {
   safePlaySound(player.dimension, SOUNDS.CRYSTAL_STEP, player.location, { volume: 0.65, pitch: 1.2 });
 
   const inAuralis = player.dimension.id === DIMENSION_ID;
+  const wg = getWorldGenStatus();
+  let extraInfo = "";
+  if (inAuralis) {
+    const cit = getNearestCitadel(player.location.x, player.location.z);
+    const activeLine = wg.activeCell
+      ? `\n§7Horizon Streaming: §aCharting sector (${wg.activeCell.key})...`
+      : "";
+    extraInfo = `\n§7Nearest Astral Citadel: §d(${cit.x}, ${cit.y}, ${cit.z}) §8[${Math.round(cit.distance)}m]` + activeLine;
+  }
+
   const form = new ActionFormData()
     .title("§e✦ §dChronicle of Auralis §e✦")
     .body(
       `§fWelcome, Wayfarer of the Prism-Tide.\n\n` +
         `§7Current Realm: ${inAuralis ? "§bAuralis: The Prism-Tide Firmament" : "§aThe Overworld"}\n` +
-        `§7Charted Firmament Sectors: §e${getGeneratedSectorCount()}\n\n` +
+        `§7Charted Firmament Islands: §e${wg.chartedCount}${extraInfo}\n\n` +
         `§7Select a chapter below to study the Harmonic Ritual, explore the archipelago, or play the original soundtrack.`
     )
     .button("§e✦ The Harmonic Ritual\n§8How to open the veil to Auralis", "textures/items/tuning_fork")
@@ -31,7 +42,7 @@ export function openCodexUI(player) {
     .button("§dBestiary & Astral Seraph\n§8Creatures & 3-Phase Boss Guide", "textures/items/resonant_star_core")
     .button("§6Relics & Forge Recipes\n§8Starblade, Gale-Prism & Lyre", "textures/items/starblade")
     .button("§a♪ Original Soundtrack Jukebox\n§8Listen to all 4 Auralis OST tracks", "textures/items/astral_lyre")
-    .button("§7Wayfarer's Shrine Kit\n§8Creative/Admin quick starter & travel", "textures/blocks/astrolabe_pedestal_attuned");
+    .button("§7Wayfarer's Shrine Kit\n§8Creative/Admin quick starter & travel", "textures/blocks/solarium_block");
 
   form.show(player).then((res) => {
     if (res.canceled || res.selection === undefined) return;

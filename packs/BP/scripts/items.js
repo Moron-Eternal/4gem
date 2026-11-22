@@ -185,6 +185,7 @@ export function registerCustomComponents(startupEvent, handlers) {
       safePlaySound(dim, SOUNDS.STARBLADE, head, { volume: 0.72 });
 
       const hitIds = new Set();
+      let stepIdx = 0;
       for (let step = 2; step <= 14; step += 1.5) {
         const pt = {
           x: head.x + view.x * step,
@@ -192,7 +193,7 @@ export function registerCustomComponents(startupEvent, handlers) {
           z: head.z + view.z * step,
         };
         safeSpawnParticle(dim, PARTICLES.STARBLADE_ARC, pt);
-        if (step % 3 === 0) {
+        if (++stepIdx % 2 === 0) {
           safeSpawnParticle(dim, PARTICLES.CRYSTAL_SHIMMER, pt);
         }
 

@@ -102,19 +102,33 @@ export function tickAmbience() {
       });
     }
 
-    // Visual rising breeze plumes above nearby Updraft Cloud-Vents
+    // Visual rising breeze plumes above nearby Updraft Cloud-Vents + warm Lantern Bloom motes + Chime-Reed glints!
     const px = Math.floor(loc.x);
     const py = Math.floor(loc.y);
     const pz = Math.floor(loc.z);
+    let lanternSpawns = 0;
+    let reedSpawns = 0;
     for (let dx = -8; dx <= 8; dx += 2) {
       for (let dz = -8; dz <= 8; dz += 2) {
-        try {
-          const b = dim.getBlock({ x: px + dx, y: py - 1, z: pz + dz });
-          if (b && b.typeId === BLOCKS.CLOUD_VENT) {
-            safeSpawnParticle(dim, PARTICLES.CLOUD_UPDRAFT, { x: px + dx + 0.5, y: py + 0.2, z: pz + dz + 0.5 });
+        const bx = px + dx;
+        const bz = pz + dz;
+        for (let dy = -2; dy <= 2; dy++) {
+          try {
+            const b = dim.getBlock({ x: bx, y: py + dy, z: bz });
+            if (!b) continue;
+            const id = b.typeId;
+            if (id === BLOCKS.CLOUD_VENT) {
+              safeSpawnParticle(dim, PARTICLES.CLOUD_UPDRAFT, { x: bx + 0.5, y: py + dy + 1.15, z: bz + 0.5 });
+            } else if (id === BLOCKS.LANTERN_BLOOM && lanternSpawns < 4 && Math.random() < 0.45) {
+              lanternSpawns++;
+              safeSpawnParticle(dim, PARTICLES.LANTERN_MOTES, { x: bx + 0.5, y: py + dy + 1.05, z: bz + 0.5 });
+            } else if (id === BLOCKS.CHIME_REED && reedSpawns < 2 && tick % 40 === 0 && Math.random() < 0.35) {
+              reedSpawns++;
+              safeSpawnParticle(dim, PARTICLES.CRYSTAL_SHIMMER, { x: bx + 0.5, y: py + dy + 0.75, z: bz + 0.5 });
+            }
+          } catch {
+            // Skip unloaded
           }
-        } catch {
-          // Skip unloaded
         }
       }
     }

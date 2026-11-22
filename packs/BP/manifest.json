@@ -4,7 +4,7 @@
     "name": "pack.name",
     "description": "pack.description",
     "uuid": "6e687590-6e62-4ed1-bce1-4c6a395146c4",
-    "version": [2, 0, 0],
+    "version": [2, 1, 0],
     "min_engine_version": [1, 26, 50]
   },
   "modules": [
@@ -12,21 +12,21 @@
       "description": "Auralis Dimension Data, Blocks, Items, Mobs, Recipes & Loot",
       "type": "data",
       "uuid": "31a62dd5-87d6-4d33-9490-696bb4a3e221",
-      "version": [2, 0, 0]
+      "version": [2, 1, 0]
     },
     {
-      "description": "Auralis Script Engine (Macro-Cell Archipelago 2.0, Harmonic Ritual, OST Director, Arena-Tethered Boss AI)",
+      "description": "Auralis Script Engine (Ticking-Area Archipelago 2.1, Harmonic Ritual, OST Director, Arena-Tethered Boss AI)",
       "type": "script",
       "language": "javascript",
       "entry": "scripts/main.js",
       "uuid": "d2ef0b81-1397-4b5f-8757-6ad034d5a220",
-      "version": [2, 0, 0]
+      "version": [2, 1, 0]
     }
   ],
   "dependencies": [
     {
       "uuid": "03fa1c16-3d6e-4578-9f98-451a771c5118",
-      "version": [2, 0, 0]
+      "version": [2, 1, 0]
     },
     {
       "module_name": "@minecraft/server",

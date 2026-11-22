@@ -84,6 +84,7 @@ export const PARTICLES = {
   STAR_PILLAR: "auralis:star_pillar",
   CLOUD_UPDRAFT: "auralis:cloud_updraft",
   SERAPH_CHARGE: "auralis:seraph_charge",
+  LANTERN_MOTES: "auralis:lantern_motes",
 };
 
 export const SOUNDS = {

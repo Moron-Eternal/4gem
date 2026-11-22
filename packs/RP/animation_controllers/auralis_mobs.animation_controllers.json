@@ -111,6 +111,33 @@
         }
       }
     },
+    "controller.animation.auralis.sentinel": {
+      "initial_state": "hover",
+      "states": {
+        "hover": {
+          "animations": [
+            "hover"
+          ],
+          "transitions": [
+            {
+              "alert": "query.property('auralis:alert') == true"
+            }
+          ],
+          "blend_transition": 0.22
+        },
+        "alert": {
+          "animations": [
+            "alert"
+          ],
+          "transitions": [
+            {
+              "hover": "query.property('auralis:alert') == false"
+            }
+          ],
+          "blend_transition": 0.22
+        }
+      }
+    },
     "controller.animation.auralis.seraph_boss": {
       "initial_state": "majesty",
       "states": {

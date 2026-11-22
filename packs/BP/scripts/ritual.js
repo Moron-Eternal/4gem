@@ -17,7 +17,7 @@ import {
   safeSpawnParticle,
   safePlaySound,
 } from "./constants.js";
-import { ensureSanctuaryReady, withTickingArea } from "./worldgen.js";
+import { ensureSanctuaryReady, withTickingArea, tickWorldGen } from "./worldgen.js";
 
 const activeRituals = new Set();
 const playerChargeTicks = new Map();
@@ -247,6 +247,7 @@ export async function transitPlayer(player, toAuralis) {
       stayDuration: 75,
       fadeOutDuration: 25,
     });
+    system.runTimeout(() => tickWorldGen(), 6);
   } else {
     // Return gently to player's exact Overworld shrine (or Overworld default spawn)
     let ret = null;

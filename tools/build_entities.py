@@ -101,6 +101,20 @@ def build_geometries():
                         "cubes": [{"origin": [-29, 5.5, -4], "size": [8, 1, 8], "uv": [0, 38]}],
                     },
                     {
+                        "name": "horn_l",
+                        "parent": "root",
+                        "pivot": [4.5, 5.5, -8],
+                        "rotation": [0, -10, 6],
+                        "cubes": [{"origin": [3.5, 4.7, -12.8], "size": [2, 1.5, 5], "uv": [28, 52]}],
+                    },
+                    {
+                        "name": "horn_r",
+                        "parent": "root",
+                        "pivot": [-4.5, 5.5, -8],
+                        "rotation": [0, 10, -6],
+                        "cubes": [{"origin": [-5.5, 4.7, -12.8], "size": [2, 1.5, 5], "uv": [28, 52]}],
+                    },
+                    {
                         "name": "tail_1",
                         "parent": "root",
                         "pivot": [0, 6, 8],
@@ -583,15 +597,26 @@ def build_geometries():
                         "rotation": [-22, 0, 0],
                         "cubes": [
                             {"origin": [-3, 23, -15], "size": [6, 6, 9], "uv": [22, 28]},
-                            # Delicate ears
-                            {"origin": [3, 27, -8], "size": [2, 3, 1], "rotation": [0, 0, 24], "pivot": [3, 27, -7.5], "uv": [0, 28]},
-                            {"origin": [-5, 27, -8], "size": [2, 3, 1], "rotation": [0, 0, -24], "pivot": [-3, 27, -7.5], "uv": [0, 28]},
                             # Branching Crystalline Antlers!
                             {"origin": [1.5, 29, -9], "size": [1.5, 7, 1.5], "rotation": [-12, 0, 22], "pivot": [2, 29, -8.5], "uv": [54, 28]},
                             {"origin": [3.5, 33, -10], "size": [1.2, 5, 1.2], "rotation": [-22, 0, 42], "pivot": [4, 33, -9.5], "uv": [54, 28]},
                             {"origin": [-3, 29, -9], "size": [1.5, 7, 1.5], "rotation": [-12, 0, -22], "pivot": [-2, 29, -8.5], "uv": [54, 28]},
                             {"origin": [-4.7, 33, -10], "size": [1.2, 5, 1.2], "rotation": [-22, 0, -42], "pivot": [-4, 33, -9.5], "uv": [54, 28]},
                         ],
+                    },
+                    {
+                        "name": "ear_l",
+                        "parent": "head",
+                        "pivot": [3, 27, -7.5],
+                        "rotation": [0, 0, 24],
+                        "cubes": [{"origin": [3, 27, -8], "size": [2, 3, 1], "uv": [0, 28]}],
+                    },
+                    {
+                        "name": "ear_r",
+                        "parent": "head",
+                        "pivot": [-3, 27, -7.5],
+                        "rotation": [0, 0, -24],
+                        "cubes": [{"origin": [-5, 27, -8], "size": [2, 3, 1], "uv": [0, 28]}],
                     },
                     {
                         "name": "leg_fl",
@@ -708,10 +733,21 @@ def build_geometries():
                         "pivot": [0, 13, -8],
                         "cubes": [
                             {"origin": [-4, 10, -15], "size": [8, 7, 8], "uv": [0, 26]},
-                            # Pointed crystal-tipped lynx ears
-                            {"origin": [2, 16.5, -10], "size": [2, 3.5, 2], "rotation": [-10, 0, 14], "pivot": [3, 17, -9], "uv": [34, 26]},
-                            {"origin": [-4, 16.5, -10], "size": [2, 3.5, 2], "rotation": [-10, 0, -14], "pivot": [-3, 17, -9], "uv": [34, 26]},
                         ],
+                    },
+                    {
+                        "name": "ear_l",
+                        "parent": "head",
+                        "pivot": [3, 17, -9],
+                        "rotation": [-10, 0, 14],
+                        "cubes": [{"origin": [2, 16.5, -10], "size": [2, 3.5, 2], "uv": [34, 26]}],
+                    },
+                    {
+                        "name": "ear_r",
+                        "parent": "head",
+                        "pivot": [-3, 17, -9],
+                        "rotation": [-10, 0, -14],
+                        "cubes": [{"origin": [-4, 16.5, -10], "size": [2, 3.5, 2], "uv": [34, 26]}],
                     },
                     {
                         "name": "leg_fl",
@@ -832,31 +868,40 @@ def build_geometries():
 # =============================================================================
 
 def build_animations():
+    # Organic asymmetric jellyfish jet-propulsion wave: quick contraction -> languid drift!
     jelly_bones_anim = {
         "bell": {
-            "position": [0, "math.sin(query.life_time * 90) * 2.2", 0],
+            "position": [0, "(math.sin(query.life_time * 85) + 0.28 * math.sin(query.life_time * 170)) * 2.1", 0],
+            "rotation": ["math.sin(query.life_time * 42) * 7", 0, "math.cos(query.life_time * 36) * 7"],
             "scale": [
-                "1.0 + math.sin(query.life_time * 90) * 0.09",
-                "1.0 - math.sin(query.life_time * 90) * 0.11",
-                "1.0 + math.sin(query.life_time * 90) * 0.09",
+                "1.0 + (math.sin(query.life_time * 85) + 0.25 * math.sin(query.life_time * 170)) * 0.10",
+                "1.0 - (math.sin(query.life_time * 85) + 0.25 * math.sin(query.life_time * 170)) * 0.12",
+                "1.0 + (math.sin(query.life_time * 85) + 0.25 * math.sin(query.life_time * 170)) * 0.10",
             ],
         },
-        "core": {"rotation": [0, "query.life_time * 45", 0]},
+        "core": {
+            "rotation": [0, "query.life_time * 52", 0],
+            "scale": [
+                "1.0 + math.sin(query.life_time * 85 - 40) * 0.14",
+                "1.0 + math.sin(query.life_time * 85 - 40) * 0.14",
+                "1.0 + math.sin(query.life_time * 85 - 40) * 0.14",
+            ],
+        },
     }
     for i in range(1, 7):
         phase = i * 55
         jelly_bones_anim[f"tentacle_{i}"] = {
             "rotation": [
-                "math.sin(query.life_time * 90 - " + str(phase) + ") * 14",
+                "math.sin(query.life_time * 85 - " + str(phase) + ") * 15",
                 0,
-                "math.cos(query.life_time * 75 - " + str(phase) + ") * 10",
+                "math.cos(query.life_time * 70 - " + str(phase) + ") * 11",
             ]
         }
         jelly_bones_anim[f"tentacle_{i}_tip"] = {
             "rotation": [
-                "math.sin(query.life_time * 90 - " + str(phase + 75) + ") * 22",
+                "math.sin(query.life_time * 85 - " + str(phase + 75) + ") * 24",
                 0,
-                "math.cos(query.life_time * 75 - " + str(phase + 75) + ") * 14",
+                "math.cos(query.life_time * 70 - " + str(phase + 75) + ") * 16",
             ]
         }
 
@@ -877,123 +922,198 @@ def build_animations():
                 },
             },
 
-            # 1. Lumina Ray: Graceful slow manta wing undulations!
+            # 1. Lumina Ray: Graceful slow manta wing undulations, banking sway & cephalic horn flutter!
             "animation.auralis.lumina_ray.glide": {
                 "loop": True,
                 "bones": {
-                    "root": {"position": [0, "math.sin(query.life_time * 75) * 1.4", 0]},
-                    "wing_l": {"rotation": [0, 0, "math.sin(query.life_time * 105) * 20"]},
-                    "wing_l_tip": {"rotation": [0, 0, "math.sin(query.life_time * 105 - 50) * 24"]},
-                    "wing_r": {"rotation": [0, 0, "-math.sin(query.life_time * 105) * 20"]},
-                    "wing_r_tip": {"rotation": [0, 0, "-math.sin(query.life_time * 105 - 50) * 24"]},
-                    "tail_1": {"rotation": ["math.sin(query.life_time * 105 - 60) * 11", "math.cos(query.life_time * 65) * 7", 0]},
-                    "tail_2": {"rotation": ["math.sin(query.life_time * 105 - 120) * 15", "math.cos(query.life_time * 65 - 60) * 10", 0]},
+                    "root": {
+                        "position": [0, "math.sin(query.life_time * 75) * 1.6", 0],
+                        "rotation": ["math.sin(query.life_time * 75 - 30) * 5", 0, "math.sin(query.life_time * 42) * 7"],
+                    },
+                    "horn_l": {"rotation": ["math.sin(query.life_time * 105 - 20) * 6", 0, "math.sin(query.life_time * 75) * 4"]},
+                    "horn_r": {"rotation": ["math.sin(query.life_time * 105 - 20) * 6", 0, "-math.sin(query.life_time * 75) * 4"]},
+                    "wing_l": {"rotation": [0, 0, "math.sin(query.life_time * 105) * 21"]},
+                    "wing_l_tip": {"rotation": [0, 0, "math.sin(query.life_time * 105 - 55) * 26"]},
+                    "wing_r": {"rotation": [0, 0, "-math.sin(query.life_time * 105) * 21"]},
+                    "wing_r_tip": {"rotation": [0, 0, "-math.sin(query.life_time * 105 - 55) * 26"]},
+                    "tail_1": {"rotation": ["math.sin(query.life_time * 105 - 65) * 12", "math.cos(query.life_time * 62) * 8", 0]},
+                    "tail_2": {"rotation": ["math.sin(query.life_time * 105 - 125) * 16", "math.cos(query.life_time * 62 - 65) * 12", 0]},
                 },
             },
 
-            # 2. Choir Wisp: Gentle rhythmic bob & counter-spinning halo/petals
+            # 2. Choir Wisp: Gentle rhythmic bob, musical head tilt & counter-spinning halo/petals
             "animation.auralis.choir_wisp.float": {
                 "loop": True,
                 "bones": {
-                    "body": {"position": [0, "math.sin(query.life_time * 125) * 1.8", 0]},
-                    "halo": {"rotation": ["math.sin(query.life_time * 70) * 10", "query.life_time * 68", 0]},
-                    "petals": {"rotation": [0, "-query.life_time * 95", "math.sin(query.life_time * 80) * 8"]},
+                    "body": {
+                        "position": [0, "math.sin(query.life_time * 125) * 1.9", 0],
+                        "rotation": ["math.sin(query.life_time * 65) * 6", 0, "math.cos(query.life_time * 55) * 7"],
+                    },
+                    "halo": {"rotation": ["math.sin(query.life_time * 70) * 11", "query.life_time * 72", 0]},
+                    "petals": {
+                        "position": [0, "math.sin(query.life_time * 125 - 60) * 1.1", 0],
+                        "rotation": [0, "-query.life_time * 98", "math.sin(query.life_time * 80) * 9"],
+                    },
                 },
             },
 
-            # 3. Tide-Glass Crab: Crisp scuttle + snapping claws
+            # 3. Tide-Glass Crab: Lively carapace scuttle-rock + expressive snapping claws
             "animation.auralis.glass_crab.walk": {
                 "loop": True,
                 "bones": {
-                    "legs_l": {"rotation": ["math.sin(query.modified_distance_moved * 60) * 22", 0, 0]},
-                    "legs_r": {"rotation": ["-math.sin(query.modified_distance_moved * 60) * 22", 0, 0]},
-                    "claw_l": {"rotation": ["math.sin(query.life_time * 110) * 9 - variable.attack_time * 28", 0, 0]},
-                    "claw_r": {"rotation": ["-math.sin(query.life_time * 110) * 9 - variable.attack_time * 28", 0, 0]},
+                    "body": {
+                        "position": [0, "math.abs(math.sin(query.modified_distance_moved * 60)) * 0.55 * query.modified_move_speed", 0],
+                        "rotation": [0, 0, "math.sin(query.modified_distance_moved * 60) * 5 * query.modified_move_speed"],
+                    },
+                    "legs_l": {"rotation": ["math.sin(query.modified_distance_moved * 60) * 24", 0, 0]},
+                    "legs_r": {"rotation": ["-math.sin(query.modified_distance_moved * 60) * 24", 0, 0]},
+                    "claw_l": {
+                        "rotation": [
+                            "math.sin(query.life_time * 110) * 10 - variable.attack_time * 36",
+                            "math.sin(query.life_time * 82) * 7",
+                            "math.sin(query.life_time * 110) * 5",
+                        ]
+                    },
+                    "claw_r": {
+                        "rotation": [
+                            "-math.sin(query.life_time * 110) * 10 - variable.attack_time * 36",
+                            "-math.sin(query.life_time * 82) * 7",
+                            "-math.sin(query.life_time * 110) * 5",
+                        ]
+                    },
                 },
             },
 
-            # 4. Nimbus Stag: Graceful quadruped idle breathing & stride! (pure deltas on top of bind pose)
+            # 4. Nimbus Stag: Graceful quadruped idle breathing, periodic ear twitches & springy prance!
             "animation.auralis.nimbus_stag.idle": {
                 "loop": True,
                 "bones": {
-                    "body": {"position": [0, "math.sin(query.life_time * 75) * 0.25", 0]},
-                    "neck": {"rotation": ["math.sin(query.life_time * 65) * 3.5", 0, 0]},
-                    "tail": {"rotation": ["math.sin(query.life_time * 120) * 8", "math.cos(query.life_time * 90) * 8", 0]},
+                    "body": {"position": [0, "math.sin(query.life_time * 75) * 0.28", 0]},
+                    "neck": {"rotation": ["math.sin(query.life_time * 58) * 4.5", 0, 0]},
+                    "ear_l": {"rotation": [0, "math.pow(math.max(0, math.sin(query.life_time * 38)), 8) * 16", "math.sin(query.life_time * 75) * 4"]},
+                    "ear_r": {"rotation": [0, "-math.pow(math.max(0, math.sin(query.life_time * 38 + 25)), 8) * 16", "-math.sin(query.life_time * 75) * 4"]},
+                    "tail": {"rotation": ["math.sin(query.life_time * 120) * 9", "math.cos(query.life_time * 90) * 10", 0]},
                 },
             },
             "animation.auralis.nimbus_stag.walk": {
                 "loop": True,
                 "bones": {
-                    "leg_fl": {"rotation": ["math.cos(query.modified_distance_moved * 42) * 34 * query.modified_move_speed", 0, 0]},
-                    "leg_br": {"rotation": ["math.cos(query.modified_distance_moved * 42) * 34 * query.modified_move_speed", 0, 0]},
-                    "leg_fr": {"rotation": ["-math.cos(query.modified_distance_moved * 42) * 34 * query.modified_move_speed", 0, 0]},
-                    "leg_bl": {"rotation": ["-math.cos(query.modified_distance_moved * 42) * 34 * query.modified_move_speed", 0, 0]},
-                    "neck": {"rotation": ["math.sin(query.modified_distance_moved * 42) * 4 * query.modified_move_speed", 0, 0]},
+                    "body": {
+                        "position": [0, "math.abs(math.sin(query.modified_distance_moved * 42)) * 0.85 * query.modified_move_speed", 0],
+                        "rotation": ["math.sin(query.modified_distance_moved * 42) * 3.5 * query.modified_move_speed", 0, 0],
+                    },
+                    "leg_fl": {"rotation": ["math.cos(query.modified_distance_moved * 42) * 36 * query.modified_move_speed", 0, 0]},
+                    "leg_br": {"rotation": ["math.cos(query.modified_distance_moved * 42) * 36 * query.modified_move_speed", 0, 0]},
+                    "leg_fr": {"rotation": ["-math.cos(query.modified_distance_moved * 42) * 36 * query.modified_move_speed", 0, 0]},
+                    "leg_bl": {"rotation": ["-math.cos(query.modified_distance_moved * 42) * 36 * query.modified_move_speed", 0, 0]},
+                    "neck": {"rotation": ["math.sin(query.modified_distance_moved * 42) * 5 * query.modified_move_speed", 0, 0]},
+                    "ear_l": {"rotation": [0, 0, "math.sin(query.modified_distance_moved * 42) * 8 * query.modified_move_speed"]},
+                    "ear_r": {"rotation": [0, 0, "-math.sin(query.modified_distance_moved * 42) * 8 * query.modified_move_speed"]},
                 },
             },
 
-            # 5. Aurelia Cloud-Jelly: Hypnotic rhythmic bell-pulse + flowing tendrils!
+            # 5. Aurelia Cloud-Jelly: Organic jet-propulsion bell-pulse + flowing tendrils!
             "animation.auralis.tide_jelly.pulse": {
                 "loop": True,
                 "bones": jelly_bones_anim,
             },
 
-            # 6. Shard Stalker: Agile feline stride, tail whip & fierce pounce! (pure deltas)
+            # 6. Shard Stalker: Lithe feline prowl, vigilant ears, tail whip & pinned-ear pounce!
             "animation.auralis.shard_stalker.idle": {
                 "loop": True,
                 "bones": {
-                    "body": {"position": [0, "math.sin(query.life_time * 95) * 0.3", 0]},
-                    "tail_1": {"rotation": ["math.sin(query.life_time * 110) * 7", "math.sin(query.life_time * 85) * 18", 0]},
-                    "tail_2": {"rotation": ["math.sin(query.life_time * 110 - 60) * 10", "math.sin(query.life_time * 85 - 50) * 24", 0]},
+                    "body": {"position": [0, "math.sin(query.life_time * 95) * 0.32", 0]},
+                    "ear_l": {"rotation": ["math.sin(query.life_time * 52) * 6", "math.sin(query.life_time * 40) * 10", 0]},
+                    "ear_r": {"rotation": ["math.sin(query.life_time * 52 + 40) * 6", "-math.sin(query.life_time * 40 + 40) * 10", 0]},
+                    "tail_1": {"rotation": ["math.sin(query.life_time * 110) * 8", "math.sin(query.life_time * 85) * 20", 0]},
+                    "tail_2": {"rotation": ["math.sin(query.life_time * 110 - 60) * 12", "math.sin(query.life_time * 85 - 50) * 26", 0]},
                 },
             },
             "animation.auralis.shard_stalker.walk": {
                 "loop": True,
                 "bones": {
-                    "leg_fl": {"rotation": ["math.cos(query.modified_distance_moved * 48) * 42 * query.modified_move_speed", 0, 0]},
-                    "leg_fr": {"rotation": ["math.cos(query.modified_distance_moved * 48 + 45) * 42 * query.modified_move_speed", 0, 0]},
-                    "leg_bl": {"rotation": ["-math.cos(query.modified_distance_moved * 48) * 42 * query.modified_move_speed", 0, 0]},
-                    "leg_br": {"rotation": ["-math.cos(query.modified_distance_moved * 48 + 45) * 42 * query.modified_move_speed", 0, 0]},
-                    "body": {"rotation": ["math.sin(query.modified_distance_moved * 48) * 5 * query.modified_move_speed", 0, 0]},
+                    "leg_fl": {"rotation": ["math.cos(query.modified_distance_moved * 48) * 44 * query.modified_move_speed", 0, 0]},
+                    "leg_fr": {"rotation": ["math.cos(query.modified_distance_moved * 48 + 45) * 44 * query.modified_move_speed", 0, 0]},
+                    "leg_bl": {"rotation": ["-math.cos(query.modified_distance_moved * 48) * 44 * query.modified_move_speed", 0, 0]},
+                    "leg_br": {"rotation": ["-math.cos(query.modified_distance_moved * 48 + 45) * 44 * query.modified_move_speed", 0, 0]},
+                    "body": {
+                        "position": [0, "math.abs(math.sin(query.modified_distance_moved * 48)) * 0.65 * query.modified_move_speed", 0],
+                        "rotation": [
+                            "math.sin(query.modified_distance_moved * 48) * 6 * query.modified_move_speed",
+                            0,
+                            "math.cos(query.modified_distance_moved * 48) * 4 * query.modified_move_speed",
+                        ],
+                    },
+                    "tail_1": {"rotation": ["-8 * query.modified_move_speed", "math.sin(query.modified_distance_moved * 48) * 18 * query.modified_move_speed", 0]},
                 },
             },
             "animation.auralis.shard_stalker.attack": {
                 "loop": False,
                 "animation_length": 0.45,
                 "bones": {
-                    "body": {"rotation": ["-12 * math.sin(query.anim_time * 400)", 0, 0]},
-                    "head": {"rotation": ["18 * math.sin(query.anim_time * 400)", 0, 0]},
-                    "leg_fl": {"rotation": ["-45 * math.sin(query.anim_time * 400)", 0, 0]},
-                    "leg_fr": {"rotation": ["-45 * math.sin(query.anim_time * 400)", 0, 0]},
+                    "body": {"rotation": ["-15 * math.sin(query.anim_time * 400)", 0, 0]},
+                    "head": {"rotation": ["20 * math.sin(query.anim_time * 400)", 0, 0]},
+                    "ear_l": {"rotation": ["-34 * math.sin(query.anim_time * 400)", 0, "14 * math.sin(query.anim_time * 400)"]},
+                    "ear_r": {"rotation": ["-34 * math.sin(query.anim_time * 400)", 0, "-14 * math.sin(query.anim_time * 400)"]},
+                    "leg_fl": {"rotation": ["-52 * math.sin(query.anim_time * 400)", 0, 0]},
+                    "leg_fr": {"rotation": ["-52 * math.sin(query.anim_time * 400)", 0, 0]},
+                    "leg_bl": {"rotation": ["24 * math.sin(query.anim_time * 400)", 0, 0]},
+                    "leg_br": {"rotation": ["24 * math.sin(query.anim_time * 400)", 0, 0]},
+                    "tail_1": {"rotation": ["22 * math.sin(query.anim_time * 400)", "26 * math.sin(query.anim_time * 800)", 0]},
+                    "tail_2": {"rotation": ["18 * math.sin(query.anim_time * 400)", "-32 * math.sin(query.anim_time * 800)", 0]},
                 },
             },
 
-            # 7. Astral Weaver: Mystic hover + raised-arms chime-casting pose!
+            # 7. Astral Weaver: Mystic hover + dramatic pulsing-orb chime-casting pose!
             "animation.auralis.astral_weaver.hover": {
                 "loop": True,
                 "bones": {
-                    "body": {"position": [0, "math.sin(query.life_time * 105) * 2.0", 0]},
-                    "robe_hem": {"rotation": ["math.sin(query.life_time * 105 - 50) * 9", 0, 0]},
-                    "sigil_ring": {"rotation": [0, 0, "query.life_time * 65"]},
+                    "body": {
+                        "position": [0, "math.sin(query.life_time * 105) * 2.0", 0],
+                        "rotation": ["math.sin(query.life_time * 65) * 3", 0, "math.cos(query.life_time * 55) * 3"],
+                    },
+                    "robe_hem": {"rotation": ["math.sin(query.life_time * 105 - 50) * 10", 0, 0]},
+                    "sigil_ring": {"rotation": ["math.sin(query.life_time * 55) * 8", 0, "query.life_time * 68"]},
                     "arm_l": {"rotation": ["-14 + math.sin(query.life_time * 105) * 8", 0, "-10"]},
                     "arm_r": {"rotation": ["-14 - math.sin(query.life_time * 105) * 8", 0, "10"]},
-                    "orb_l": {"rotation": ["query.life_time * 110", "query.life_time * 140", 0]},
-                    "orb_r": {"rotation": ["-query.life_time * 110", "-query.life_time * 140", 0]},
+                    "orb_l": {
+                        "position": [0, "math.sin(query.life_time * 140) * 0.8", 0],
+                        "rotation": ["query.life_time * 115", "query.life_time * 145", 0],
+                    },
+                    "orb_r": {
+                        "position": [0, "-math.sin(query.life_time * 140) * 0.8", 0],
+                        "rotation": ["-query.life_time * 115", "-query.life_time * 145", 0],
+                    },
                 },
             },
             "animation.auralis.astral_weaver.cast": {
                 "loop": True,
                 "bones": {
-                    "body": {"position": [0, "2.5 + math.sin(query.life_time * 180) * 1.2", 0]},
-                    "arm_l": {"rotation": ["-115 + math.sin(query.life_time * 240) * 10", 0, "-22"]},
-                    "arm_r": {"rotation": ["-115 - math.sin(query.life_time * 240) * 10", 0, "22"]},
-                    "sigil_ring": {"rotation": [0, 0, "query.life_time * 210"]},
-                    "orb_l": {"rotation": ["query.life_time * 300", "query.life_time * 360", 0]},
-                    "orb_r": {"rotation": ["-query.life_time * 300", "-query.life_time * 360", 0]},
+                    "body": {"position": [0, "2.8 + math.sin(query.life_time * 180) * 1.2", 0], "rotation": ["-6", 0, 0]},
+                    "robe_hem": {"rotation": ["16 + math.sin(query.life_time * 220) * 10", 0, 0]},
+                    "arm_l": {"rotation": ["-118 + math.sin(query.life_time * 240) * 11", 0, "-24"]},
+                    "arm_r": {"rotation": ["-118 - math.sin(query.life_time * 240) * 11", 0, "24"]},
+                    "sigil_ring": {"rotation": ["math.sin(query.life_time * 180) * 18", 0, "query.life_time * 240"]},
+                    "orb_l": {
+                        "rotation": ["query.life_time * 300", "query.life_time * 360", 0],
+                        "scale": [
+                            "1.25 + math.sin(query.life_time * 320) * 0.22",
+                            "1.25 + math.sin(query.life_time * 320) * 0.22",
+                            "1.25 + math.sin(query.life_time * 320) * 0.22",
+                        ],
+                    },
+                    "orb_r": {
+                        "rotation": ["-query.life_time * 300", "-query.life_time * 360", 0],
+                        "scale": [
+                            "1.25 + math.cos(query.life_time * 320) * 0.22",
+                            "1.25 + math.cos(query.life_time * 320) * 0.22",
+                            "1.25 + math.cos(query.life_time * 320) * 0.22",
+                        ],
+                    },
                 },
             },
 
-            # 8. Gilded Sentinel: Controlled hover + crisp combat recoil
+            # 8. Gilded Sentinel: Serene temple vigil (hover) + NEW Raised-Gauntlets Combat Guard (alert)!
             "animation.auralis.gilded_sentinel.hover": {
                 "loop": True,
                 "bones": {
@@ -1004,15 +1124,40 @@ def build_animations():
                     "arm_r": {"position": [0, "math.sin(query.life_time * 105 - 90) * 1.4", 0], "rotation": ["-10 - math.sin(query.life_time * 90) * 6", 0, 0]},
                 },
             },
+            "animation.auralis.gilded_sentinel.alert": {
+                "loop": True,
+                "bones": {
+                    "body": {"position": [0, "2.4 + math.sin(query.life_time * 165) * 1.3", 0], "rotation": ["8", 0, 0]},
+                    "core": {
+                        "rotation": ["query.life_time * 220", "query.life_time * 290", 0],
+                        "scale": [
+                            "1.18 + math.sin(query.life_time * 260) * 0.14",
+                            "1.18 + math.sin(query.life_time * 260) * 0.14",
+                            "1.18 + math.sin(query.life_time * 260) * 0.14",
+                        ],
+                    },
+                    "halo": {"rotation": ["14 + math.sin(query.life_time * 140) * 12", "query.life_time * 210", 0]},
+                    "arm_l": {
+                        "position": [0, "math.sin(query.life_time * 200) * 1.1", "-1.5"],
+                        "rotation": ["-78 + math.sin(query.life_time * 220) * 8", 0, "-14"],
+                    },
+                    "arm_r": {
+                        "position": [0, "-math.sin(query.life_time * 200) * 1.1", "-1.5"],
+                        "rotation": ["-78 - math.sin(query.life_time * 220) * 8", 0, "14"],
+                    },
+                },
+            },
 
-            # 9. THE ASTRAL SERAPH 2.0 — 5 Rich Multi-State Boss Animations! (pure deltas from .geo.json bind pose!)
-            # State 0: Majestic Celestial Hover (halo spin scales with boss_phase!)
+            # 9. THE ASTRAL SERAPH 2.1 — 5 Rich Multi-State Boss Animations with Pauldron Flare & Scepter Flourishes!
+            # State 0: Majestic Celestial Hover (halo spin & wing amplitude scale cleanly with boss_phase!)
             "animation.auralis.astral_seraph.majesty": {
                 "loop": True,
                 "bones": {
                     "root": {"position": [0, "math.sin(query.life_time * 85) * 2.8", 0]},
                     "torso": {"rotation": ["math.sin(query.life_time * 85) * 3.5", 0, 0]},
                     "star_heart": {"rotation": ["query.life_time * 60", "query.life_time * 95", 0]},
+                    "pauldron_l": {"rotation": [0, 0, "math.sin(query.life_time * 85 - 25) * 4"]},
+                    "pauldron_r": {"rotation": [0, 0, "-math.sin(query.life_time * 85 - 25) * 4"]},
                     "halo_outer": {"rotation": [0, 0, "query.life_time * (32 + query.property('auralis:boss_phase') * 16)"]},
                     "halo_inner": {
                         "rotation": [
@@ -1025,30 +1170,33 @@ def build_animations():
                     "robe_back": {"rotation": ["14 + math.sin(query.life_time * 95 - 50) * 10", 0, 0]},
                     "robe_l": {"rotation": ["math.sin(query.life_time * 95 - 25) * 8", 0, 0]},
                     "robe_r": {"rotation": ["math.sin(query.life_time * 95 - 25) * 8", 0, 0]},
-                    "wing_top_l": {"rotation": [0, "math.sin(query.life_time * 115) * 22", "math.sin(query.life_time * 115) * 14"]},
-                    "wing_top_l_tip": {"rotation": [0, "math.sin(query.life_time * 115 - 45) * 18", "math.sin(query.life_time * 115 - 45) * 12"]},
-                    "wing_top_r": {"rotation": [0, "-math.sin(query.life_time * 115) * 22", "-math.sin(query.life_time * 115) * 14"]},
-                    "wing_top_r_tip": {"rotation": [0, "-math.sin(query.life_time * 115 - 45) * 18", "-math.sin(query.life_time * 115 - 45) * 12"]},
-                    "wing_mid_l": {"rotation": [0, "math.sin(query.life_time * 115 - 45) * 20", "math.sin(query.life_time * 115 - 45) * 12"]},
-                    "wing_mid_l_tip": {"rotation": [0, "math.sin(query.life_time * 115 - 90) * 16", "math.sin(query.life_time * 115 - 90) * 10"]},
-                    "wing_mid_r": {"rotation": [0, "-math.sin(query.life_time * 115 - 45) * 20", "-math.sin(query.life_time * 115 - 45) * 12"]},
-                    "wing_mid_r_tip": {"rotation": [0, "-math.sin(query.life_time * 115 - 90) * 16", "-math.sin(query.life_time * 115 - 90) * 10"]},
+                    "wing_top_l": {"rotation": [0, "math.sin(query.life_time * 115) * (19 + query.property('auralis:boss_phase') * 3)", "math.sin(query.life_time * 115) * 14"]},
+                    "wing_top_l_tip": {"rotation": [0, "math.sin(query.life_time * 115 - 45) * 19", "math.sin(query.life_time * 115 - 45) * 12"]},
+                    "wing_top_r": {"rotation": [0, "-math.sin(query.life_time * 115) * (19 + query.property('auralis:boss_phase') * 3)", "-math.sin(query.life_time * 115) * 14"]},
+                    "wing_top_r_tip": {"rotation": [0, "-math.sin(query.life_time * 115 - 45) * 19", "-math.sin(query.life_time * 115 - 45) * 12"]},
+                    "wing_mid_l": {"rotation": [0, "math.sin(query.life_time * 115 - 45) * (17 + query.property('auralis:boss_phase') * 3)", "math.sin(query.life_time * 115 - 45) * 12"]},
+                    "wing_mid_l_tip": {"rotation": [0, "math.sin(query.life_time * 115 - 90) * 17", "math.sin(query.life_time * 115 - 90) * 10"]},
+                    "wing_mid_r": {"rotation": [0, "-math.sin(query.life_time * 115 - 45) * (17 + query.property('auralis:boss_phase') * 3)", "-math.sin(query.life_time * 115 - 45) * 12"]},
+                    "wing_mid_r_tip": {"rotation": [0, "-math.sin(query.life_time * 115 - 90) * 17", "-math.sin(query.life_time * 115 - 90) * 10"]},
                     "wing_low_l": {"rotation": [0, "math.sin(query.life_time * 115 - 90) * 16", "math.sin(query.life_time * 115 - 90) * 10"]},
                     "wing_low_r": {"rotation": [0, "-math.sin(query.life_time * 115 - 90) * 16", "-math.sin(query.life_time * 115 - 90) * 10"]},
                     "arm_l": {"rotation": ["-14 + math.sin(query.life_time * 85) * 8", 0, "-12"]},
                     "forearm_l": {"rotation": ["-22 + math.sin(query.life_time * 85 - 40) * 6", 0, 0]},
                     "arm_r": {"rotation": ["-24 - math.sin(query.life_time * 85) * 7", 0, "10"]},
                     "forearm_r": {"rotation": ["-28 + math.sin(query.life_time * 85) * 6", 0, 0]},
+                    "scepter": {"rotation": ["math.sin(query.life_time * 85 - 20) * 5", 0, 0]},
                 },
             },
 
-            # State 1: Starlight Bolt Volley (wings flare dramatically wide, scepter aims forward!)
+            # State 1: Starlight Bolt Volley (wings & pauldrons flare wide, scepter aims directly forward!)
             "animation.auralis.astral_seraph.bolt_volley": {
                 "loop": True,
                 "bones": {
                     "root": {"position": [0, "2.0 + math.sin(query.life_time * 160) * 1.4", 0]},
                     "torso": {"rotation": ["10", 0, 0]},
                     "star_heart": {"rotation": ["query.life_time * 180", "query.life_time * 240", 0]},
+                    "pauldron_l": {"rotation": [0, 0, "-10"]},
+                    "pauldron_r": {"rotation": [0, 0, "10"]},
                     "halo_outer": {"rotation": [0, 0, "query.life_time * 140"]},
                     "halo_inner": {"rotation": [0, 0, "-query.life_time * 200"]},
                     "wing_top_l": {"rotation": [0, "-22 + math.sin(query.life_time * 220) * 12", -8]},
@@ -1061,9 +1209,12 @@ def build_animations():
                     "wing_low_r": {"rotation": [0, 10, 6]},
                     "arm_r": {"rotation": ["-95 + math.sin(query.life_time * 280) * 10", 0, "8"]},
                     "forearm_r": {"rotation": ["-18", 0, 0]},
+                    "scepter": {"rotation": ["-16 + math.sin(query.life_time * 280) * 8", 0, 0]},
                     "arm_l": {"rotation": ["-65", 0, "-28"]},
                     "forearm_l": {"rotation": ["-30", 0, 0]},
                     "robe_back": {"rotation": ["26 + math.sin(query.life_time * 180) * 8", 0, 0]},
+                    "robe_l": {"rotation": ["10 + math.sin(query.life_time * 180) * 6", 0, 0]},
+                    "robe_r": {"rotation": ["10 + math.sin(query.life_time * 180) * 6", 0, 0]},
                 },
             },
 
@@ -1074,16 +1225,23 @@ def build_animations():
                     "root": {"position": [0, "math.sin(query.life_time * 200) * 1.2", 0]},
                     "torso": {"rotation": ["22", "math.sin(query.life_time * 260) * 24", 0]},
                     "star_heart": {"rotation": ["query.life_time * 220", "query.life_time * 280", 0]},
+                    "pauldron_l": {"rotation": [0, 0, "8"]},
+                    "pauldron_r": {"rotation": [0, 0, "-8"]},
                     "halo_outer": {"rotation": [0, 0, "query.life_time * 220"]},
                     "halo_inner": {"rotation": [0, 0, "-query.life_time * 260"]},
                     "wing_top_l": {"rotation": [0, -32, 8]},
+                    "wing_top_l_tip": {"rotation": [0, -18, 6]},
                     "wing_top_r": {"rotation": [0, 32, -8]},
+                    "wing_top_r_tip": {"rotation": [0, 18, -6]},
                     "wing_mid_l": {"rotation": [0, -28, 8]},
+                    "wing_mid_l_tip": {"rotation": [0, -14, 6]},
                     "wing_mid_r": {"rotation": [0, 28, -8]},
+                    "wing_mid_r_tip": {"rotation": [0, 14, -6]},
                     "wing_low_l": {"rotation": [0, -20, 6]},
                     "wing_low_r": {"rotation": [0, 20, -6]},
                     "arm_r": {"rotation": ["-108 + math.sin(query.life_time * 320) * 52", "-25", "18"]},
                     "forearm_r": {"rotation": ["-24", 0, 0]},
+                    "scepter": {"rotation": ["math.sin(query.life_time * 320) * 32", 0, "-16"]},
                     "arm_l": {"rotation": ["32", 0, "-22"]},
                     "robe_back": {"rotation": ["38", 0, 0]},
                     "robe_front": {"rotation": ["18", 0, 0]},
@@ -1096,6 +1254,8 @@ def build_animations():
                 "bones": {
                     "root": {"position": [0, "4.0 + math.sin(query.life_time * 240) * 1.0", 0]},
                     "torso": {"rotation": ["-12", 0, 0]},
+                    "pauldron_l": {"rotation": [0, 0, "-16"]},
+                    "pauldron_r": {"rotation": [0, 0, "16"]},
                     "star_heart": {"rotation": ["query.life_time * 360", "query.life_time * 420", 0], "scale": ["1.3 + math.sin(query.life_time * 320) * 0.25", "1.3 + math.sin(query.life_time * 320) * 0.25", "1.3 + math.sin(query.life_time * 320) * 0.25"]},
                     "halo_outer": {"rotation": ["math.sin(query.life_time * 180) * 20", 0, "query.life_time * 300"]},
                     "halo_inner": {"rotation": [0, "math.cos(query.life_time * 180) * 20", "-query.life_time * 360"]},
@@ -1107,15 +1267,21 @@ def build_animations():
                     "wing_low_r": {"rotation": [0, "-20 - 22 * math.sin(query.life_time * 220)", 4]},
                     "arm_l": {"rotation": ["-70", "25", "-45"]},
                     "arm_r": {"rotation": ["-70", "-25", "45"]},
+                    "robe_front": {"rotation": ["-18 - math.sin(query.life_time * 220) * 10", 0, 0]},
+                    "robe_back": {"rotation": ["22 + math.sin(query.life_time * 220) * 10", 0, 0]},
+                    "robe_l": {"rotation": ["16 + math.sin(query.life_time * 220) * 8", 0, 0]},
+                    "robe_r": {"rotation": ["16 + math.sin(query.life_time * 220) * 8", 0, 0]},
                 },
             },
 
-            # State 4: Celestial Star-Pillars Invocation (both arms & Astral Halberd lifted skyward!)
+            # State 4: Celestial Star-Pillars Invocation (both arms & Astral Halberd lifted skyward like a beacon!)
             "animation.auralis.astral_seraph.star_pillars": {
                 "loop": True,
                 "bones": {
                     "root": {"position": [0, "5.0 + math.sin(query.life_time * 150) * 1.5", 0]},
                     "torso": {"rotation": ["-14", 0, 0]},
+                    "pauldron_l": {"rotation": [0, 0, "-14"]},
+                    "pauldron_r": {"rotation": [0, 0, "14"]},
                     "star_heart": {"rotation": ["query.life_time * 240", "query.life_time * 300", 0]},
                     "halo_outer": {"rotation": [0, 0, "query.life_time * 200"]},
                     "halo_inner": {"rotation": [0, 0, "-query.life_time * 240"]},
@@ -1127,16 +1293,26 @@ def build_animations():
                     "wing_low_r": {"rotation": [0, 6, 16]},
                     "arm_r": {"rotation": ["-158 + math.sin(query.life_time * 200) * 8", 0, "14"]},
                     "forearm_r": {"rotation": ["-12", 0, 0]},
+                    "scepter": {"rotation": ["-68", 0, 0]},
                     "arm_l": {"rotation": ["-148 - math.sin(query.life_time * 200) * 8", 0, "-18"]},
                     "forearm_l": {"rotation": ["-16", 0, 0]},
+                    "robe_front": {"rotation": ["-14 + math.sin(query.life_time * 180) * 8", 0, 0]},
+                    "robe_back": {"rotation": ["24 + math.sin(query.life_time * 180) * 8", 0, 0]},
                 },
             },
 
-            # 10. Astral Bolt spin
+            # 10. Astral Bolt spin + radiant pulse
             "animation.auralis.astral_bolt.spin": {
                 "loop": True,
                 "bones": {
-                    "bolt": {"rotation": ["query.life_time * 360", "query.life_time * 480", 0]},
+                    "bolt": {
+                        "rotation": ["query.life_time * 360", "query.life_time * 480", 0],
+                        "scale": [
+                            "1.0 + math.sin(query.life_time * 480) * 0.14",
+                            "1.0 + math.sin(query.life_time * 480) * 0.14",
+                            "1.0 + math.sin(query.life_time * 480) * 0.14",
+                        ],
+                    },
                 },
             },
         },
@@ -1205,6 +1381,21 @@ def build_animations():
                         "animations": ["cast"],
                         "transitions": [{"hover": "query.property('auralis:casting') == false"}],
                         "blend_transition": 0.2,
+                    },
+                },
+            },
+            "controller.animation.auralis.sentinel": {
+                "initial_state": "hover",
+                "states": {
+                    "hover": {
+                        "animations": ["hover"],
+                        "transitions": [{"alert": "query.property('auralis:alert') == true"}],
+                        "blend_transition": 0.22,
+                    },
+                    "alert": {
+                        "animations": ["alert"],
+                        "transitions": [{"hover": "query.property('auralis:alert') == false"}],
+                        "blend_transition": 0.22,
                     },
                 },
             },
@@ -1345,9 +1536,10 @@ def build_rp_entities():
     write_rp(
         "gilded_sentinel", "geometry.auralis_gilded_sentinel",
         {
-            "main_anim": "animation.auralis.gilded_sentinel.hover",
+            "hover": "animation.auralis.gilded_sentinel.hover",
+            "alert": "animation.auralis.gilded_sentinel.alert",
             "look": "animation.auralis.look_at_target",
-            "ctrl": "controller.animation.auralis.always_active",
+            "ctrl": "controller.animation.auralis.sentinel",
         },
         ["ctrl", "look"], egg=("#E6D294", "#5CF0F0"),
     )
@@ -1747,6 +1939,13 @@ def build_bp_entities():
                 "is_spawnable": True,
                 "is_summonable": True,
                 "is_experimental": False,
+                "properties": {
+                    "auralis:alert": {
+                        "type": "bool",
+                        "default": False,
+                        "client_sync": True,
+                    }
+                },
             },
             "components": {
                 "minecraft:type_family": {"family": ["auralis", "gilded_sentinel", "monster", "mob"]},

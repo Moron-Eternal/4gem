@@ -15,7 +15,7 @@ import {
   BLOCKS,
   DIMENSION_ID,
 } from "./constants.js";
-import { ensureSanctuaryReady, tickWorldGen } from "./worldgen.js";
+import { ensureSanctuaryReady, tickWorldGen, cleanupWorldGenTickingAreas } from "./worldgen.js";
 import { triggerHarmonicRitual, tickPortalAscension, transitPlayer } from "./ritual.js";
 import { tickAmbience } from "./ambience.js";
 import {
@@ -140,17 +140,20 @@ system.beforeEvents.startup.subscribe((event) => {
 // =============================================================================
 
 world.afterEvents.worldLoad.subscribe(() => {
-  // Pre-build the Sanctuary Crown 2.0 arrival island smoothly in the background!
+  // Release any lingering ticking areas from interrupted sessions cleanly
+  cleanupWorldGenTickingAreas();
+
+  // Pre-build the Sanctuary Crown 2.1 arrival island smoothly in the background!
   system.runTimeout(() => {
     void ensureSanctuaryReady();
-  }, 40);
+  }, 30);
 
   // Arena-Tethered Astral Seraph 2.0 flight, facing & combat AI (every 2 ticks = 10 Hz!)
   system.runInterval(() => {
     tickSeraphBossAI();
   }, 2);
 
-  // Serene Lumina Ray gliding & Astral Weaver cast animation sync (every 4 ticks = 5 Hz)
+  // Serene Lumina Ray gliding, Astral Weaver cast & Gilded Sentinel alert sync (every 4 ticks = 5 Hz)
   system.runInterval(() => {
     tickGracefulFlyers();
   }, 4);
@@ -160,15 +163,15 @@ world.afterEvents.worldLoad.subscribe(() => {
     tickPortalAscension();
   }, 5);
 
-  // Dynamic OST Music Director, ambient aurora/motes/cloud-vent VFX & Cloud Sea rescue (every 20 ticks = 1s)
+  // Dynamic OST Music Director, ambient aurora/motes/lantern/cloud-vent VFX & Cloud Sea rescue (every 20 ticks = 1s)
   system.runInterval(() => {
     tickAmbience();
   }, 20);
 
-  // Non-overlapping Macro-Cell floating-archipelago streaming (every 25 ticks = 1.25s)
+  // Non-overlapping Macro-Cell floating-archipelago streaming via temporary ticking areas (every 15 ticks = 0.75s)
   system.runInterval(() => {
     tickWorldGen();
-  }, 25);
+  }, 15);
 
   // Living 9-creature Auralis ecosystem spawning & particle trails (every 45 ticks = 2.25s)
   system.runInterval(() => {

@@ -278,7 +278,7 @@ def build_blocks():
                         }
                     },
                     "minecraft:collision_box": {"origin": [-4.5, 0, -4.5], "size": [9, 13, 9]},
-                    "minecraft:selection_box": {"origin": [-5, 0, -5], "size": [10, 14, 10]},
+                    "minecraft:selection_box": {"origin": [-5, 0, -5], "size": [10, 15, 10]},
                     "minecraft:destructible_by_mining": {"seconds_to_destroy": 0.6},
                     "minecraft:destructible_by_explosion": {"explosion_resistance": 2.0},
                     "minecraft:light_emission": 15,

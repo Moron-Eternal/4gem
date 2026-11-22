@@ -465,6 +465,238 @@ console.log(`10,000-cell non-overlap proof PASSED (min sky gap=${minGap} blocks)
     else:
         ok(proc.stdout.strip())
 
+    # 11. Custom 3D Block Geometry UV Bounds & Texture Dimension Alignment Check!
+    block_geo_checked = 0
+    for gp in sorted((RP / "models/blocks").glob("*.geo.json")):
+        doc = parsed[gp]
+        for g in doc.get("minecraft:geometry", []):
+            desc = g.get("description", {})
+            gid = desc.get("identifier", gp.stem)
+            tw = desc.get("texture_width", 16)
+            th = desc.get("texture_height", 16)
+            # Cross-check against matching block texture PNG size
+            tex_p = RP / "textures/blocks" / f"{gp.stem}.png"
+            if tex_p.exists():
+                iw, ih = Image.open(tex_p).size
+                if (iw, ih) != (tw, th):
+                    err(f"Block model {gp.name} declares texture ({tw}x{th}) but {tex_p.name} is ({iw}x{ih})!")
+            for b in g.get("bones", []):
+                for ci, cube in enumerate(b.get("cubes", [])):
+                    uv = cube.get("uv")
+                    if isinstance(uv, dict):
+                        for fname, fuv in uv.items():
+                            u0, v0 = fuv.get("uv", [0, 0])
+                            du, dv = fuv.get("uv_size", [0, 0])
+                            u1, v1 = u0 + du, v0 + dv
+                            if min(u0, u1) < 0 or max(u0, u1) > tw or min(v0, v1) < 0 or max(v0, v1) > th:
+                                err(f"Block model {gid} bone '{b.get('name')}' cube {ci} face '{fname}' UV [{u0},{v0}]+[{du},{dv}] overflows {tw}x{th}!")
+                    elif isinstance(uv, list):
+                        u0, v0 = uv
+                        sx, sy, sz = cube.get("size", [0, 0, 0])
+                        if u0 < 0 or v0 < 0 or (u0 + 2 * (sx + sz)) > tw or (v0 + sz + sy) > th:
+                            err(f"Block model {gid} bone '{b.get('name')}' cube {ci} box-UV [{u0},{v0}] overflows {tw}x{th}!")
+            block_geo_checked += 1
+    ok(f"All {block_geo_checked} custom 3D block models pass strict UV bounds & atlas size checks")
+
+    # 12. Simulated-Bedrock Simulation-Distance-4 25-Cell Runtime Worldgen Streaming Proof Test!
+    sim_test_code = r"""
+import { registerHooks } from 'node:module';
+
+const SIM_DIST = 4;
+const MAX_TICKING_CHUNKS = 100;
+const activeAreas = new Map();
+const blocks = new Map();
+const dynProps = new Map();
+const playerPos = { x: 0.5, y: 92, z: 5.5 };
+let missedWrites = 0;
+let currentTick = 0;
+const jobs = [];
+const timeouts = [];
+
+const bkey = (x, y, z) => `${x},${y},${z}`;
+const chunkOf = (v) => Math.floor(v / 16);
+
+function isChunkLoaded(cx, cz) {
+  const pcx = chunkOf(playerPos.x);
+  const pcz = chunkOf(playerPos.z);
+  if (Math.abs(cx - pcx) + Math.abs(cz - pcz) <= SIM_DIST) return true;
+  for (const a of activeAreas.values()) {
+    if (cx >= a.minCx && cx <= a.maxCx && cz >= a.minCz && cz <= a.maxCz) return true;
+  }
+  return false;
+}
+
+function areaChunkCount(from, to) {
+  return (chunkOf(Math.max(from.x, to.x)) - chunkOf(Math.min(from.x, to.x)) + 1) *
+         (chunkOf(Math.max(from.z, to.z)) - chunkOf(Math.min(from.z, to.z)) + 1);
+}
+
+function totalTickingChunks() {
+  let s = 0;
+  for (const a of activeAreas.values()) s += a.chunks;
+  return s;
+}
+
+const mockDim = {
+  id: 'auralis:firmament',
+  getPlayers: () => [{ isValid: true, location: { ...playerPos } }],
+  getBlock(loc) {
+    const x = Math.floor(loc.x), y = Math.floor(loc.y), z = Math.floor(loc.z);
+    if (!isChunkLoaded(chunkOf(x), chunkOf(z))) return undefined;
+    const k = bkey(x, y, z);
+    return {
+      get typeId() { return blocks.get(k) || 'minecraft:air'; },
+      get isAir() { return this.typeId === 'minecraft:air'; },
+      get isLiquid() { return this.typeId === 'minecraft:water'; },
+      setType(id) { blocks.set(k, id); },
+      setPermutation(perm) { blocks.set(k, perm.typeId); },
+      getComponent(cid) {
+        if (cid === 'minecraft:inventory') return { container: { setItem() {} } };
+        return undefined;
+      },
+    };
+  },
+  setBlockType(loc, id) {
+    const x = Math.floor(loc.x), y = Math.floor(loc.y), z = Math.floor(loc.z);
+    if (!isChunkLoaded(chunkOf(x), chunkOf(z))) { missedWrites++; throw new Error('Unloaded chunk write'); }
+    blocks.set(bkey(x, y, z), id);
+  },
+  spawnEntity() { return { isValid: true }; },
+  runCommand() {},
+};
+
+const mockServer = {
+  world: {
+    getDimension: () => mockDim,
+    getDynamicProperty: (k) => dynProps.get(k),
+    setDynamicProperty: (k, v) => dynProps.set(k, v),
+    tickingAreaManager: {
+      maxChunkCount: MAX_TICKING_CHUNKS,
+      get chunkCount() { return totalTickingChunks(); },
+      hasTickingArea: (id) => activeAreas.has(id),
+      getAllTickingAreas: () => [...activeAreas.values()].map(a => ({ identifier: a.id })),
+      hasCapacity(opts) {
+        return totalTickingChunks() + areaChunkCount(opts.from, opts.to) <= MAX_TICKING_CHUNKS;
+      },
+      async createTickingArea(id, opts) {
+        const chunks = areaChunkCount(opts.from, opts.to);
+        if (totalTickingChunks() + chunks > MAX_TICKING_CHUNKS) throw new Error('Ticking area capacity exceeded');
+        activeAreas.set(id, {
+          id, chunks,
+          minCx: chunkOf(Math.min(opts.from.x, opts.to.x)),
+          maxCx: chunkOf(Math.max(opts.from.x, opts.to.x)),
+          minCz: chunkOf(Math.min(opts.from.z, opts.to.z)),
+          maxCz: chunkOf(Math.max(opts.from.z, opts.to.z)),
+        });
+      },
+      removeTickingArea(id) { activeAreas.delete(id); },
+      removeAllTickingAreas() { activeAreas.clear(); },
+    },
+  },
+  system: {
+    get currentTick() { return currentTick; },
+    runJob(gen) { jobs.push(gen); return jobs.length; },
+    waitTicks(n) { return new Promise((resolve) => timeouts.push({ at: currentTick + n, fn: resolve })); },
+    runTimeout(fn, n) { timeouts.push({ at: currentTick + n, fn }); },
+  },
+  BlockPermutation: {
+    resolve: (typeId, states) => ({ typeId, states: states || {} }),
+  },
+  ItemStack: class ItemStack { constructor(id, count = 1) { this.typeId = id; this.amount = count; } },
+};
+
+globalThis.__MOCK_MC_SERVER = mockServer;
+registerHooks({
+  resolve(specifier, ctx, next) {
+    if (specifier === '@minecraft/server') return { shortCircuit: true, url: 'mock:mc-server' };
+    return next(specifier, ctx);
+  },
+  load(url, ctx, next) {
+    if (url === 'mock:mc-server') {
+      return {
+        shortCircuit: true,
+        format: 'module',
+        source: 'const m = globalThis.__MOCK_MC_SERVER; export const { world, system, BlockPermutation, ItemStack } = m;',
+      };
+    }
+    return next(url, ctx);
+  },
+});
+
+const wg = await import('./packs/BP/scripts/worldgen.js');
+const { getCellLayout, CELL_SIZE } = await import('./packs/BP/scripts/noise.js');
+
+async function pump(maxTicks = 600) {
+  for (let i = 0; i < maxTicks; i++) {
+    currentTick++;
+    for (let j = jobs.length - 1; j >= 0; j--) {
+      for (let s = 0; s < 5000; s++) {
+        if (jobs[j].next().done) { jobs.splice(j, 1); break; }
+      }
+    }
+    for (let t = timeouts.length - 1; t >= 0; t--) {
+      if (timeouts[t].at <= currentTick) {
+        const fn = timeouts.splice(t, 1)[0].fn;
+        fn();
+      }
+    }
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+}
+
+wg.ensureSanctuaryReady();
+await pump(30);
+for (let round = 0; round < 35; round++) {
+  wg.tickWorldGen();
+  await pump(25);
+  const st = wg.getWorldGenStatus();
+  if (st.chartedCount >= 25 && !st.activeCell) break;
+}
+await pump(20);
+
+const st = wg.getWorldGenStatus();
+const counts = {};
+let gapViolations = 0;
+let crystalViolations = 0;
+for (const [k, id] of blocks.entries()) {
+  if (id === 'minecraft:air') continue;
+  counts[id] = (counts[id] || 0) + 1;
+  const [x, y, z] = k.split(',').map(Number);
+  const gx = Math.round(x / CELL_SIZE);
+  const gz = Math.round(z / CELL_SIZE);
+  const lay = getCellLayout(gx, gz);
+  if (x < lay.minX || x > lay.maxX || z < lay.minZ || z > lay.maxZ) gapViolations++;
+  if (id === 'auralis:sea_crystal') {
+    const below = blocks.get(bkey(x, y - 1, z)) || 'minecraft:air';
+    if (below === 'minecraft:air' || below === 'minecraft:water') crystalViolations++;
+  }
+}
+
+if (typeof st.chartedCount !== 'number' || st.chartedCount < 25) {
+  throw new Error(`Expected >=25 streamed cells at SimDist 4, got ${st.chartedCount}`);
+}
+if (st.activeCell) throw new Error(`Worldgen left active cell unfinished: ${JSON.stringify(st.activeCell)}`);
+if (missedWrites !== 0) throw new Error(`Detected ${missedWrites} writes to unloaded chunks!`);
+if (mockServer.world.tickingAreaManager.chunkCount !== 0) throw new Error(`Leaked ${mockServer.world.tickingAreaManager.chunkCount} ticking chunks!`);
+if (gapViolations !== 0) throw new Error(`Detected ${gapViolations} sky-gap boundary violations!`);
+if (crystalViolations !== 0) throw new Error(`Detected ${crystalViolations} ungrounded/underwater sea_crystals!`);
+if ((counts['auralis:vespera_altar'] || 0) < 1) throw new Error('Expected >=1 Vespera Altar generated!');
+if ((counts['auralis:lantern_bloom'] || 0) < 100) throw new Error('Expected >=100 Lantern Blooms generated!');
+if ((counts['auralis:cloud_vent'] || 0) < 10) throw new Error('Expected >=10 Cloud Vents generated!');
+console.log(
+  `Sim-Dist-4 runtime proof PASSED: ${st.chartedCount}/25 cells, ${blocks.size} blocks, ` +
+  `0 missed writes, 0 leaked chunks, 0 gap violations, 0 bad crystals ` +
+  `(altars=${counts['auralis:vespera_altar']}, vents=${counts['auralis:cloud_vent']}, ` +
+  `lanterns=${counts['auralis:lantern_bloom']}, chests=${counts['minecraft:chest'] || 0})`
+);
+"""
+    proc2 = subprocess.run(["node", "--input-type=module", "-e", sim_test_code], cwd=ROOT, capture_output=True, text=True)
+    if proc2.returncode != 0:
+        err(f"Sim-Dist-4 runtime worldgen proof failed: {proc2.stderr or proc2.stdout}")
+    else:
+        ok(proc2.stdout.strip())
+
     print("\n===============================================")
     if errors:
         print(f"VALIDATION FAILED with {len(errors)} error(s) and {len(warnings)} warning(s).")

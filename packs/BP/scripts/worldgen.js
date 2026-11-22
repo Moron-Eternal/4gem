@@ -1,7 +1,10 @@
-// Worldgen 2.0 — Non-Overlapping 80x80 Macro-Cell Floating Archipelago, Walkable Cloud-Shelf Plains,
-// 6 Curated Architectural Landmarks & Grounded Crystal Geode Outcrops for Auralis: The Prism-Tide Firmament.
-// Guarantees ZERO chunk-boundary slicing (full bounding-box chunk probe + missed-write guard)
-// and ZERO island-to-island clipping (strict CELL_SAFE_SPAN clamping).
+// Worldgen 2.1 — Guaranteed Infinite Non-Overlapping 80x80 Macro-Cell Floating Archipelago,
+// Walkable Cloud-Shelf Plains, 6 Enriched Architectural Landmarks & Grounded Crystal Geode Outcrops
+// for Auralis: The Prism-Tide Firmament.
+//
+// Uses temporary TickingAreaManager areas per macro-cell so islands stream reliably at ANY
+// Bedrock Simulation Distance (including default Sim Distance 4!) with ZERO chunk-boundary slicing
+// and ZERO island-to-island clipping.
 
 import { world, system, BlockPermutation, ItemStack } from "@minecraft/server";
 import {
@@ -13,7 +16,6 @@ import {
   ITEMS,
 } from "./constants.js";
 import {
-  CELL_SIZE,
   hash2,
   hash3,
   fbm2,
@@ -22,12 +24,15 @@ import {
 } from "./noise.js";
 
 const MAX_BUCKET_LEN = 24000;
+const YIELD_STRIDE = 72;
 const permCache = new Map();
 const generatedCells = new Set();
 const queuedCells = new Set();
+const failedCellRetryTick = new Map();
 let cellsLoaded = false;
 let sanctuaryBuilding = false;
 let activeJobs = 0;
+let activeCellInfo = null;
 
 function perm(id, states = undefined) {
   const key = states ? `${id}|${JSON.stringify(states)}` : id;
@@ -39,11 +44,22 @@ function perm(id, states = undefined) {
   return p;
 }
 
+function clampInt(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, Math.round(v)));
+}
+
 function setBlk(dim, x, y, z, blockPerm, ctx = null) {
   try {
+    const ix = Math.floor(x);
     const iy = Math.floor(y);
+    const iz = Math.floor(z);
     if (iy < -60 || iy > 315) return false;
-    const b = dim.getBlock({ x: Math.floor(x), y: iy, z: Math.floor(z) });
+    if (ctx?.bounds) {
+      if (ix < ctx.bounds.minX || ix > ctx.bounds.maxX || iz < ctx.bounds.minZ || iz > ctx.bounds.maxZ) {
+        return false;
+      }
+    }
+    const b = dim.getBlock({ x: ix, y: iy, z: iz });
     if (!b) {
       if (ctx) ctx.missedWrites++;
       return false;
@@ -54,37 +70,6 @@ function setBlk(dim, x, y, z, blockPerm, ctx = null) {
     if (ctx) ctx.missedWrites++;
     return false;
   }
-}
-
-/**
- * Verifies EVERY chunk spanning [minX-4..maxX+4] x [minZ-4..maxZ+4] is loaded
- * BEFORE starting a cell build job — completely eliminating cut-off / sliced islands!
- */
-function isAreaLoaded(dim, minX, maxX, minZ, maxZ) {
-  const x0 = Math.floor(minX) - 4;
-  const x1 = Math.floor(maxX) + 4;
-  const z0 = Math.floor(minZ) - 4;
-  const z1 = Math.floor(maxZ) + 4;
-
-  const xs = [];
-  for (let x = x0; x <= x1; x += 16) xs.push(x);
-  if (xs[xs.length - 1] !== x1) xs.push(x1);
-
-  const zs = [];
-  for (let z = z0; z <= z1; z += 16) zs.push(z);
-  if (zs[zs.length - 1] !== z1) zs.push(z1);
-
-  for (const x of xs) {
-    for (const z of zs) {
-      try {
-        const b = dim.getBlock({ x, y: 80, z });
-        if (!b) return false;
-      } catch {
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 function loadGeneratedCells() {
@@ -129,29 +114,66 @@ function persistCell(key) {
 }
 
 /**
- * Safely creates a temporary ticking area via TickingAreaManager (with /tickingarea fallback).
+ * Cleans up any leftover add-on ticking areas from interrupted sessions on worldLoad.
+ */
+export function cleanupWorldGenTickingAreas() {
+  try {
+    if (world.tickingAreaManager && typeof world.tickingAreaManager.removeAllTickingAreas === "function") {
+      world.tickingAreaManager.removeAllTickingAreas();
+    }
+  } catch {
+    // Safe fallback
+  }
+}
+
+/**
+ * Safely creates a temporary ticking area via TickingAreaManager (with /tickingarea fallback)
+ * so macro-cell generation succeeds reliably at ANY Simulation Distance (including default 4!).
  */
 export async function withTickingArea(dim, id, from, to, fn) {
   let usedApi = false;
+  let usedCmd = false;
+  const fromLoc = { x: Math.floor(from.x), y: Math.floor(from.y), z: Math.floor(from.z) };
+  const toLoc = { x: Math.floor(to.x), y: Math.floor(to.y), z: Math.floor(to.z) };
+
   try {
-    if (world.tickingAreaManager && typeof world.tickingAreaManager.createTickingArea === "function") {
-      if (world.tickingAreaManager.hasTickingArea(id)) {
-        world.tickingAreaManager.removeTickingArea(id);
+    const tam = world.tickingAreaManager;
+    if (tam && typeof tam.createTickingArea === "function") {
+      try {
+        if (typeof tam.hasTickingArea === "function" && tam.hasTickingArea(id)) {
+          tam.removeTickingArea(id);
+        }
+        const opts = { dimension: dim, from: fromLoc, to: toLoc };
+        // If another temporary Auralis ticking area (e.g. player teleport) is finishing up, wait briefly
+        for (let wait = 0; wait < 5; wait++) {
+          const hasCap = typeof tam.hasCapacity === "function" ? tam.hasCapacity(opts) : true;
+          if (hasCap) break;
+          await system.waitTicks(4);
+        }
+        const hasCap = typeof tam.hasCapacity === "function" ? tam.hasCapacity(opts) : true;
+        if (hasCap) {
+          await tam.createTickingArea(id, opts);
+          usedApi = true;
+        }
+      } catch {
+        usedApi = false;
       }
-      await world.tickingAreaManager.createTickingArea(id, { dimension: dim, from, to });
-      usedApi = true;
-    } else {
+    }
+    if (!usedApi) {
       dim.runCommand(
-        `tickingarea add ${Math.floor(from.x)} ${Math.floor(from.y)} ${Math.floor(from.z)} ${Math.floor(to.x)} ${Math.floor(to.y)} ${Math.floor(to.z)} ${id} true`
+        `tickingarea add ${fromLoc.x} ${fromLoc.y} ${fromLoc.z} ${toLoc.x} ${toLoc.y} ${toLoc.z} ${id} true`
       );
+      usedCmd = true;
       await system.waitTicks(12);
+    } else {
+      await system.waitTicks(1);
     }
     return await fn();
   } finally {
     try {
-      if (usedApi && world.tickingAreaManager.hasTickingArea(id)) {
+      if (usedApi && world.tickingAreaManager?.hasTickingArea(id)) {
         world.tickingAreaManager.removeTickingArea(id);
-      } else if (!usedApi) {
+      } else if (usedCmd) {
         dim.runCommand(`tickingarea remove ${id}`);
       }
     } catch {
@@ -238,7 +260,7 @@ function placePrismTree(dim, cx, cy, cz, seed, ctx) {
   for (const [dx, dz] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) {
     if (hash2(cx + dx, cz + dz, seed + 5) > 0.35) {
       setBlk(dim, cx + dx, topY - 2, cz + dz, leafP, ctx);
-      if (hash2(cx + dx, cz + dz, seed + 9) > 0.58) {
+      if (hash2(cx + dx, cz + dz, seed + 9) > 0.55) {
         setBlk(dim, cx + dx, topY - 3, cz + dz, lanternP, ctx);
       }
     }
@@ -310,10 +332,10 @@ function placeTreasureChest(dim, x, y, z, ctx) {
       [ITEMS.PRISM_BERRY, 3 + Math.floor(hash2(x, z, 13) * 5)],
       [ITEMS.CELESTIAL_NECTAR, 1 + Math.floor(hash2(x, z, 14) * 2)],
     ];
-    if (hash2(x, z, 15) > 0.52) pool.push([ITEMS.GALE_PRISM, 1]);
-    if (hash2(x, z, 16) > 0.58) pool.push([ITEMS.STAR_CORE, 1]);
-    if (hash2(x, z, 17) > 0.65) pool.push([BLOCKS.LANTERN_BLOOM, 2]);
-    if (hash2(x, z, 18) > 0.55) pool.push([BLOCKS.CLOUD_VENT, 1]);
+    if (hash2(x, z, 15) > 0.50) pool.push([ITEMS.GALE_PRISM, 1]);
+    if (hash2(x, z, 16) > 0.56) pool.push([ITEMS.STAR_CORE, 1]);
+    if (hash2(x, z, 17) > 0.60) pool.push([BLOCKS.LANTERN_BLOOM, 2]);
+    if (hash2(x, z, 18) > 0.52) pool.push([BLOCKS.CLOUD_VENT, 1]);
 
     let slot = 4;
     for (const [id, count] of pool) {
@@ -331,35 +353,46 @@ function placeTreasureChest(dim, x, y, z, ctx) {
 
 /**
  * Builds a lower walkable Cloud-Landing Shelf with a glowing Updraft Cloud-Vent
- * tucked neatly inside an upper island's macro-cell so explorers can glide down and
+ * tucked strictly inside the macro-cell's safe bounds so explorers can glide down and
  * ride the breeze effortlessly back up without endless bridging!
  */
-function* placeLowerCloudShelfJob(dim, cx, cy, cz, rad, seed, ctx) {
+function* placeLowerCloudShelfJob(dim, rawCx, cy, rawCz, rad, seed, ctx) {
+  const b = ctx?.bounds;
+  const cx = b ? clampInt(rawCx, b.minX + rad + 2, b.maxX - rad - 2) : Math.round(rawCx);
+  const cz = b ? clampInt(rawCz, b.minZ + rad + 2, b.maxZ - rad - 2) : Math.round(rawCz);
+
   const cloud = perm(BLOCKS.CLOUDSTONE);
   const rose = perm(BLOCKS.ROSE_CLOUD);
   const vent = perm(BLOCKS.CLOUD_VENT);
   const brass = perm(BLOCKS.GILDED_BRASS);
+  const lantern = perm(BLOCKS.LANTERN_BLOOM);
+  const air = perm("minecraft:air");
   let ops = 0;
 
   for (let dx = -rad; dx <= rad; dx++) {
     for (let dz = -rad; dz <= rad; dz++) {
       const d = Math.hypot(dx, dz);
-      const eff = rad + (fbm2((cx + dx) * 0.16, (cz + dz) * 0.16, 2, seed + 7) - 0.5) * 3.0;
+      const eff = rad + (fbm2((cx + dx) * 0.16, (cz + dz) * 0.16, 2, seed + 7) - 0.5) * 2.6;
       if (d > eff) continue;
       const norm = 1.0 - d / eff;
       const depth = Math.max(1, Math.floor(norm * 4.2));
       for (let dy = -depth; dy <= 0; dy++) {
         const isRim = d > eff - 2.6 || dy === -depth;
         setBlk(dim, cx + dx, cy + dy, cz + dz, isRim ? rose : cloud, ctx);
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
     }
   }
-  // Ornate brass-rimmed Updraft Cloud-Vent pad at shelf center
+  // Ornate brass-rimmed Updraft Cloud-Vent pad + twin beacon lanterns at shelf center
   for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
     setBlk(dim, cx + dx, cy, cz + dz, brass, ctx);
+    setBlk(dim, cx + dx, cy + 1, cz + dz, air, ctx);
   }
   setBlk(dim, cx, cy, cz, vent, ctx);
+  setBlk(dim, cx, cy + 1, cz, air, ctx);
+  setBlk(dim, cx, cy + 2, cz, air, ctx);
+  setBlk(dim, cx + 4, cy + 1, cz, lantern, ctx);
+  setBlk(dim, cx - 4, cy + 1, cz, lantern, ctx);
 }
 
 /**
@@ -373,6 +406,8 @@ function* placeWayfarerPavilionJob(dim, cx, cy, cz, ctx) {
   const log = perm(BLOCKS.PRISM_LOG);
   const glass = perm(BLOCKS.STARLIGHT_GLASS);
   const lantern = perm(BLOCKS.LANTERN_BLOOM);
+  const solBlk = perm(BLOCKS.SOLARIUM_BLOCK);
+  const reed = perm(BLOCKS.CHIME_REED);
   const air = perm("minecraft:air");
   let ops = 0;
 
@@ -381,48 +416,61 @@ function* placeWayfarerPavilionJob(dim, cx, cy, cz, ctx) {
     for (let dz = -5; dz <= 5; dz++) {
       if (Math.abs(dx) + Math.abs(dz) > 8) continue;
       const border = Math.abs(dx) === 5 || Math.abs(dz) === 5 || Math.abs(dx) + Math.abs(dz) === 8;
-      const p = border ? brass : (Math.abs(dx) <= 2 && Math.abs(dz) <= 2 ? planks : gilded);
+      const centerMedallion = dx === 0 && dz === 0;
+      const p = centerMedallion
+        ? solBlk
+        : border
+          ? brass
+          : Math.abs(dx) <= 2 && Math.abs(dz) <= 2
+            ? planks
+            : gilded;
       setBlk(dim, cx + dx, cy, cz + dz, p, ctx);
       groundFoundationColumn(dim, cx + dx, { y: cy, z: cz + dz }, 4, border ? gilded : stone, ctx);
       // Clear interior airspace cleanly
-      for (let h = 1; h <= 7; h++) {
+      for (let h = 1; h <= 8; h++) {
         setBlk(dim, cx + dx, cy + h, cz + dz, air, ctx);
       }
-      if (++ops % 40 === 0) yield;
+      if (++ops % YIELD_STRIDE === 0) yield;
     }
   }
 
-  // 8 Graceful Perimeter Pillars (4 corners + 4 doorway frames)
+  // 12 Graceful Perimeter Pillars (4 timber corners + 8 carved travertine doorway frames)
   for (const [px, pz] of [[-4, -4], [4, -4], [-4, 4], [4, 4], [-2, -5], [2, -5], [-2, 5], [2, 5], [-5, -2], [-5, 2], [5, -2], [5, 2]]) {
     for (let h = 1; h <= 5; h++) {
       setBlk(dim, cx + px, cy + h, cz + pz, h === 5 ? brass : (Math.abs(px) === 4 ? log : gilded), ctx);
     }
-    if (++ops % 24 === 0) yield;
+    if (++ops % 32 === 0) yield;
   }
 
-  // Sculpted Domed Starlight-Glass & Prism-Plank Roof + Hanging Lantern Chandelier
+  // Sculpted Domed Starlight-Glass & Prism-Plank Roof + Oculus Skylight + Hanging Chandelier
   for (let dx = -5; dx <= 5; dx++) {
     for (let dz = -5; dz <= 5; dz++) {
       const m = Math.abs(dx) + Math.abs(dz);
       if (m > 8) continue;
       if (m >= 6) {
-        setBlk(dim, cx + dx, cy + 6, cz + dz, planks, ctx);
+        setBlk(dim, cx + dx, cy + 6, cz + dz, m === 8 ? brass : planks, ctx);
       } else if (m >= 3) {
         setBlk(dim, cx + dx, cy + 7, cz + dz, (dx === 0 || dz === 0) ? brass : glass, ctx);
       } else {
-        setBlk(dim, cx + dx, cy + 8, cz + dz, m === 0 ? brass : glass, ctx);
+        setBlk(dim, cx + dx, cy + 8, cz + dz, m === 0 ? solBlk : glass, ctx);
       }
-      if (++ops % 40 === 0) yield;
+      if (++ops % YIELD_STRIDE === 0) yield;
     }
   }
   setBlk(dim, cx, cy + 9, cz, lantern, ctx);
   setBlk(dim, cx, cy + 6, cz, lantern, ctx);
+  // Corner eaves lanterns
+  for (const [lx, lz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) {
+    setBlk(dim, cx + lx, cy + 7, cz + lz, lantern, ctx);
+  }
 
-  // Cozy interior furnishings: Crafting table + Supply Chest + corner lanterns
+  // Cozy interior furnishings: Crafting table + Supply Chest + corner lanterns + chime planters
   setBlk(dim, cx - 2, cy + 1, cz - 2, perm("minecraft:crafting_table"), ctx);
   placeTreasureChest(dim, cx + 2, cy + 1, cz - 2, ctx);
   setBlk(dim, cx - 3, cy + 1, cz + 3, lantern, ctx);
   setBlk(dim, cx + 3, cy + 1, cz + 3, lantern, ctx);
+  setBlk(dim, cx - 3, cy + 1, cz - 3, reed, ctx);
+  setBlk(dim, cx + 3, cy + 1, cz - 3, reed, ctx);
 }
 
 /**
@@ -468,12 +516,16 @@ function* placeBellCampanileJob(dim, cx, cy, cz, ctx) {
         } else if (h <= 3 && (dx === 0 || dz === 0)) {
           // Tall open entrance arches on all 4 ground sides!
           setBlk(dim, cx + dx, cy + h, cz + dz, air, ctx);
-        } else if (h % 4 === 0 && (dx === 0 || dz === 0)) {
+        } else if (h === 4 && (dx === 0 || dz === 0)) {
+          // Gilded arch keystone above each doorway
+          setBlk(dim, cx + dx, cy + h, cz + dz, brass, ctx);
+        } else if ((h === 8 || h === 12) && (Math.abs(dx) <= 1 || Math.abs(dz) <= 1) && (dx === 0 || dz === 0)) {
+          // Tall starlight-glass lancet windows
           setBlk(dim, cx + dx, cy + h, cz + dz, glass, ctx);
         } else {
           setBlk(dim, cx + dx, cy + h, cz + dz, h === 15 ? brass : gilded, ctx);
         }
-        if (++ops % 45 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
     }
     // Walkable spiral stepping shelf circling up the inner wall!
@@ -494,6 +546,8 @@ function* placeBellCampanileJob(dim, cx, cy, cz, ctx) {
     for (let h = 17; h <= 21; h++) {
       setBlk(dim, cx + px, cy + h, cz + pz, h === 21 ? brass : gilded, ctx);
     }
+    // Projecting belfry corner lantern finials!
+    setBlk(dim, cx + px + Math.sign(px), cy + 21, cz + pz + Math.sign(pz), lantern, ctx);
   }
   // Stepped Golden Pyramid Belfry Roof
   for (let tier = 0; tier <= 3; tier++) {
@@ -513,7 +567,7 @@ function* placeBellCampanileJob(dim, cx, cy, cz, ctx) {
 }
 
 /**
- * Curated Architectural Building: Cloud-Harbor Shrine & Timber Sky-Dock (built atop Cloud Plains!)
+ * Curated Architectural Building: Cloud-Harbor Shrine, Sky-Dock & Harbor Beacon Lighthouse!
  */
 function* placeCloudHarborJob(dim, cx, cy, cz, ctx) {
   const planks = perm(BLOCKS.PRISM_PLANKS);
@@ -522,6 +576,7 @@ function* placeCloudHarborJob(dim, cx, cy, cz, ctx) {
   const brass = perm(BLOCKS.GILDED_BRASS);
   const glass = perm(BLOCKS.STARLIGHT_GLASS);
   const lantern = perm(BLOCKS.LANTERN_BLOOM);
+  const solBlk = perm(BLOCKS.SOLARIUM_BLOCK);
   const vent = perm(BLOCKS.CLOUD_VENT);
   const cloud = perm(BLOCKS.CLOUDSTONE);
   const air = perm("minecraft:air");
@@ -537,7 +592,7 @@ function* placeCloudHarborJob(dim, cx, cy, cz, ctx) {
       if (isPiling) {
         groundFoundationColumn(dim, cx + dx, { y: cy + 1, z: cz + dz }, 4, log, ctx);
       }
-      if (++ops % 40 === 0) yield;
+      if (++ops % YIELD_STRIDE === 0) yield;
     }
     if (dz % 6 === 0) {
       // Dockside lantern posts!
@@ -550,6 +605,25 @@ function* placeCloudHarborJob(dim, cx, cy, cz, ctx) {
       }
     }
   }
+
+  // Harbor Beacon Lighthouse Mast on the West Pierhead (visible 150+ blocks across the Cloud Sea!)
+  const lx = cx - 6;
+  const lz = cz - 8;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      setBlk(dim, lx + dx, cy + 1, lz + dz, Math.abs(dx) + Math.abs(dz) === 2 ? brass : gilded, ctx);
+      groundFoundationColumn(dim, lx + dx, { y: cy + 1, z: lz + dz }, 4, cloud, ctx);
+    }
+  }
+  for (let h = 2; h <= 9; h++) {
+    setBlk(dim, lx, cy + h, lz, h % 3 === 0 ? brass : log, ctx);
+  }
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    setBlk(dim, lx + dx, cy + 9, lz + dz, glass, ctx);
+  }
+  setBlk(dim, lx, cy + 10, lz, solBlk, ctx);
+  setBlk(dim, lx, cy + 11, lz, lantern, ctx);
+  yield;
 
   // Cozy Harbor Shelter House beside the dock (x: +4..+11, z: -4..+4)
   for (let dx = 4; dx <= 11; dx++) {
@@ -571,7 +645,7 @@ function* placeCloudHarborJob(dim, cx, cy, cz, ctx) {
         } else {
           setBlk(dim, cx + dx, cy + h, cz + dz, planks, ctx);
         }
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
     }
   }
@@ -603,13 +677,16 @@ function* placeCloudHarborJob(dim, cx, cy, cz, ctx) {
 }
 
 // =============================================================================
-// 1. GRAND ARRIVAL ATOLL — SANCTUARY CROWN 2.0 (0, 84, 0, Radius 28!)
+// 1. GRAND ARRIVAL ATOLL — SANCTUARY CROWN 2.1 (0, 84, 0, Radius 28!)
 // =============================================================================
 
 function* buildSanctuaryCrownJob(dim) {
   const { x: cx, y: cy, z: cz } = SANCTUARY_CENTER;
   const radius = 28;
-  const ctx = { missedWrites: 0 };
+  const ctx = {
+    missedWrites: 0,
+    bounds: { minX: -35, maxX: 35, minZ: -35, maxZ: 35 },
+  };
 
   const stone = perm(BLOCKS.AURALITE);
   const star = perm(BLOCKS.STARSTONE);
@@ -652,7 +729,6 @@ function* buildSanctuaryCrownJob(dim) {
             p = water;
             setBlk(dim, cx + dx, cy + dy - 1, cz + dz, glass, ctx);
           } else if ((Math.abs(dx) <= 1 && dz < -7 && dz > -27) || (Math.abs(dz) <= 1 && Math.abs(dx) > 7 && Math.abs(dx) < 27)) {
-            // Cardinal gilded promenade avenues!
             p = gilded;
           } else {
             p = moss;
@@ -661,7 +737,7 @@ function* buildSanctuaryCrownJob(dim) {
           p = hash3(dx, dy, dz, 55) > 0.94 ? solOre : star;
         }
         setBlk(dim, cx + dx, cy + dy, cz + dz, p, ctx);
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
 
       // Lush Chime-Reeds (NO random loose crystals on grass!)
@@ -679,7 +755,7 @@ function* buildSanctuaryCrownJob(dim) {
     for (let dx = -1; dx <= 1; dx++) {
       setBlk(dim, cx + dx, wy, cz + 26, water, ctx);
     }
-    if (++ops % 30 === 0) yield;
+    if (++ops % 40 === 0) yield;
   }
 
   // 3. Central Mirrored Observatory Dais (Awakened Return Astrolabe + 4 Grand Arches)
@@ -750,7 +826,7 @@ function* buildSanctuaryCrownJob(dim) {
 }
 
 // =============================================================================
-// 2. GRAND ASTRAL CITADEL 2.0 (Wide 52-Block Open Boss Arena!)
+// 2. GRAND ASTRAL CITADEL 2.1 (Wide 52-Block Open Boss Arena!)
 // =============================================================================
 
 function* buildAstralCitadelJob(dim, layout, ctx) {
@@ -780,7 +856,7 @@ function* buildAstralCitadelJob(dim, layout, ctx) {
           else p = gilded;
         }
         setBlk(dim, cx + dx, cy + dy, cz + dz, p, ctx);
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
     }
   }
@@ -797,6 +873,12 @@ function* buildAstralCitadelJob(dim, layout, ctx) {
     yield;
   }
 
+  // Four low carved avenue Lantern Braziers framing the 4 cardinal approaches
+  for (const [bx, bz] of [[0, 17], [0, -17], [17, 0], [-17, 0]]) {
+    setBlk(dim, cx + bx, cy + 1, cz + bz, brass, ctx);
+    setBlk(dim, cx + bx, cy + 2, cz + bz, lantern, ctx);
+  }
+
   // High Overhead Interlocking Astrolabe Crown Rings (cy + 22 -> completely clear of Seraph flight!)
   placeAstrolabeRing(dim, cx, cy + 22, cz, 23, 0.28, -0.18, true, ctx);
   yield;
@@ -805,8 +887,8 @@ function* buildAstralCitadelJob(dim, layout, ctx) {
 
   // Vespera Sanctum Altar + Twin Perimeter Treasure Chests
   setBlk(dim, cx, cy + 1, cz, altar, ctx);
-  placeTreasureChest(dim, cx + 18, cy + 1, cz, ctx);
-  placeTreasureChest(dim, cx - 18, cy + 1, cz, ctx);
+  placeTreasureChest(dim, cx + 18, cy + 1, cz + 3, ctx);
+  placeTreasureChest(dim, cx - 18, cy + 1, cz - 3, ctx);
 
   // Lower Cloud-Shelf Approach Deck with Updraft Cloud-Vent right into the Citadel!
   yield* placeLowerCloudShelfJob(dim, cx, 50, cz + 20, 11, layout.seed + 99, ctx);
@@ -835,7 +917,6 @@ function* buildCloudPlainsJob(dim, layout, ctx) {
       if (dist > eff) continue;
 
       const norm = 1.0 - dist / eff;
-      // Gentle billowy walkable cloud terraces (+0..+2 blocks, easy to walk without jumping!)
       const billow = Math.floor(fbm2(bx * 0.06, bz * 0.06, 2, seed + 17) * 2.4 * norm);
       const topY = cy + (dist < 16 ? 0 : billow);
       const depth = Math.max(2, Math.floor(Math.pow(norm, 0.85) * 7 + 1));
@@ -846,12 +927,12 @@ function* buildCloudPlainsJob(dim, layout, ctx) {
         else if (y <= topY - depth + 1) p = rose;
         else if (y === topY && dist > 16 && fbm2(bx * 0.12, bz * 0.12, 2, seed + 44) > 0.72) p = moss;
         setBlk(dim, bx, y, bz, p, ctx);
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
     }
   }
 
-  // Curated Cloud-Harbor Shrine, Sky-Dock & 3 Updraft Cloud-Vents!
+  // Curated Cloud-Harbor Shrine, Sky-Dock, Beacon Lighthouse & 3 Updraft Cloud-Vents!
   yield* placeCloudHarborJob(dim, cx, cy, cz, ctx);
 
   // Two sculptural Prism-Coral trees growing on moss pockets of the cloud plain
@@ -906,7 +987,7 @@ function* buildPearlAtollJob(dim, layout, ctx) {
           p = hash3(bx, cy + dy, bz, seed) > 0.935 ? solOre : star;
         }
         setBlk(dim, bx, cy + dy, bz, p, ctx);
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
 
       if (!inPool && dist >= 9.0 && dist <= eff - 2.5) {
@@ -965,7 +1046,6 @@ function* buildBellReefJob(dim, layout, ctx) {
       const eff = rad + jitter;
       if (dist > eff) continue;
 
-      // Central tower island (dist < 6.5) surrounded by serene turquoise lagoon ring (6.5..eff-5.5) + wide mossy shore!
       const isLagoon = dist >= 6.8 && dist < eff - 5.5 && !(Math.abs(dx) <= 1 || Math.abs(dz) <= 1);
       const isBridge = dist >= 6.8 && dist < eff - 5.5 && (Math.abs(dx) <= 1 || Math.abs(dz) <= 1);
       const depth = Math.max(3, Math.floor((1 - dist / eff) * 10));
@@ -981,7 +1061,7 @@ function* buildBellReefJob(dim, layout, ctx) {
           p = hash2(bx, bz, seed + 9) > 0.85 ? glass : stone;
         }
         setBlk(dim, bx, cy + dy, bz, p, ctx);
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
 
       if (!isLagoon && !isBridge && dist > eff - 5.0 && dist < eff - 1.8) {
@@ -1027,7 +1107,6 @@ function* buildSpireGardenJob(dim, layout, ctx) {
   const lantern = perm(BLOCKS.LANTERN_BLOOM);
   let ops = 0;
 
-  // Wide terraced amphitheater island (fully explorable, rich with Solarium Ore in starstone roots!)
   for (let bx = minX; bx <= maxX; bx++) {
     for (let bz = minZ; bz <= maxZ; bz++) {
       const dx = bx - cx;
@@ -1047,7 +1126,7 @@ function* buildSpireGardenJob(dim, layout, ctx) {
         let p = stone;
         if (dy === topOff) {
           if (dist < 10.5) {
-            p = Math.abs(dist - 9.5) < 1.1 || dist < 2.2 ? brass : (Math.abs(dx) === Math.abs(dz) ? star : gilded);
+            p = Math.abs(dist - 9.5) < 1.1 || dist < 2.2 ? brass : (Math.abs(dx) === Math.abs(dz) || dx === 0 || dz === 0 ? star : gilded);
           } else if (dist < 15.5) {
             p = Math.abs(dist - 14.5) < 1.0 ? gilded : moss;
           } else {
@@ -1057,7 +1136,7 @@ function* buildSpireGardenJob(dim, layout, ctx) {
           p = hash3(bx, cy + dy, bz, seed) > 0.91 ? solOre : star;
         }
         setBlk(dim, bx, cy + dy, bz, p, ctx);
-        if (++ops % 40 === 0) yield;
+        if (++ops % YIELD_STRIDE === 0) yield;
       }
     }
   }
@@ -1068,19 +1147,21 @@ function* buildSpireGardenJob(dim, layout, ctx) {
     const ang = (i / 6) * Math.PI * 2;
     const px = Math.round(cx + Math.cos(ang) * 9.5);
     const pz = Math.round(cz + Math.sin(ang) * 9.5);
-    const pillarH = i % 2 === 0 ? 11 : 7; // weathered ruin silhouette!
+    const pillarH = i % 2 === 0 ? 11 : 7;
     for (let h = 1; h <= pillarH; h++) {
       setBlk(dim, px, oy + h, pz, h % 4 === 0 ? brass : gilded, ctx);
     }
     if (pillarH === 11) {
       setBlk(dim, px, oy + 12, pz, lantern, ctx);
-      // Graceful arching glass dome rib curving halfway across sky
       for (let s = 1; s <= 6; s++) {
         const t = s / 8;
         const rx = Math.round(cx + Math.cos(ang) * (9.5 * (1 - t)));
         const rz = Math.round(cz + Math.sin(ang) * (9.5 * (1 - t)));
         const ry = Math.round(oy + 11 + Math.sin(t * Math.PI * 0.5) * 6);
         setBlk(dim, rx, ry, rz, s % 2 === 0 ? brass : glass, ctx);
+        if (s === 4) {
+          setBlk(dim, rx, ry - 1, rz, lantern, ctx);
+        }
       }
     }
     yield;
@@ -1108,39 +1189,81 @@ function* buildSpireGardenJob(dim, layout, ctx) {
 }
 
 // =============================================================================
-// MACRO-CELL DISPATCHER
+// MACRO-CELL DISPATCHER WITH TEMPORARY TICKING AREA (Works at Sim Dist 4+!)
 // =============================================================================
 
-function* generateCellJob(dim, gx, gz) {
+function* buildLayoutGenerator(dim, layout, ctx) {
+  if (layout.kind === "astral_citadel") {
+    yield* buildAstralCitadelJob(dim, layout, ctx);
+  } else if (layout.kind === "cloud_plains") {
+    yield* buildCloudPlainsJob(dim, layout, ctx);
+  } else if (layout.kind === "spire_gardens") {
+    yield* buildSpireGardenJob(dim, layout, ctx);
+  } else if (layout.kind === "bell_reefs") {
+    yield* buildBellReefJob(dim, layout, ctx);
+  } else {
+    yield* buildPearlAtollJob(dim, layout, ctx);
+  }
+}
+
+async function generateCellAsync(dim, gx, gz, layout) {
   const key = `${gx},${gz}`;
-  const ctx = { missedWrites: 0 };
-  activeJobs++;
+  const ctx = {
+    missedWrites: 0,
+    bounds: {
+      minX: layout.minX,
+      maxX: layout.maxX,
+      minZ: layout.minZ,
+      maxZ: layout.maxZ,
+    },
+  };
+
+  activeCellInfo = { key, kind: layout.kind };
   try {
-    const layout = getCellLayout(gx, gz);
     if (layout.kind === "sanctuary" || layout.kind === "empty_sky") {
       persistCell(key);
-      return;
+      return true;
     }
 
-    if (layout.kind === "astral_citadel") {
-      yield* buildAstralCitadelJob(dim, layout, ctx);
-    } else if (layout.kind === "cloud_plains") {
-      yield* buildCloudPlainsJob(dim, layout, ctx);
-    } else if (layout.kind === "spire_gardens") {
-      yield* buildSpireGardenJob(dim, layout, ctx);
-    } else if (layout.kind === "bell_reefs") {
-      yield* buildBellReefJob(dim, layout, ctx);
-    } else {
-      yield* buildPearlAtollJob(dim, layout, ctx);
-    }
+    // Load EVERY chunk spanning this macro-cell cleanly via temporary ticking area!
+    // Covers strictly [minX..maxX] x [minZ..maxZ] (25..36 chunks) so islands NEVER slice or fail on Sim Dist 4!
+    await withTickingArea(
+      dim,
+      "auralis_cell_gen",
+      { x: layout.minX, y: 16, z: layout.minZ },
+      { x: layout.maxX, y: 160, z: layout.maxZ },
+      async () => {
+        await new Promise((resolve) => {
+          system.runJob(
+            (function* () {
+              try {
+                yield* buildLayoutGenerator(dim, layout, ctx);
+              } finally {
+                resolve();
+              }
+            })()
+          );
+        });
+        // Allow Bedrock 4 ticks to flush sky-lighting & client chunk mesh updates before releasing ticking area
+        await system.waitTicks(4);
+      }
+    );
 
-    // Only persist cell as completed if ZERO chunk-unload write misses occurred!
     if (ctx.missedWrites === 0) {
+      failedCellRetryTick.delete(key);
       persistCell(key);
+      return true;
     }
+    failedCellRetryTick.set(key, system.currentTick + 80);
+    return false;
+  } catch (err) {
+    failedCellRetryTick.set(key, system.currentTick + 100);
+    console.warn(`[Auralis] Cell (${key}) generation retry scheduled: ${err}`);
+    return false;
   } finally {
     queuedCells.delete(key);
     activeJobs = Math.max(0, activeJobs - 1);
+    activeCellInfo = null;
   }
 }
 
@@ -1166,17 +1289,21 @@ export async function ensureSanctuaryReady() {
     await withTickingArea(
       dim,
       "auralis_sanctuary_v2",
-      { x: -40, y: 20, z: -40 },
-      { x: 40, y: 140, z: 40 },
+      { x: -36, y: 20, z: -36 },
+      { x: 36, y: 140, z: 36 },
       async () => {
         await new Promise((resolve) => {
           system.runJob(
             (function* () {
-              yield* buildSanctuaryCrownJob(dim);
-              resolve();
+              try {
+                yield* buildSanctuaryCrownJob(dim);
+              } finally {
+                resolve();
+              }
             })()
           );
         });
+        await system.waitTicks(4);
       }
     );
     return true;
@@ -1190,11 +1317,12 @@ export async function ensureSanctuaryReady() {
 
 /**
  * Called periodically while players explore Auralis — streams non-overlapping 80x80
- * Macro-Cells ONLY once every chunk in the cell's full bounding box is loaded!
+ * Macro-Cells across the surrounding +/- 160-block horizon using temporary ticking areas!
+ * Guaranteed to work at ANY Bedrock Simulation Distance (4..12) with ZERO chunk cutoffs.
  */
 export function tickWorldGen() {
   loadGeneratedCells();
-  if (activeJobs >= 1) return;
+  if (sanctuaryBuilding || activeJobs >= 1) return;
 
   let dim;
   try {
@@ -1206,41 +1334,63 @@ export function tickWorldGen() {
   const players = dim.getPlayers();
   if (players.length === 0) return;
 
+  const nowTick = system.currentTick;
+  const candidates = [];
+
   for (const player of players) {
-    if (activeJobs >= 1) break;
+    if (!player.isValid) continue;
     const loc = player.location;
     const { gx: pgx, gz: pgz } = worldToCell(loc.x, loc.z);
 
-    // Spiral outward up to radius 2 macro-cells (+/- 160 blocks)
-    for (let r = 0; r <= 2 && activeJobs < 1; r++) {
-      for (let dx = -r; dx <= r && activeJobs < 1; dx++) {
-        for (let dz = -r; dz <= r && activeJobs < 1; dz++) {
-          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-          const gx = pgx + dx;
-          const gz = pgz + dz;
-          const key = `${gx},${gz}`;
-          if (generatedCells.has(key) || queuedCells.has(key)) continue;
+    // Collect every ungenerated cell within +/- 2 macro-cells (+/- 160 blocks)
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dz = -2; dz <= 2; dz++) {
+        const gx = pgx + dx;
+        const gz = pgz + dz;
+        const key = `${gx},${gz}`;
+        if (generatedCells.has(key) || queuedCells.has(key)) continue;
 
-          const layout = getCellLayout(gx, gz);
-          if (layout.kind === "empty_sky") {
-            persistCell(key);
-            continue;
-          }
+        const retryAt = failedCellRetryTick.get(key);
+        if (retryAt && nowTick < retryAt) continue;
 
-          // Strict full bounding-box chunk-load probe: NEVER start until ALL corner/edge chunks are loaded!
-          if (!isAreaLoaded(dim, layout.minX, layout.maxX, layout.minZ, layout.maxZ)) {
-            continue;
-          }
-
-          queuedCells.add(key);
-          system.runJob(generateCellJob(dim, gx, gz));
+        const layout = getCellLayout(gx, gz);
+        if (layout.kind === "empty_sky") {
+          persistCell(key);
+          continue;
         }
+        if (layout.kind === "sanctuary") {
+          if (world.getDynamicProperty(DP_SANCTUARY_BUILT) === true) {
+            persistCell(key);
+          }
+          continue;
+        }
+
+        const distSq = (layout.cx - loc.x) ** 2 + (layout.cz - loc.z) ** 2;
+        candidates.push({ gx, gz, key, layout, distSq });
       }
     }
   }
+
+  if (candidates.length === 0) return;
+
+  // Always stream the CLOSEST horizon island first so neighboring rings & Cloud Promenade appear immediately!
+  candidates.sort((a, b) => a.distSq - b.distSq);
+  const chosen = candidates[0];
+
+  queuedCells.add(chosen.key);
+  activeJobs++;
+  void generateCellAsync(dim, chosen.gx, chosen.gz, chosen.layout);
 }
 
 export function getGeneratedSectorCount() {
   loadGeneratedCells();
   return generatedCells.size;
+}
+
+export function getWorldGenStatus() {
+  loadGeneratedCells();
+  return {
+    chartedCount: generatedCells.size,
+    activeCell: activeCellInfo,
+  };
 }

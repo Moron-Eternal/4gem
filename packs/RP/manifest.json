@@ -4,7 +4,7 @@
     "name": "pack.name",
     "description": "pack.description",
     "uuid": "03fa1c16-3d6e-4578-9f98-451a771c5118",
-    "version": [2, 0, 0],
+    "version": [2, 1, 0],
     "min_engine_version": [1, 26, 50]
   },
   "modules": [
@@ -12,7 +12,7 @@
       "description": "Auralis Visuals, PBR Textures, 3D Models, Particles, Vibrant Visuals, OST & Gentle SFX",
       "type": "resources",
       "uuid": "ca7c3df0-ec1b-4860-88b5-b420949ae706",
-      "version": [2, 0, 0]
+      "version": [2, 1, 0]
     }
   ],
   "capabilities": [

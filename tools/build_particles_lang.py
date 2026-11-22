@@ -430,6 +430,30 @@ def build_particles():
     }
     write_json(RP / "particles/seraph_charge.particle.json", p)
 
+    # 16. lantern_motes: Delicate warm peach-gold candle embers drifting softly above Lantern Blooms!
+    p = make_particle(
+        "lantern_motes", 0, 0,
+        emitter_rate={"num_particles": 4},
+        lifetime="math.random(1.8, 3.0)",
+        speed="math.random(0.12, 0.32)",
+        accel=("math.sin(v.particle_age * 2.8) * 0.14", 0.24, "math.cos(v.particle_age * 2.8) * 0.14"),
+        drag=0.7,
+        size=("0.08 + 0.05 * math.sin(v.particle_age * 3.14)", "0.08 + 0.05 * math.sin(v.particle_age * 3.14)"),
+        gradient={
+            "0.0": "#00FFF0C8",
+            "0.22": "#E6FFE0A4",
+            "0.68": "#CCFFACBA",
+            "1.0": "#00FFACBA",
+        },
+    )
+    del p["minecraft:particle_effect"]["components"]["minecraft:emitter_shape_point"]
+    p["minecraft:particle_effect"]["components"]["minecraft:emitter_shape_sphere"] = {
+        "radius": 0.42,
+        "surface_only": False,
+        "direction": [0, 1, 0],
+    }
+    write_json(RP / "particles/lantern_motes.particle.json", p)
+
 
 def build_lang():
     write_json(RP / "texts/languages.json", ["en_US"])
@@ -504,7 +528,7 @@ def build_lang():
 def main():
     build_particles()
     build_lang()
-    print("Generated 15 custom particle VFX JSONs and en_US.lang localization!")
+    print("Generated 16 custom particle VFX JSONs and en_US.lang localization!")
 
 
 if __name__ == "__main__":

@@ -328,6 +328,55 @@ export function tickGracefulFlyers() {
         // Safe ignore
       }
     }
+
+    // C. Sync Gilded Sentinel raised-gauntlets combat stance (`auralis:alert`) + crisp target facing!
+    let sentinels;
+    try {
+      sentinels = dim.getEntities({ type: ENTITIES.GILDED_SENTINEL });
+    } catch {
+      sentinels = [];
+    }
+    for (const sentinel of sentinels) {
+      if (!sentinel.isValid) continue;
+      try {
+        const players = dim.getPlayers({ location: sentinel.location, maxDistance: 24 });
+        const target = players.find(isSurvivalTarget);
+        if (target) {
+          setEntityPropSafe(sentinel, "auralis:alert", true);
+          const want = computeYawPitch(sentinel.location, target.location);
+          const cur = sentinel.getRotation();
+          sentinel.setRotation({ x: want.x * 0.35, y: stepAngleDeg(cur.y, want.y, 22) });
+        } else {
+          setEntityPropSafe(sentinel, "auralis:alert", false);
+        }
+      } catch {
+        // Safe ignore
+      }
+    }
+  }
+
+  // D. Periodic memory hygiene — prune despawned/unloaded mob map entries every ~200 ticks
+  if (system.currentTick % 200 < 4) {
+    const activeRayIds = new Set();
+    const activeBossIds = new Set();
+    for (const dim of dims) {
+      try {
+        for (const r of dim.getEntities({ type: ENTITIES.LUMINA_RAY })) activeRayIds.add(r.id);
+        for (const b of dim.getEntities({ type: ENTITIES.ASTRAL_SERAPH })) activeBossIds.add(b.id);
+      } catch {
+        // Ignore
+      }
+    }
+    for (const id of rayCruise.keys()) {
+      if (!activeRayIds.has(id)) rayCruise.delete(id);
+    }
+    for (const id of seraphState.keys()) {
+      if (!activeBossIds.has(id)) seraphState.delete(id);
+    }
+    const now = system.currentTick;
+    for (const [k, exp] of altarCooldown.entries()) {
+      if (now >= exp) altarCooldown.delete(k);
+    }
   }
 }
 
