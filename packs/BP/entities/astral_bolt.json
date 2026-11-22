@@ -9,8 +9,8 @@
     },
     "components": {
       "minecraft:collision_box": {
-        "width": 0.35,
-        "height": 0.35
+        "width": 0.4,
+        "height": 0.4
       },
       "minecraft:projectile": {
         "on_hit": {
@@ -21,17 +21,17 @@
           },
           "particle_on_hit": {
             "particle_type": "endrod",
-            "num_particles": 8,
+            "num_particles": 6,
             "on_entity_hit": true,
             "on_other_hit": true
           },
           "remove_on_hit": {}
         },
-        "power": 1.45,
-        "gravity": 0.005,
+        "power": 1.35,
+        "gravity": 0.002,
         "inertia": 1.0,
         "liquid_inertia": 0.95,
-        "uncertainty_base": 2.5,
+        "uncertainty_base": 1.8,
         "hit_sound": "auralis.crystal.step"
       },
       "minecraft:physics": {

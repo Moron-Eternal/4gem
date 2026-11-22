@@ -1,0 +1,82 @@
+{
+  "format_version": "1.21.50",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "auralis:tide_jelly",
+      "is_spawnable": true,
+      "is_summonable": true,
+      "is_experimental": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "auralis",
+          "tide_jelly",
+          "mob"
+        ]
+      },
+      "minecraft:collision_box": {
+        "width": 0.85,
+        "height": 1.2
+      },
+      "minecraft:health": {
+        "value": 14,
+        "max": 14
+      },
+      "minecraft:flying_speed": {
+        "value": 0.055
+      },
+      "minecraft:movement": {
+        "value": 0.08
+      },
+      "minecraft:navigation.hover": {
+        "can_path_over_water": true,
+        "can_sink": false,
+        "can_path_from_air": true,
+        "avoid_damage_blocks": true
+      },
+      "minecraft:movement.hover": {
+        "max_turn": 8.0
+      },
+      "minecraft:jump.static": {},
+      "minecraft:can_fly": {},
+      "minecraft:physics": {
+        "has_gravity": false,
+        "has_collision": true
+      },
+      "minecraft:pushable": {
+        "is_pushable": true,
+        "is_pushable_by_piston": true
+      },
+      "minecraft:despawn": {
+        "despawn_from_distance": {}
+      },
+      "minecraft:loot": {
+        "table": "loot_tables/entities/tide_jelly.json"
+      },
+      "minecraft:damage_sensor": {
+        "triggers": [
+          {
+            "cause": "fall",
+            "deals_damage": "no"
+          }
+        ]
+      },
+      "minecraft:behavior.random_hover": {
+        "priority": 2,
+        "xz_dist": 7,
+        "y_dist": 3,
+        "y_offset": 0,
+        "interval": 36,
+        "hover_height": [
+          2,
+          6
+        ]
+      },
+      "minecraft:behavior.look_at_player": {
+        "priority": 4,
+        "look_distance": 8.0
+      }
+    }
+  }
+}

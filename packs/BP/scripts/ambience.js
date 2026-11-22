@@ -5,6 +5,7 @@ import {
   DIMENSION_ID,
   CLOUD_RESCUE_Y,
   DP_PLAYER_JUKEBOX,
+  BLOCKS,
   ENTITIES,
   MUSIC,
   PARTICLES,
@@ -33,7 +34,6 @@ export function setPlayerJukeboxTrack(player, trackId) {
     switchMusic(player, trackId, 1.5);
   } else {
     playerCurrentTrack.delete(player.id);
-    // Will pick appropriate dynamic track on next ambience tick
   }
 }
 
@@ -41,7 +41,7 @@ function switchMusic(player, trackId, fade = 2.5) {
   const pid = player.id;
   if (playerCurrentTrack.get(pid) === trackId) return;
   try {
-    player.playMusic(trackId, { fade, loop: true, volume: 0.85 });
+    player.playMusic(trackId, { fade, loop: true, volume: 0.76 });
     playerCurrentTrack.set(pid, trackId);
   } catch {
     // Fallback if sound API is busy
@@ -61,7 +61,7 @@ export function stopCustomMusic(player) {
 
 /**
  * Runs every 20 ticks (1s) — manages dynamic OST crossfades, zone transitions,
- * ambient twilight starlight motes & aurora ribbons, and the Buoyant Rose-Gold Cloud Sea!
+ * ambient twilight starlight motes, aurora ribbons, Cloud-Vent plumes, and Buoyant Cloud Sea!
  */
 export function tickAmbience() {
   const tick = system.currentTick;
@@ -71,7 +71,6 @@ export function tickAmbience() {
     const pid = player.id;
     const dim = player.dimension;
 
-    // Outside Auralis: stop Auralis custom OST unless user explicitly pinned a Jukebox track
     if (dim.id !== DIMENSION_ID) {
       let pinned = "";
       try {
@@ -88,7 +87,7 @@ export function tickAmbience() {
 
     const loc = player.location;
 
-    // --- 1. Ambient Twilight Starlight Motes & High-Altitude Aurora Ribbons ---
+    // --- 1. Ambient Twilight Starlight Motes, Aurora Ribbons & Nearby Cloud-Vent Plumes ---
     safeSpawnParticle(dim, PARTICLES.AMBIENT_MOTES, {
       x: loc.x,
       y: loc.y + 3.5,
@@ -101,6 +100,23 @@ export function tickAmbience() {
         y: loc.y + 18 + Math.random() * 10,
         z: loc.z + (Math.random() - 0.5) * 18,
       });
+    }
+
+    // Visual rising breeze plumes above nearby Updraft Cloud-Vents
+    const px = Math.floor(loc.x);
+    const py = Math.floor(loc.y);
+    const pz = Math.floor(loc.z);
+    for (let dx = -8; dx <= 8; dx += 2) {
+      for (let dz = -8; dz <= 8; dz += 2) {
+        try {
+          const b = dim.getBlock({ x: px + dx, y: py - 1, z: pz + dz });
+          if (b && b.typeId === BLOCKS.CLOUD_VENT) {
+            safeSpawnParticle(dim, PARTICLES.CLOUD_UPDRAFT, { x: px + dx + 0.5, y: py + 0.2, z: pz + dz + 0.5 });
+          }
+        } catch {
+          // Skip unloaded
+        }
+      }
     }
 
     // --- 2. Zone Discovery & Smart Dynamic OST Selection ---
@@ -116,7 +132,6 @@ export function tickAmbience() {
       }
     }
 
-    // Check if an Astral Seraph boss is actively fighting nearby!
     let bossNearby = false;
     try {
       const bosses = dim.getEntities({
@@ -145,14 +160,14 @@ export function tickAmbience() {
       switchMusic(player, targetTrack, 2.8);
     }
 
-    // --- 3. Buoyant Rose-Gold Cloud Sea Rescue (replaces frustrating void death!) ---
+    // --- 3. Buoyant Rose-Gold Cloud Sea Rescue ---
     if (loc.y < CLOUD_RESCUE_Y) {
       const cd = playerCloudRescueCooldown.get(pid) || 0;
       if (tick >= cd) {
         playerCloudRescueCooldown.set(pid, tick + 80);
-        safePlaySound(dim, SOUNDS.GALE_PRISM, loc, { volume: 1.0, pitch: 0.85 });
+        safePlaySound(dim, SOUNDS.CLOUD_UPDRAFT, loc, { volume: 0.72, pitch: 0.90 });
+        safeSpawnParticle(dim, PARTICLES.CLOUD_UPDRAFT, loc);
         safeSpawnParticle(dim, PARTICLES.GALE_SWIRL, loc);
-        safeSpawnParticle(dim, PARTICLES.STARLIGHT_BURST, loc);
 
         try {
           player.addEffect("minecraft:levitation", 75, { amplifier: 4, showParticles: false });

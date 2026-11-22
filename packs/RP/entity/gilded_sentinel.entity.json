@@ -14,11 +14,13 @@
       },
       "animations": {
         "main_anim": "animation.auralis.gilded_sentinel.hover",
+        "look": "animation.auralis.look_at_target",
         "ctrl": "controller.animation.auralis.always_active"
       },
       "scripts": {
         "animate": [
-          "ctrl"
+          "ctrl",
+          "look"
         ]
       },
       "render_controllers": [

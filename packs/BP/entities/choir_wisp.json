@@ -24,15 +24,20 @@
         "max": 16
       },
       "minecraft:flying_speed": {
-        "value": 0.16
+        "value": 0.09
       },
       "minecraft:movement": {
-        "value": 0.25
+        "value": 0.14
       },
-      "minecraft:navigation.float": {
-        "can_path_over_water": true
+      "minecraft:navigation.hover": {
+        "can_path_over_water": true,
+        "can_sink": false,
+        "can_path_from_air": true,
+        "avoid_damage_blocks": true
       },
-      "minecraft:movement.hover": {},
+      "minecraft:movement.hover": {
+        "max_turn": 20.0
+      },
       "minecraft:jump.static": {},
       "minecraft:can_fly": {},
       "minecraft:physics": {
@@ -42,6 +47,9 @@
       "minecraft:pushable": {
         "is_pushable": true,
         "is_pushable_by_piston": true
+      },
+      "minecraft:despawn": {
+        "despawn_from_distance": {}
       },
       "minecraft:loot": {
         "table": "loot_tables/entities/choir_wisp.json"
@@ -56,28 +64,32 @@
       },
       "minecraft:behavior.tempt": {
         "priority": 1,
-        "speed_multiplier": 1.35,
+        "speed_multiplier": 1.25,
         "items": [
           "auralis:tuning_fork",
           "auralis:solarium_ingot",
           "auralis:astral_lyre"
         ],
-        "within_radius": 18.0
+        "within_radius": 16.0,
+        "can_tempt_vertically": true
       },
-      "minecraft:behavior.float_wander": {
+      "minecraft:behavior.random_hover": {
         "priority": 2,
-        "xz_dist": 14,
-        "y_dist": 5,
-        "y_offset": 1.0,
-        "random_reselect": true,
-        "float_duration": [
-          2.0,
-          5.0
+        "xz_dist": 8,
+        "y_dist": 4,
+        "y_offset": -1,
+        "interval": 16,
+        "hover_height": [
+          1,
+          4
         ]
       },
       "minecraft:behavior.look_at_player": {
         "priority": 3,
         "look_distance": 10.0
+      },
+      "minecraft:behavior.random_look_around": {
+        "priority": 4
       }
     }
   }

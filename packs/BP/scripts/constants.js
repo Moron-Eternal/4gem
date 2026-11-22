@@ -1,17 +1,18 @@
-// Auralis: The Prism-Tide Firmament — Core Constants & Utilities
+// Auralis: The Prism-Tide Firmament — Core Constants & Utilities (v2 Overhaul)
 
 export const DIMENSION_ID = "auralis:firmament";
 export const OVERWORLD_ID = "minecraft:overworld";
 
 export const SANCTUARY_CENTER = { x: 0, y: 84, z: 0 };
-export const SANCTUARY_SPAWN = { x: 0.5, y: 92, z: 4.5 };
-export const FIRST_CITADEL_CENTER = { x: 0, y: 102, z: -112 };
+export const SANCTUARY_SPAWN = { x: 0.5, y: 92, z: 5.5 };
+// Aligned cleanly to Macro-Cell (0, -2) -> zero overlap with Sanctuary (0, 0) & Cloud Promenade (0, -1)!
+export const FIRST_CITADEL_CENTER = { x: 0, y: 100, z: -160 };
 
 export const CLOUD_SEA_Y = 32;
 export const CLOUD_RESCUE_Y = 24;
 
-export const DP_SANCTUARY_BUILT = "auralis:sanctuary_v1";
-export const DP_GEN_BUCKETS = "auralis:gen_sectors_";
+export const DP_SANCTUARY_BUILT = "auralis:sanctuary_v2";
+export const DP_GEN_BUCKETS = "auralis:gen_cells_v2_";
 export const DP_PLAYER_RETURN = "auralis:return_loc";
 export const DP_PLAYER_CODEX_GIVEN = "auralis:codex_given";
 export const DP_PLAYER_JUKEBOX = "auralis:jukebox_track";
@@ -31,6 +32,9 @@ export const BLOCKS = {
   LANTERN_BLOOM: "auralis:lantern_bloom",
   CHIME_REED: "auralis:chime_reed",
   GILDED_BRASS: "auralis:gilded_brass",
+  CLOUDSTONE: "auralis:cloudstone",
+  ROSE_CLOUD: "auralis:rose_cloud",
+  CLOUD_VENT: "auralis:cloud_vent",
   ASTROLABE: "auralis:astrolabe_pedestal",
   STARLIGHT_VEIL: "auralis:starlight_veil",
   VESPERA_ALTAR: "auralis:vespera_altar",
@@ -55,6 +59,10 @@ export const ENTITIES = {
   LUMINA_RAY: "auralis:lumina_ray",
   CHOIR_WISP: "auralis:choir_wisp",
   GLASS_CRAB: "auralis:glass_crab",
+  NIMBUS_STAG: "auralis:nimbus_stag",
+  TIDE_JELLY: "auralis:tide_jelly",
+  SHARD_STALKER: "auralis:shard_stalker",
+  ASTRAL_WEAVER: "auralis:astral_weaver",
   GILDED_SENTINEL: "auralis:gilded_sentinel",
   ASTRAL_SERAPH: "auralis:astral_seraph",
   ASTRAL_BOLT: "auralis:astral_bolt",
@@ -74,6 +82,8 @@ export const PARTICLES = {
   SENTINEL_BEAM: "auralis:sentinel_beam",
   SERAPH_NOVA: "auralis:seraph_nova",
   STAR_PILLAR: "auralis:star_pillar",
+  CLOUD_UPDRAFT: "auralis:cloud_updraft",
+  SERAPH_CHARGE: "auralis:seraph_charge",
 };
 
 export const SOUNDS = {
@@ -84,12 +94,18 @@ export const SOUNDS = {
   PORTAL_HUM: "auralis.portal.hum",
   CRYSTAL_STEP: "auralis.crystal.step",
   CRYSTAL_BREAK: "auralis.crystal.break",
+  CLOUD_STEP: "auralis.cloud.step",
+  CLOUD_UPDRAFT: "auralis.cloud.updraft",
   GALE_PRISM: "auralis.item.gale_prism",
   STARBLADE: "auralis.item.starblade",
   LYRE: "auralis.item.lyre",
   MANTA_CALL: "auralis.mob.manta_call",
   WISP_SING: "auralis.mob.wisp_sing",
   CRAB_CLICK: "auralis.mob.crab_click",
+  STAG_CALL: "auralis.mob.stag_call",
+  JELLY_PULSE: "auralis.mob.jelly_pulse",
+  STALKER_GROWL: "auralis.mob.stalker_growl",
+  WEAVER_CAST: "auralis.mob.weaver_cast",
   SENTINEL_HUM: "auralis.mob.sentinel_hum",
   SENTINEL_BLAST: "auralis.mob.sentinel_blast",
   SENTINEL_HURT: "auralis.mob.sentinel_hurt",
@@ -129,22 +145,27 @@ export const ZONE_META = {
   },
   pearl_atolls: {
     name: "§bPearl-Terrace Atolls",
-    subtitle: "§7Porcelain plateaus & cascading starlight pools",
+    subtitle: "§7Grand porcelain plateaus, sky-pavilions & prism groves",
     track: MUSIC.GLASS_HORIZON,
   },
   spire_gardens: {
     name: "§6Gilded Spire Gardens",
-    subtitle: "§7Soaring brass pinnacles & hovering astrolabe rings",
+    subtitle: "§7Celestial observatory ruins & hovering armillary rings",
     track: MUSIC.DRIFTING_ATOLLS,
   },
   bell_reefs: {
     name: "§dSunken Bell-Reefs",
-    subtitle: "§7Luminous coral lagoons above the rose-gold clouds",
+    subtitle: "§7Reflecting lagoon terraces & towering alabaster campaniles",
+    track: MUSIC.SUNKEN_CHIMES,
+  },
+  cloud_plains: {
+    name: "§fRose-Gold Cloud Plains",
+    subtitle: "§7Walkable cloudstone meadows, sky-harbors & updraft vents",
     track: MUSIC.SUNKEN_CHIMES,
   },
   astral_citadel: {
     name: "§e✦ §dAstral Citadel §e✦",
-    subtitle: "§7Throne of The Astral Seraph",
+    subtitle: "§7Grand Throne of The Astral Seraph",
     track: MUSIC.DRIFTING_ATOLLS,
   },
 };

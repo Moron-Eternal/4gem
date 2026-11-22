@@ -20,6 +20,7 @@ import { triggerHarmonicRitual, tickPortalAscension, transitPlayer } from "./rit
 import { tickAmbience } from "./ambience.js";
 import {
   tickEcosystemSpawning,
+  tickGracefulFlyers,
   handleEntityInteract,
   summonAstralSeraphAtAltar,
   tickSeraphBossAI,
@@ -139,35 +140,40 @@ system.beforeEvents.startup.subscribe((event) => {
 // =============================================================================
 
 world.afterEvents.worldLoad.subscribe(() => {
-  // Pre-build the Sanctuary Crown arrival island smoothly in the background!
+  // Pre-build the Sanctuary Crown 2.0 arrival island smoothly in the background!
   system.runTimeout(() => {
     void ensureSanctuaryReady();
   }, 40);
+
+  // Arena-Tethered Astral Seraph 2.0 flight, facing & combat AI (every 2 ticks = 10 Hz!)
+  system.runInterval(() => {
+    tickSeraphBossAI();
+  }, 2);
+
+  // Serene Lumina Ray gliding & Astral Weaver cast animation sync (every 4 ticks = 5 Hz)
+  system.runInterval(() => {
+    tickGracefulFlyers();
+  }, 4);
 
   // Portal sky-gaze detection (every 5 ticks = 0.25s)
   system.runInterval(() => {
     tickPortalAscension();
   }, 5);
 
-  // Astral Seraph 3-phase boss AI (every 10 ticks = 0.5s)
-  system.runInterval(() => {
-    tickSeraphBossAI();
-  }, 10);
-
-  // Dynamic OST Music Director, ambient aurora/motes VFX & Buoyant Cloud Sea (every 20 ticks = 1s)
+  // Dynamic OST Music Director, ambient aurora/motes/cloud-vent VFX & Cloud Sea rescue (every 20 ticks = 1s)
   system.runInterval(() => {
     tickAmbience();
   }, 20);
 
-  // Procedural floating-archipelago streaming (every 30 ticks = 1.5s)
+  // Non-overlapping Macro-Cell floating-archipelago streaming (every 25 ticks = 1.25s)
   system.runInterval(() => {
     tickWorldGen();
-  }, 30);
+  }, 25);
 
-  // Living Auralis ecosystem spawning & Lumina Ray / Choir Wisp trails (every 50 ticks = 2.5s)
+  // Living 9-creature Auralis ecosystem spawning & particle trails (every 45 ticks = 2.25s)
   system.runInterval(() => {
     tickEcosystemSpawning();
-  }, 50);
+  }, 45);
 });
 
 // Bestow the Chronicle of Auralis guidebook once to every new explorer!

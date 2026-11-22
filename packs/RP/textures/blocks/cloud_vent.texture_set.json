@@ -1,0 +1,8 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "cloud_vent",
+    "metalness_emissive_roughness": "cloud_vent_mer",
+    "heightmap": "cloud_vent_heightmap"
+  }
+}

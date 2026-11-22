@@ -36,6 +36,14 @@
     "auralis:chime_reed": {
       "light_color": "#FFE0A8",
       "light_type": "static_light"
+    },
+    "auralis:cloud_vent": {
+      "light_color": "#8DF2F5",
+      "light_type": "point_light"
+    },
+    "auralis:rose_cloud": {
+      "light_color": "#FFB8C8",
+      "light_type": "static_light"
     }
   }
 }

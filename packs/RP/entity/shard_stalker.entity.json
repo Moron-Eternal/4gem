@@ -1,0 +1,37 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:shard_stalker",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/shard_stalker"
+      },
+      "geometry": {
+        "default": "geometry.auralis_shard_stalker"
+      },
+      "animations": {
+        "idle": "animation.auralis.shard_stalker.idle",
+        "walk": "animation.auralis.shard_stalker.walk",
+        "attack": "animation.auralis.shard_stalker.attack",
+        "look": "animation.auralis.look_at_target",
+        "ctrl": "controller.animation.auralis.stalker"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl",
+          "look"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#2E2862",
+        "overlay_color": "#D882FF"
+      }
+    }
+  }
+}

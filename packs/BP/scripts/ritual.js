@@ -75,7 +75,7 @@ export function triggerHarmonicRitual(player, block) {
   // If already attuned, play a warm resonant chime and remind player how to ascend!
   try {
     if (block.permutation.getState("auralis:attuned") === true) {
-      safePlaySound(dim, SOUNDS.RITUAL_CHIME, loc, { pitch: 1.15, volume: 0.9 });
+      safePlaySound(dim, SOUNDS.RITUAL_CHIME, loc, { pitch: 1.10, volume: 0.68 });
       safeSpawnParticle(dim, PARTICLES.HARMONIC_RING, { x: loc.x + 0.5, y: loc.y + 1.05, z: loc.z + 0.5 });
       player.onScreenDisplay.setActionBar("§e✦ §bAstrolabe Awakened! §7Stand atop it and §eLook Up at the Sky §7(or Sneak) to cross the veil.");
       return;
@@ -91,7 +91,7 @@ export function triggerHarmonicRitual(player, block) {
 
   const check = validateShrine(dim, loc);
   if (!check.valid) {
-    safePlaySound(dim, SOUNDS.CRYSTAL_STEP, loc, { pitch: 0.72, volume: 0.8 });
+    safePlaySound(dim, SOUNDS.CRYSTAL_STEP, loc, { pitch: 0.78, volume: 0.58 });
     const missing = [];
     if (check.waterCount < 4) missing.push(`§bWater on all 4 cardinal sides (${check.waterCount}/4)`);
     if (check.cornerCount < 4) missing.push(`§dAmethyst/Gold/Prismarine/Quartz at all 4 diagonal corners (${check.cornerCount}/4)`);
@@ -104,13 +104,13 @@ export function triggerHarmonicRitual(player, block) {
   const center = { x: loc.x + 0.5, y: loc.y + 1.0, z: loc.z + 0.5 };
 
   // Stage 1 (0.0s): Tuning Fork Resonance Strike!
-  safePlaySound(dim, SOUNDS.RITUAL_CHIME, center, { volume: 1.0, pitch: 1.0 });
+  safePlaySound(dim, SOUNDS.RITUAL_CHIME, center, { volume: 0.74, pitch: 1.0 });
   safeSpawnParticle(dim, PARTICLES.HARMONIC_RING, center);
   player.onScreenDisplay.setActionBar("§e✦ §bThe Harmonic Wellspring awakens...");
 
   // Stage 2 (0.5s): Swelling Choir & Corner Energy Beams!
   system.runTimeout(() => {
-    safePlaySound(dim, SOUNDS.RITUAL_SWELL, center, { volume: 1.0 });
+    safePlaySound(dim, SOUNDS.RITUAL_SWELL, center, { volume: 0.76 });
     for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
       safeSpawnParticle(dim, PARTICLES.CRYSTAL_SHIMMER, { x: loc.x + dx + 0.5, y: loc.y + 1.1, z: loc.z + dz + 0.5 });
       safeSpawnParticle(dim, PARTICLES.STAR_PILLAR, { x: loc.x + dx + 0.5, y: loc.y + 1.5, z: loc.z + dz + 0.5 });
@@ -151,7 +151,7 @@ export function triggerHarmonicRitual(player, block) {
       }
       safeSpawnParticle(dim, PARTICLES.STARLIGHT_BURST, center);
       safeSpawnParticle(dim, PARTICLES.HARMONIC_RING, center);
-      safePlaySound(dim, SOUNDS.RITUAL_CHIME, center, { pitch: 1.25, volume: 1.0 });
+      safePlaySound(dim, SOUNDS.RITUAL_CHIME, center, { pitch: 1.18, volume: 0.74 });
 
       for (const p of dim.getPlayers({ location: center, maxDistance: 16 })) {
         p.onScreenDisplay.setTitle("§e✦ §bVeil Opened §e✦", {
@@ -200,7 +200,7 @@ export async function transitPlayer(player, toAuralis) {
   }
 
   // Dreamy ascension lift + particles + harp glissando + rose-gold camera fade!
-  safePlaySound(fromDim, toAuralis ? SOUNDS.PORTAL_ASCEND : SOUNDS.PORTAL_RETURN, fromLoc, { volume: 1.0 });
+  safePlaySound(fromDim, toAuralis ? SOUNDS.PORTAL_ASCEND : SOUNDS.PORTAL_RETURN, fromLoc, { volume: 0.78 });
   safeSpawnParticle(fromDim, PARTICLES.STARLIGHT_BURST, { x: fromLoc.x, y: fromLoc.y + 1.0, z: fromLoc.z });
   safeSpawnParticle(fromDim, PARTICLES.GALE_SWIRL, fromLoc);
 

@@ -139,6 +139,27 @@ def build_blocks():
             light_emit=2,
             tags=["minecraft:is_pickaxe_item_destructible", "metal"],
         ),
+        "cloudstone": full_block(
+            "cloudstone", "nature", "auralis_cloudstone",
+            destroy_time=0.45, explosion_res=1.5, map_color="#F0ECF4",
+            light_emit=3, light_damp=8,
+            extra_components={"auralis:cloud_cushion": {}},
+            tags=["minecraft:is_shovel_item_destructible", "minecraft:is_hoe_item_destructible"],
+        ),
+        "rose_cloud": full_block(
+            "rose_cloud", "nature", "auralis_rose_cloud",
+            destroy_time=0.45, explosion_res=1.5, map_color="#F4B8C4",
+            light_emit=5, light_damp=8,
+            extra_components={"auralis:cloud_cushion": {}},
+            tags=["minecraft:is_shovel_item_destructible", "minecraft:is_hoe_item_destructible"],
+        ),
+        "cloud_vent": full_block(
+            "cloud_vent", "construction", "auralis_cloud_vent",
+            destroy_time=1.4, explosion_res=6.0, map_color="#9EE8EE",
+            light_emit=11, light_damp=0,
+            extra_components={"auralis:cloud_vent_updraft": {}},
+            tags=["minecraft:is_pickaxe_item_destructible"],
+        ),
         "starlight_veil": {
             "format_version": "1.21.90",
             "minecraft:block": {
@@ -683,6 +704,34 @@ def build_recipes():
             },
             "auralis:resonant_star_core", 1,
         ),
+        "prism_sticks": shaped(
+            "prism_sticks",
+            ["P", "P"],
+            {"P": {"item": "auralis:prism_planks"}},
+            "minecraft:stick", 4,
+            unlock=["auralis:prism_planks"],
+        ),
+        "rose_cloud": shaped(
+            "rose_cloud",
+            [" C ", "CBC", " C "],
+            {
+                "C": {"item": "auralis:cloudstone"},
+                "B": {"item": "auralis:prism_berry"},
+            },
+            "auralis:rose_cloud", 4,
+            unlock=["auralis:cloudstone"],
+        ),
+        "cloud_vent": shaped(
+            "cloud_vent",
+            ["BGB", "GCG", "BGB"],
+            {
+                "B": {"item": "auralis:cloudstone"},
+                "G": {"item": "auralis:gilded_brass"},
+                "C": {"item": "auralis:prism_shard"},
+            },
+            "auralis:cloud_vent", 1,
+            unlock=["auralis:cloudstone", "auralis:gilded_brass"],
+        ),
     }
 
     for name, data in recipes.items():
@@ -691,7 +740,7 @@ def build_recipes():
 
 
 # =============================================================================
-# 4. TWELVE LOOT TABLES (Blocks, Mobs, Temple Chests & Astral Seraph Boss!)
+# 4. SIXTEEN LOOT TABLES (Blocks, 9 Mobs, Temple Chests & Astral Seraph Boss!)
 # =============================================================================
 
 def build_loot_tables():
@@ -771,6 +820,92 @@ def build_loot_tables():
                             "name": "auralis:prism_shard",
                             "functions": [{"function": "set_count", "count": {"min": 2, "max": 4}}],
                         }
+                    ],
+                }
+            ]
+        },
+        "entities/nimbus_stag": {
+            "pools": [
+                {
+                    "rolls": 1,
+                    "entries": [
+                        {
+                            "type": "item",
+                            "name": "minecraft:leather",
+                            "weight": 55,
+                            "functions": [{"function": "set_count", "count": {"min": 1, "max": 2}}],
+                        },
+                        {
+                            "type": "item",
+                            "name": "auralis:prism_shard",
+                            "weight": 35,
+                            "functions": [{"function": "set_count", "count": {"min": 1, "max": 2}}],
+                        },
+                        {"type": "item", "name": "auralis:celestial_nectar", "weight": 10},
+                    ],
+                }
+            ]
+        },
+        "entities/tide_jelly": {
+            "pools": [
+                {
+                    "rolls": 1,
+                    "entries": [
+                        {
+                            "type": "item",
+                            "name": "auralis:cloudstone",
+                            "weight": 60,
+                            "functions": [{"function": "set_count", "count": {"min": 1, "max": 3}}],
+                        },
+                        {
+                            "type": "item",
+                            "name": "auralis:prism_shard",
+                            "weight": 40,
+                            "functions": [{"function": "set_count", "count": {"min": 1, "max": 2}}],
+                        },
+                    ],
+                }
+            ]
+        },
+        "entities/shard_stalker": {
+            "pools": [
+                {
+                    "rolls": 1,
+                    "entries": [
+                        {
+                            "type": "item",
+                            "name": "auralis:prism_shard",
+                            "weight": 55,
+                            "functions": [{"function": "set_count", "count": {"min": 2, "max": 4}}],
+                        },
+                        {
+                            "type": "item",
+                            "name": "auralis:raw_solarium",
+                            "weight": 45,
+                            "functions": [{"function": "set_count", "count": {"min": 1, "max": 2}}],
+                        },
+                    ],
+                }
+            ]
+        },
+        "entities/astral_weaver": {
+            "pools": [
+                {
+                    "rolls": 1,
+                    "entries": [
+                        {
+                            "type": "item",
+                            "name": "auralis:solarium_ingot",
+                            "weight": 50,
+                            "functions": [{"function": "set_count", "count": {"min": 1, "max": 2}}],
+                        },
+                        {
+                            "type": "item",
+                            "name": "auralis:prism_shard",
+                            "weight": 35,
+                            "functions": [{"function": "set_count", "count": {"min": 2, "max": 4}}],
+                        },
+                        {"type": "item", "name": "auralis:resonant_star_core", "weight": 15},
                     ],
                 }
             ]

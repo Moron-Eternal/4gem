@@ -1,6 +1,6 @@
-// Custom Item Relics, Consumables & Musical Block Interactions for Auralis
+// Custom Item Relics, Consumables, Musical Blocks & Cloud-Vent Updrafts for Auralis (v2)
 
-import { EntityDamageCause } from "@minecraft/server";
+import { system, EntityDamageCause } from "@minecraft/server";
 import {
   DIMENSION_ID,
   ENTITIES,
@@ -14,6 +14,8 @@ import { getNearestCitadel } from "./noise.js";
 import { openCodexUI } from "./codex.js";
 
 const PENTATONIC_PITCHES = [0.89, 1.0, 1.12, 1.33, 1.50, 1.78];
+const ventCooldown = new Map();
+const cloudStepCooldown = new Map();
 
 /**
  * Registers all V2 Block & Item custom components during system.beforeEvents.startup!
@@ -45,7 +47,7 @@ export function registerCustomComponents(startupEvent, handlers) {
       playMusicalBlockChime(event.dimension, event.block.location, params?.params?.pitch);
     },
     onPlayerBreak(event) {
-      safePlaySound(event.dimension, SOUNDS.CRYSTAL_BREAK, event.block.location, { volume: 0.85 });
+      safePlaySound(event.dimension, SOUNDS.CRYSTAL_BREAK, event.block.location, { volume: 0.62 });
       safeSpawnParticle(event.dimension, PARTICLES.CRYSTAL_SHIMMER, {
         x: event.block.location.x + 0.5,
         y: event.block.location.y + 0.5,
@@ -66,6 +68,45 @@ export function registerCustomComponents(startupEvent, handlers) {
     },
   });
 
+  // Cushioned walkable cloud blocks (soft sound + gentle cloud landing cushion!)
+  startupEvent.blockComponentRegistry.registerCustomComponent("auralis:cloud_cushion", {
+    onStepOn(event) {
+      const entity = event.entity;
+      if (!entity || !entity.isValid) return;
+      const now = system.currentTick;
+      if (cloudStepCooldown.get(entity.id) && now < cloudStepCooldown.get(entity.id)) return;
+      cloudStepCooldown.set(entity.id, now + 10);
+      safePlaySound(event.dimension, SOUNDS.CLOUD_STEP, event.block.location, {
+        volume: 0.45,
+        pitch: 0.92 + Math.random() * 0.16,
+      });
+    },
+  });
+
+  // Glowing Updraft Cloud-Vent: lifts explorers effortlessly from Cloud Plains up to upper islands!
+  startupEvent.blockComponentRegistry.registerCustomComponent("auralis:cloud_vent_updraft", {
+    onStepOn(event) {
+      const entity = event.entity;
+      if (!entity || !entity.isValid) return;
+      const now = system.currentTick;
+      if (ventCooldown.get(entity.id) && now < ventCooldown.get(entity.id)) return;
+      ventCooldown.set(entity.id, now + 35);
+
+      const loc = event.block.location;
+      const center = { x: loc.x + 0.5, y: loc.y + 1.0, z: loc.z + 0.5 };
+      safePlaySound(event.dimension, SOUNDS.CLOUD_UPDRAFT, center, { volume: 0.72, pitch: 1.02 });
+      safeSpawnParticle(event.dimension, PARTICLES.CLOUD_UPDRAFT, center);
+      safeSpawnParticle(event.dimension, PARTICLES.GALE_SWIRL, center);
+
+      try {
+        entity.addEffect("minecraft:levitation", 46, { amplifier: 4, showParticles: false });
+        entity.addEffect("minecraft:slow_falling", 180, { amplifier: 0, showParticles: false });
+      } catch {
+        // Safe fallback
+      }
+    },
+  });
+
   // --- ITEM CUSTOM COMPONENTS ---
 
   // 1. Starlight Tuning Fork: Pings nearest Astral Citadel / Sanctuary with a directional starlight beam!
@@ -76,7 +117,7 @@ export function registerCustomComponents(startupEvent, handlers) {
       const dim = player.dimension;
       const loc = player.location;
 
-      safePlaySound(dim, SOUNDS.RITUAL_CHIME, loc, { volume: 0.95, pitch: 1.05 });
+      safePlaySound(dim, SOUNDS.RITUAL_CHIME, loc, { volume: 0.72, pitch: 1.04 });
       safeSpawnParticle(dim, PARTICLES.HARMONIC_RING, { x: loc.x, y: loc.y + 0.3, z: loc.z });
 
       if (dim.id !== DIMENSION_ID) {
@@ -86,7 +127,6 @@ export function registerCustomComponents(startupEvent, handlers) {
         return;
       }
 
-      // Inside Auralis: Guide player toward nearest Astral Citadel (or Sanctuary Crown if sneaking!)
       const target = player.isSneaking
         ? { x: 0, y: 88, z: 0, label: "§eSanctuary Crown" }
         : (() => {
@@ -98,7 +138,6 @@ export function registerCustomComponents(startupEvent, handlers) {
       const dx = (target.x - loc.x) / Math.max(1, d);
       const dz = (target.z - loc.z) / Math.max(1, d);
 
-      // Draw a shimmering directional trail pointing straight toward the landmark!
       for (let i = 2; i <= 10; i += 2) {
         safeSpawnParticle(dim, PARTICLES.CRYSTAL_SHIMMER, {
           x: loc.x + dx * i,
@@ -121,7 +160,7 @@ export function registerCustomComponents(startupEvent, handlers) {
       const loc = player.location;
       const view = player.getViewDirection();
 
-      safePlaySound(dim, SOUNDS.GALE_PRISM, loc, { volume: 1.0, pitch: 1.05 });
+      safePlaySound(dim, SOUNDS.GALE_PRISM, loc, { volume: 0.72, pitch: 1.02 });
       safeSpawnParticle(dim, PARTICLES.GALE_SWIRL, loc);
       safeSpawnParticle(dim, PARTICLES.STARLIGHT_BURST, { x: loc.x, y: loc.y + 0.5, z: loc.z });
 
@@ -143,7 +182,7 @@ export function registerCustomComponents(startupEvent, handlers) {
       const head = player.getHeadLocation();
       const view = player.getViewDirection();
 
-      safePlaySound(dim, SOUNDS.STARBLADE, head, { volume: 1.0 });
+      safePlaySound(dim, SOUNDS.STARBLADE, head, { volume: 0.72 });
 
       const hitIds = new Set();
       for (let step = 2; step <= 14; step += 1.5) {
@@ -177,7 +216,7 @@ export function registerCustomComponents(startupEvent, handlers) {
     },
   });
 
-  // 4. Astral Lyre: Plays lush rolled celestial harp chords & heals nearby allies & Lumina Rays!
+  // 4. Astral Lyre: Plays lush rolled celestial harp chords & heals nearby allies, Lumina Rays & Nimbus Stags!
   startupEvent.itemComponentRegistry.registerCustomComponent("auralis:astral_lyre_use", {
     onUse(event) {
       const player = event.source;
@@ -185,7 +224,7 @@ export function registerCustomComponents(startupEvent, handlers) {
       const dim = player.dimension;
       const loc = player.location;
 
-      safePlaySound(dim, SOUNDS.LYRE, loc, { volume: 1.0 });
+      safePlaySound(dim, SOUNDS.LYRE, loc, { volume: 0.75 });
       safeSpawnParticle(dim, PARTICLES.WISP_NOTES, { x: loc.x, y: loc.y + 1.4, z: loc.z });
       safeSpawnParticle(dim, PARTICLES.HARMONIC_RING, { x: loc.x, y: loc.y + 0.3, z: loc.z });
 
@@ -194,10 +233,12 @@ export function registerCustomComponents(startupEvent, handlers) {
           p.addEffect("minecraft:regeneration", 120, { amplifier: 1, showParticles: false });
           p.addEffect("minecraft:slow_falling", 160, { amplifier: 0, showParticles: false });
         }
-        for (const ray of dim.getEntities({ type: ENTITIES.LUMINA_RAY, location: loc, maxDistance: 24 })) {
-          const hp = ray.getComponent("minecraft:health");
-          hp?.resetToMaxValue();
-          safeSpawnParticle(dim, PARTICLES.WISP_NOTES, ray.location);
+        for (const kind of [ENTITIES.LUMINA_RAY, ENTITIES.NIMBUS_STAG]) {
+          for (const mob of dim.getEntities({ type: kind, location: loc, maxDistance: 24 })) {
+            const hp = mob.getComponent("minecraft:health");
+            hp?.resetToMaxValue();
+            safeSpawnParticle(dim, PARTICLES.WISP_NOTES, mob.location);
+          }
         }
       } catch {
         // Safe guard
@@ -206,12 +247,12 @@ export function registerCustomComponents(startupEvent, handlers) {
     },
   });
 
-  // 5. Prism Berry (onConsume): Sweet chime + brief Slow Falling!
+  // 5. Prism Berry (onConsume): Sweet soft chime + brief Slow Falling!
   startupEvent.itemComponentRegistry.registerCustomComponent("auralis:prism_berry_eat", {
     onConsume(event) {
       const player = event.source;
       if (!player || !player.isValid) return;
-      safePlaySound(player.dimension, SOUNDS.CRYSTAL_STEP, player.location, { pitch: 1.35, volume: 0.75 });
+      safePlaySound(player.dimension, SOUNDS.CRYSTAL_STEP, player.location, { pitch: 1.2, volume: 0.55 });
       safeSpawnParticle(player.dimension, PARTICLES.CRYSTAL_SHIMMER, player.location);
       try {
         player.addEffect("minecraft:slow_falling", 300, { amplifier: 0, showParticles: false });
@@ -226,7 +267,7 @@ export function registerCustomComponents(startupEvent, handlers) {
     onConsume(event) {
       const player = event.source;
       if (!player || !player.isValid) return;
-      safePlaySound(player.dimension, SOUNDS.LYRE, player.location, { volume: 0.85, pitch: 1.1 });
+      safePlaySound(player.dimension, SOUNDS.LYRE, player.location, { volume: 0.68, pitch: 1.06 });
       safeSpawnParticle(player.dimension, PARTICLES.STARLIGHT_BURST, player.location);
       try {
         player.addEffect("minecraft:regeneration", 500, { amplifier: 1, showParticles: false });
@@ -244,7 +285,7 @@ export function registerCustomComponents(startupEvent, handlers) {
     onUse(event) {
       const player = event.source;
       if (!player || !player.isValid) return;
-      safePlaySound(player.dimension, SOUNDS.CRYSTAL_STEP, player.location, { pitch: 0.9, volume: 0.8 });
+      safePlaySound(player.dimension, SOUNDS.CRYSTAL_STEP, player.location, { pitch: 0.9, volume: 0.58 });
       player.onScreenDisplay.setActionBar("§d✦ Bring this Resonant Star-Core to a §eVespera Sanctum Altar §din an Astral Citadel!");
     },
   });
@@ -261,7 +302,7 @@ export function registerCustomComponents(startupEvent, handlers) {
 
 function playMusicalBlockChime(dim, loc, basePitch = 1.0) {
   const idx = Math.abs(Math.floor(loc.x) * 7 + Math.floor(loc.z) * 13) % PENTATONIC_PITCHES.length;
-  const pitch = Math.min(2.0, Math.max(0.5, PENTATONIC_PITCHES[idx] * (basePitch || 1.0) * 0.85));
-  safePlaySound(dim, SOUNDS.CRYSTAL_STEP, loc, { volume: 0.72, pitch });
+  const pitch = Math.min(1.65, Math.max(0.6, PENTATONIC_PITCHES[idx] * (basePitch || 1.0) * 0.80));
+  safePlaySound(dim, SOUNDS.CRYSTAL_STEP, loc, { volume: 0.48, pitch });
   safeSpawnParticle(dim, PARTICLES.CRYSTAL_SHIMMER, { x: loc.x + 0.5, y: loc.y + 0.75, z: loc.z + 0.5 });
 }

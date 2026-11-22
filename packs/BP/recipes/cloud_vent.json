@@ -1,0 +1,39 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:cloud_vent"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "BGB",
+      "GCG",
+      "BGB"
+    ],
+    "key": {
+      "B": {
+        "item": "auralis:cloudstone"
+      },
+      "G": {
+        "item": "auralis:gilded_brass"
+      },
+      "C": {
+        "item": "auralis:prism_shard"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:cloudstone"
+      },
+      {
+        "item": "auralis:gilded_brass"
+      }
+    ],
+    "result": {
+      "item": "auralis:cloud_vent",
+      "count": 1
+    }
+  }
+}

@@ -21,26 +21,34 @@
         "height": 2.3
       },
       "minecraft:health": {
-        "value": 56,
-        "max": 56
+        "value": 52,
+        "max": 52
       },
       "minecraft:knockback_resistance": {
         "value": 0.45
       },
       "minecraft:flying_speed": {
-        "value": 0.14
+        "value": 0.11
       },
       "minecraft:movement": {
-        "value": 0.27
+        "value": 0.22
       },
       "minecraft:attack": {
         "damage": 7
       },
+      "minecraft:follow_range": {
+        "value": 36,
+        "max": 36
+      },
       "minecraft:navigation.hover": {
         "can_path_over_water": true,
-        "can_path_from_air": true
+        "can_sink": false,
+        "can_path_from_air": true,
+        "avoid_damage_blocks": true
       },
-      "minecraft:movement.hover": {},
+      "minecraft:movement.hover": {
+        "max_turn": 28.0
+      },
       "minecraft:jump.static": {},
       "minecraft:can_fly": {},
       "minecraft:physics": {
@@ -50,6 +58,9 @@
       "minecraft:pushable": {
         "is_pushable": true,
         "is_pushable_by_piston": true
+      },
+      "minecraft:despawn": {
+        "despawn_from_distance": {}
       },
       "minecraft:loot": {
         "table": "loot_tables/entities/gilded_sentinel.json"
@@ -75,7 +86,7 @@
         "priority": 2,
         "must_see": true,
         "reselect_targets": true,
-        "within_radius": 22.0,
+        "within_radius": 24.0,
         "entity_types": [
           {
             "filters": {
@@ -83,31 +94,36 @@
               "subject": "other",
               "value": "player"
             },
-            "max_dist": 22.0
+            "max_dist": 24.0
           }
         ]
+      },
+      "minecraft:behavior.look_at_target": {
+        "priority": 2
       },
       "minecraft:behavior.ranged_attack": {
         "priority": 3,
         "attack_interval_min": 2.2,
-        "attack_interval_max": 3.4,
-        "attack_radius": 18.0,
-        "burst_shots": 1
+        "attack_interval_max": 3.2,
+        "attack_radius": 20.0,
+        "burst_shots": 1,
+        "charge_charged_trigger": 0.0,
+        "charge_shoot_trigger": 0.5
       },
-      "minecraft:behavior.float_wander": {
+      "minecraft:behavior.random_hover": {
         "priority": 5,
-        "xz_dist": 12,
-        "y_dist": 4,
-        "y_offset": 1.5,
-        "random_reselect": true,
-        "float_duration": [
-          2.0,
-          5.0
+        "xz_dist": 8,
+        "y_dist": 3,
+        "y_offset": 0,
+        "interval": 16,
+        "hover_height": [
+          1,
+          3
         ]
       },
       "minecraft:behavior.look_at_player": {
         "priority": 6,
-        "look_distance": 16.0
+        "look_distance": 18.0
       }
     }
   }

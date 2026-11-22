@@ -1,0 +1,284 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.auralis_astral_weaver",
+        "texture_width": 64,
+        "texture_height": 64,
+        "visible_bounds_width": 2.4,
+        "visible_bounds_height": 3.0,
+        "visible_bounds_offset": [
+          0,
+          1.35,
+          0
+        ]
+      },
+      "bones": [
+        {
+          "name": "body",
+          "pivot": [
+            0,
+            18,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -5,
+                13,
+                -4
+              ],
+              "size": [
+                10,
+                14,
+                8
+              ],
+              "uv": [
+                0,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "name": "robe_hem",
+          "parent": "body",
+          "pivot": [
+            0,
+            13,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -5,
+                5,
+                -4
+              ],
+              "size": [
+                10,
+                8,
+                8
+              ],
+              "uv": [
+                0,
+                44
+              ]
+            }
+          ]
+        },
+        {
+          "name": "head",
+          "parent": "body",
+          "pivot": [
+            0,
+            27,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -4.5,
+                27,
+                -4.5
+              ],
+              "size": [
+                9,
+                9,
+                9
+              ],
+              "uv": [
+                0,
+                24
+              ]
+            }
+          ]
+        },
+        {
+          "name": "arm_l",
+          "parent": "body",
+          "pivot": [
+            6,
+            25,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                5,
+                14,
+                -2.5
+              ],
+              "size": [
+                4,
+                11,
+                5
+              ],
+              "uv": [
+                38,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "name": "orb_l",
+          "parent": "arm_l",
+          "pivot": [
+            7,
+            11,
+            -3
+          ],
+          "cubes": [
+            {
+              "origin": [
+                5,
+                9,
+                -5
+              ],
+              "size": [
+                4,
+                4,
+                4
+              ],
+              "uv": [
+                38,
+                20
+              ]
+            }
+          ]
+        },
+        {
+          "name": "arm_r",
+          "parent": "body",
+          "pivot": [
+            -6,
+            25,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -9,
+                14,
+                -2.5
+              ],
+              "size": [
+                4,
+                11,
+                5
+              ],
+              "uv": [
+                38,
+                0
+              ]
+            }
+          ]
+        },
+        {
+          "name": "orb_r",
+          "parent": "arm_r",
+          "pivot": [
+            -7,
+            11,
+            -3
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -9,
+                9,
+                -5
+              ],
+              "size": [
+                4,
+                4,
+                4
+              ],
+              "uv": [
+                38,
+                20
+              ]
+            }
+          ]
+        },
+        {
+          "name": "sigil_ring",
+          "parent": "body",
+          "pivot": [
+            0,
+            24,
+            6
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -5,
+                28,
+                5
+              ],
+              "size": [
+                10,
+                1,
+                2
+              ],
+              "uv": [
+                38,
+                30
+              ]
+            },
+            {
+              "origin": [
+                -5,
+                19,
+                5
+              ],
+              "size": [
+                10,
+                1,
+                2
+              ],
+              "uv": [
+                38,
+                30
+              ]
+            },
+            {
+              "origin": [
+                -5,
+                20,
+                5
+              ],
+              "size": [
+                1,
+                8,
+                2
+              ],
+              "uv": [
+                38,
+                30
+              ]
+            },
+            {
+              "origin": [
+                4,
+                20,
+                5
+              ],
+              "size": [
+                1,
+                8,
+                2
+              ],
+              "uv": [
+                38,
+                30
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

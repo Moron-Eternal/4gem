@@ -311,77 +311,133 @@ def generate_blocks():
     save_block_pbr("solarium_block", img, mer, hgt)
     block_names.append("solarium_block")
 
-    # --- 8. prism_log_side: Fluted pearl-lavender bark with glowing aquamarine fissures ---
+    # --- 8. prism_log_side: Handcrafted vertical pearl-lavender bark with subtle aqua sap fissures ---
     img = Image.new("RGBA", (16, 16))
     mer = Image.new("RGB", (16, 16))
     hgt = Image.new("L", (16, 16))
+    # Symmetric vertical bark column profile (16 columns: ridge/mid/groove rhythm like vanilla logs)
+    col_shade = [0.35, 0.72, 0.92, 0.62, 0.18, 0.68, 0.95, 0.78, 0.42, 0.76, 0.94, 0.60, 0.18, 0.66, 0.90, 0.70]
     for y in range(16):
         for x in range(16):
-            n = fbm_tile(x, y, 16, seed=606)
-            flute = 0.5 + 0.5 * math.sin((x / 16.0) * math.tau * 4 + math.sin(y * 0.4) * 0.6)
-            col = lerp_rgb((96, 86, 126), (218, 210, 228), flute * 0.78 + n * 0.22)
+            grain = hash2d(x, y, seed=606)
+            vstreak = tile_noise(x, y * 2, 16, period=4, seed=612)
+            base_s = col_shade[x]
+            # Subtle vertical bark knot/crack breaks (keeping columns cleanly aligned!)
+            knot = 1.0 if ((x in (0, 8) and y in (3, 4, 11, 12)) or (x in (4, 12) and y in (1, 8, 9))) else 0.0
+            s = max(0.0, min(1.0, base_s * 0.78 + vstreak * 0.16 + grain * 0.06 - knot * 0.22))
+            col = lerp_rgb((88, 76, 116), (218, 210, 228), s)
             emis = 0
-            rough = clamp(165 - flute * 35)
-            hv = clamp(110 + flute * 100)
-            if flute < 0.16 and (y + x) % 3 != 0:
-                col = lerp_rgb((66, 220, 216), (144, 250, 242), n)
-                emis = 155
-                rough = 65
-                hv = 80
+            rough = clamp(178 - s * 36)
+            hv = clamp(96 + s * 116)
+            # Two delicate vertical glowing aquamarine sap veins nestled inside deep bark grooves (x=4 & x=12)
+            if (x == 4 and 2 <= y <= 13 and y not in (7, 8)) or (x == 12 and (y <= 5 or y >= 9) and y != 12):
+                sap_t = 0.55 + 0.45 * vstreak
+                col = lerp_rgb((66, 198, 202), (148, 248, 242), sap_t)
+                emis = clamp(110 + sap_t * 65)
+                rough = 72
+                hv = 76
             img.putpixel((x, y), (*col, 255))
-            mer.putpixel((x, y), (10, emis, rough))
+            mer.putpixel((x, y), (6, emis, rough))
             hgt.putpixel((x, y), hv)
     save_block_pbr("prism_log_side", img, mer, hgt)
     block_names.append("prism_log_side")
 
-    # --- 9. prism_log_top: Concentric pearlescent rings & luminous cyan heartwood ---
+    # --- 9. prism_log_top: Perfectly centered symmetric concentric rings + full 2px perimeter bark frame ---
     img = Image.new("RGBA", (16, 16))
     mer = Image.new("RGB", (16, 16))
     hgt = Image.new("L", (16, 16))
     for y in range(16):
         for x in range(16):
-            r = math.hypot(x - 7.5, y - 7.5)
-            n = fbm_tile(x, y, 16, seed=609)
-            if r > 6.6:
-                col = lerp_rgb((116, 102, 146), (186, 174, 204), n)
-                emis, rough, hv = 0, 175, 165
-            else:
-                ring = 0.5 + 0.5 * math.sin(r * 2.4 + n * 0.9)
-                col = lerp_rgb((110, 214, 210), (242, 236, 230), ring)
-                if r < 2.2:
-                    col = lerp_rgb((135, 250, 244), (255, 236, 178), 1.0 - r / 2.2)
-                    emis = 165
+            # Exact mirror symmetry relative to center (7.5, 7.5)
+            dx = abs(x - 7.5)
+            dy = abs(y - 7.5)
+            edge_d = min(x, 15 - x, y, 15 - y)
+            cheb = max(dx, dy)
+            eucl = math.hypot(dx, dy)
+            r = 0.65 * eucl + 0.35 * cheb
+            n_sym = hash2d(int(dx * 2), int(dy * 2), seed=609)
+            n_fine = hash2d(x, y, seed=619)
+
+            if edge_d == 0:
+                # Crisp dark outer bark border all around all 4 edges!
+                col = lerp_rgb((82, 70, 110), (118, 104, 148), 0.5 * n_sym + 0.5 * n_fine)
+                emis, rough, hv = 0, 185, 165
+            elif edge_d == 1:
+                # Inner lighter bark bevel (rounded softly at the 4 corners)
+                is_corner = dx > 5.8 and dy > 5.8
+                if is_corner:
+                    col = lerp_rgb((94, 80, 124), (126, 112, 156), n_fine)
+                    hv = 158
                 else:
-                    emis = clamp((1.0 - ring) * 75)
-                rough = 125
-                hv = clamp(130 + ring * 55)
+                    col = lerp_rgb((138, 124, 164), (176, 164, 196), 0.6 * n_sym + 0.4 * n_fine)
+                    hv = 178
+                emis, rough = 0, 168
+            else:
+                # Perfectly centered wood grain rings inside [2..13]x[2..13]!
+                if r < 1.15:
+                    # Exact 2x2 centered warm pearl-gold pith
+                    col = lerp_rgb((248, 238, 194), (255, 248, 218), n_fine)
+                    emis, rough, hv = 110, 105, 162
+                elif r < 2.35:
+                    # Inner luminous aqua-pearl ring
+                    col = lerp_rgb((132, 224, 222), (174, 240, 236), 0.5 + 0.5 * n_fine)
+                    emis, rough, hv = 75, 115, 145
+                elif r < 3.55:
+                    # Bright ivory growth band
+                    col = lerp_rgb((228, 222, 216), (244, 240, 234), 0.5 + 0.5 * n_fine)
+                    emis, rough, hv = 15, 130, 164
+                elif r < 4.75:
+                    # Mid seafoam-pearl ring
+                    col = lerp_rgb((152, 214, 214), (192, 230, 228), 0.5 + 0.5 * n_fine)
+                    emis, rough, hv = 48, 125, 148
+                else:
+                    # Outer ivory sapwood framing the bark cleanly
+                    col = lerp_rgb((218, 214, 212), (238, 234, 228), 0.5 + 0.5 * n_fine)
+                    emis, rough, hv = 10, 135, 162
             img.putpixel((x, y), (*col, 255))
             mer.putpixel((x, y), (0, emis, rough))
             hgt.putpixel((x, y), hv)
     save_block_pbr("prism_log_top", img, mer, hgt)
     block_names.append("prism_log_top")
 
-    # --- 10. prism_planks: Luminous ivory-and-seafoam refined planks ---
+    # --- 10. prism_planks: Crisp 4-row Minecraft wooden planks in luminous ivory & soft seafoam ---
     img = Image.new("RGBA", (16, 16))
     mer = Image.new("RGB", (16, 16))
     hgt = Image.new("L", (16, 16))
+    plank_seams = [2, 10, 6, 14]
     for y in range(16):
-        plank_id = y // 4
-        seam_x = (plank_id * 7 + 3) % 16
+        row = y // 4
+        ry = y % 4
+        seam_x = plank_seams[row]
         for x in range(16):
-            n = fbm_tile(x, y, 16, seed=707 + plank_id * 5)
-            grain = 0.5 + 0.5 * math.sin(x * 0.55 + plank_id * 1.7 + n * 2.0)
-            col = lerp_rgb((184, 212, 212), (242, 236, 228), 0.55 + 0.35 * grain + 0.1 * n)
-            hv = clamp(160 + grain * 25)
-            rough = 135
-            if y % 4 == 0 or x == seam_x:
-                col = lerp_rgb(col, (108, 134, 146), 0.55)
-                hv = 85
-            elif y % 4 == 1:
-                col = lerp_rgb(col, (255, 252, 246), 0.3)
-                hv = 195
+            # Clean horizontal wood-grain variation along each plank
+            g1 = tile_noise(x, row * 3 + ry, 16, period=4, seed=707 + row * 11)
+            g2 = hash2d(x, y, seed=719 + row * 7)
+            grain = 0.65 * g1 + 0.35 * g2
+            base = lerp_rgb((196, 216, 214), (242, 238, 230), 0.35 + 0.65 * grain)
+            hv = clamp(158 + grain * 24)
+            rough = 138
+            emis = 10
+            if ry == 3 or x == seam_x:
+                # Crisp plank shadow groove
+                col = lerp_rgb(base, (124, 144, 154), 0.62)
+                hv = 82
+                rough = 175
+                emis = 0
+            elif ry == 0 or x == (seam_x + 1) % 16:
+                # Top / left plank catch-light bevel
+                col = lerp_rgb(base, (254, 252, 246), 0.42)
+                hv = 198
+                rough = 118
+                emis = 18
+            else:
+                col = base
+                # Subtle horizontal seafoam-ivory grain fiber highlight
+                if ry == 1 and grain > 0.68:
+                    col = lerp_rgb(col, (176, 232, 228), 0.30)
+                    emis = 24
             img.putpixel((x, y), (*col, 255))
-            mer.putpixel((x, y), (0, 12, rough))
+            mer.putpixel((x, y), (0, emis, rough))
             hgt.putpixel((x, y), hv)
     save_block_pbr("prism_planks", img, mer, hgt)
     block_names.append("prism_planks")
@@ -446,21 +502,47 @@ def generate_blocks():
     save_block_pbr("starlight_glass", img, mer, hgt)
     block_names.append("starlight_glass")
 
-    # --- 13. sea_crystal: Faceted glowing cyan-to-lavender crystal cluster (for custom 3D crystal model!) ---
+    # --- 13. sea_crystal: Crisp faceted glowing sea-glass & amethyst crystal (for custom 3D crystal cluster!) ---
     img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     mer = Image.new("RGB", (16, 16), (0, 0, 128))
     hgt = Image.new("L", (16, 16), 128)
-    # Full textured faceted crystal surface (used on custom 3D crystal prism cubes!)
     for y in range(16):
+        t = 1.0 - (y / 15.0)  # 0 at base -> 1 at sharp crystal tip
         for x in range(16):
-            t = 1.0 - (y / 15.0)
-            facet = abs((x % 4) - 1.5) / 1.5
-            base = lerp_rgb((54, 184, 206), (218, 178, 255), t * 0.55)
-            col = lerp_rgb(base, (226, 255, 255), (1.0 - facet) * 0.45 + t * 0.35)
-            emis = clamp(115 + t * 135)
-            img.putpixel((x, y), (*col, 245))
-            mer.putpixel((x, y), (35, emis, 28))
-            hgt.putpixel((x, y), clamp(130 + (1.0 - facet) * 90))
+            # Crisp 4-column prismatic facet shading (dark bevel / mid teal / bright cyan / specular ridge)
+            fx = x % 4
+            diag = (x + y * 2) % 8
+            if y >= 13:
+                # Grounded dark mineral crystal root
+                col = lerp_rgb((24, 62, 88), (44, 118, 134), (fx == 1 or fx == 2) * 0.6)
+                emis, rough, hv = 45, 95, 115
+            else:
+                if fx == 0:
+                    # Shaded indigo-teal side facet
+                    col = lerp_rgb((36, 124, 152), (118, 126, 214), t * 0.65)
+                    emis, rough, hv = clamp(85 + t * 80), 42, 145
+                elif fx == 1:
+                    # Bright specular crystal crest edge!
+                    col = lerp_rgb((152, 248, 246), (246, 255, 255), 0.35 + t * 0.65)
+                    emis, rough, hv = clamp(180 + t * 75), 14, 242
+                elif fx == 2:
+                    # Luminous turquoise-aqua main facet
+                    col = lerp_rgb((54, 198, 214), (186, 232, 255), t * 0.72)
+                    if diag in (2, 3):
+                        col = lerp_rgb(col, (238, 210, 255), 0.45)
+                    emis, rough, hv = clamp(135 + t * 95), 24, 196
+                else:
+                    # Crisp darker crystalline crease
+                    col = lerp_rgb((28, 96, 128), (94, 132, 198), t * 0.55)
+                    emis, rough, hv = clamp(70 + t * 70), 52, 122
+                if y <= 2:
+                    # Razor-bright crystal tip glint
+                    col = lerp_rgb(col, (245, 255, 255), 0.55)
+                    emis = 250
+                    hv = 250
+            img.putpixel((x, y), (*col, 255))
+            mer.putpixel((x, y), (45, emis, rough))
+            hgt.putpixel((x, y), hv)
     save_block_pbr("sea_crystal", img, mer, hgt)
     block_names.append("sea_crystal")
 
@@ -612,6 +694,87 @@ def generate_blocks():
             hgt.putpixel((x, y), hv)
     save_block_pbr("vespera_altar", img, mer, hgt)
     block_names.append("vespera_altar")
+
+    # --- 21. cloudstone: Soft billowing pearl-ivory condensed cloud block (walkable Cloud-Shelf Plains!) ---
+    img = Image.new("RGBA", (16, 16))
+    mer = Image.new("RGB", (16, 16))
+    hgt = Image.new("L", (16, 16))
+    for y in range(16):
+        for x in range(16):
+            n1 = tile_noise(x, y, 16, period=4, seed=1301)
+            n2 = tile_noise(x + 3, y + 5, 16, period=8, seed=1309)
+            puff = max(0.0, min(1.0, 0.62 * n1 + 0.38 * n2))
+            # Soft cumulus ivory top highlights with opalescent lavender-sky cloud shadows
+            col = lerp_rgb((218, 214, 232), (253, 250, 246), puff)
+            if puff > 0.72:
+                col = lerp_rgb(col, (255, 252, 244), 0.55)
+            elif puff < 0.28:
+                col = lerp_rgb(col, (192, 198, 224), 0.35)
+            emis = clamp(18 + puff * 26)
+            rough = clamp(205 - puff * 25)
+            hv = clamp(120 + puff * 95)
+            img.putpixel((x, y), (*col, 255))
+            mer.putpixel((x, y), (0, emis, rough))
+            hgt.putpixel((x, y), hv)
+    save_block_pbr("cloudstone", img, mer, hgt)
+    block_names.append("cloudstone")
+
+    # --- 22. rose_cloud: Warm sunset rose-gold & peach billowing cloud bank ---
+    img = Image.new("RGBA", (16, 16))
+    mer = Image.new("RGB", (16, 16))
+    hgt = Image.new("L", (16, 16))
+    for y in range(16):
+        for x in range(16):
+            n1 = tile_noise(x, y, 16, period=4, seed=1401)
+            n2 = tile_noise(x + 6, y + 2, 16, period=8, seed=1409)
+            puff = max(0.0, min(1.0, 0.64 * n1 + 0.36 * n2))
+            col = lerp_rgb((228, 152, 174), (255, 224, 198), puff)
+            if puff > 0.72:
+                col = lerp_rgb(col, (255, 244, 218), 0.45)
+            elif puff < 0.25:
+                col = lerp_rgb(col, (194, 124, 162), 0.40)
+            emis = clamp(32 + puff * 44)
+            rough = clamp(195 - puff * 25)
+            hv = clamp(125 + puff * 90)
+            img.putpixel((x, y), (*col, 255))
+            mer.putpixel((x, y), (0, emis, rough))
+            hgt.putpixel((x, y), hv)
+    save_block_pbr("rose_cloud", img, mer, hgt)
+    block_names.append("rose_cloud")
+
+    # --- 23. cloud_vent: Carved alabaster & gilded brass swirling updraft wind-ring ---
+    img = Image.new("RGBA", (16, 16))
+    mer = Image.new("RGB", (16, 16))
+    hgt = Image.new("L", (16, 16))
+    for y in range(16):
+        for x in range(16):
+            dx, dy = x - 7.5, y - 7.5
+            r = math.hypot(dx, dy)
+            ang = math.atan2(dy, dx)
+            n = fbm_tile(x, y, 16, seed=1505)
+            edge = min(x, 15 - x, y, 15 - y)
+            if edge == 0:
+                col = lerp_rgb((214, 206, 218), (242, 238, 244), n)
+                metal, emis, rough, hv = 0, 12, 165, 165
+            elif 5.2 <= r <= 6.6:
+                # Burnished brass vent collar
+                col = lerp_rgb((196, 148, 54), (252, 218, 114), 0.4 + 0.6 * n)
+                metal, emis, rough, hv = 235, 55, 42, 222
+            elif r < 5.2:
+                # Glowing swirling turquoise & rose-gold updraft vortex!
+                swirl = 0.5 + 0.5 * math.sin(ang * 3.0 + r * 1.4)
+                col = lerp_rgb((96, 240, 242), (255, 206, 214), swirl)
+                if r < 2.0:
+                    col = lerp_rgb(col, (255, 252, 236), 0.7)
+                metal, emis, rough, hv = 30, clamp(175 + swirl * 80), 28, clamp(90 + swirl * 60)
+            else:
+                col = lerp_rgb((232, 224, 236), (250, 244, 240), n)
+                metal, emis, rough, hv = 0, 24, 155, 180
+            img.putpixel((x, y), (*col, 255))
+            mer.putpixel((x, y), (metal, emis, rough))
+            hgt.putpixel((x, y), hv)
+    save_block_pbr("cloud_vent", img, mer, hgt)
+    block_names.append("cloud_vent")
 
     return block_names
 
@@ -1121,36 +1284,153 @@ def generate_entities():
     paint_box_uv(img, mer, 0, 42, 12, 2, 2, (246, 204, 96), (255, 244, 188), emis=185, metal=240, rough=35, pattern="gilded")
     save_entity_pbr("gilded_sentinel", img, mer)
 
-    # --- 5. astral_seraph (128x128) — Majestic Boss Texture ---
-    # torso: uv [0,0], size [16,22,12] -> 56x34
-    # head: uv [0,36], size [12,12,12] -> 48x24
-    # wings (3 pairs): uv [0,64], size [24,8,2] -> 52x10, uv [0,78], size [20,7,2], uv [0,90], size [16,6,2]
-    # halo rings: uv [60,0], size [24,2,2] -> 52x4
-    # star heart: uv [60,10], size [10,10,10] -> 40x20
-    # robe/tail: uv [60,34], size [14,18,10] -> 48x28
-    # gauntlets: uv [60,64], size [6,16,6] -> 24x22
-    img = Image.new("RGBA", (128, 128), (242, 236, 226, 255))
-    mer = Image.new("RGB", (128, 128), (90, 30, 85))
-    paint_box_uv(img, mer, 0, 0, 16, 22, 12, (244, 238, 228), (242, 192, 78), emis=30, metal=100, rough=85, pattern="gilded")
-    paint_box_uv(img, mer, 0, 36, 12, 12, 12, (246, 240, 232), (248, 204, 94), emis=40, metal=130, rough=75, pattern="gilded")
-    # Radiant star crown & diamond visor on Seraph face (x:12..24, y:48..60)
-    for y in range(51, 57):
-        for x in range(14, 22):
-            if abs(x - 17.5) + abs(y - 53.5) <= 3.2:
-                img.putpixel((x, y), (255, 240, 168, 255))
-                mer.putpixel((x, y), (120, 255, 20))
-    # Triple luminous feathered crystal wings (turquoise -> rose-gold -> radiant gold!)
-    paint_box_uv(img, mer, 0, 64, 24, 8, 2, (98, 244, 240), (255, 214, 152), emis=210, rough=35, pattern="wing")
-    paint_box_uv(img, mer, 0, 78, 20, 7, 2, (244, 146, 198), (255, 226, 142), emis=205, rough=35, pattern="wing")
-    paint_box_uv(img, mer, 0, 90, 16, 6, 2, (164, 156, 255), (122, 248, 244), emis=200, rough=35, pattern="wing")
-    # Astrolabe halo rings (pure radiant gold)
-    paint_box_uv(img, mer, 60, 0, 24, 2, 2, (252, 206, 86), (255, 246, 192), emis=225, metal=245, rough=30, pattern="gilded")
-    # Star-heart core (blazing violet-gold-cyan)
-    paint_box_uv(img, mer, 60, 10, 10, 10, 10, (255, 232, 162), (232, 128, 255), emis=255, rough=18, pattern="crystal")
-    # Floating lower alabaster & indigo celestial vestments
-    paint_box_uv(img, mer, 60, 34, 14, 18, 10, (44, 42, 98), (242, 196, 86), emis=55, metal=80, rough=95, pattern="gilded")
-    # Gilded gauntlets
-    paint_box_uv(img, mer, 60, 64, 6, 16, 6, (238, 188, 74), (126, 246, 242), emis=85, metal=230, rough=40, pattern="gilded")
+    # --- 5. astral_seraph (128x128) — Sculpted 24-Bone Sovereign Boss Texture ---
+    # UV Map (zero overlap, 1:1 synced with RP/models/entity/astral_seraph.geo.json):
+    #   torso        [0,0]   size [14,18,10] -> 48x28
+    #   waist        [48,0]  size [10,6,8]   -> 36x14
+    #   pauldron     [86,0]  size [7,6,8]    -> 30x14
+    #   arm_upper    [86,16] size [5,10,5]   -> 20x15
+    #   arm_forearm [106,16] size [5,10,5]   -> 20x15
+    #   head         [0,30]  size [10,10,10] -> 40x20
+    #   crown        [42,30] size [12,6,2]   -> 28x8
+    #   star_heart   [42,40] size [6,6,6]    -> 24x12
+    #   robe_ribbon  [70,34] size [8,18,2]   -> 20x20
+    #   scepter_shft [94,34] size [2,30,2]   -> 8x32
+    #   scepter_bld [104,34] size [6,12,2]   -> 16x14
+    #   halo_ring    [0,54]  size [28,2,2]   -> 60x4
+    #   halo_gem     [70,56] size [3,3,3]    -> 12x6
+    #   wing_top_b   [0,62]  size [18,8,2]   -> 40x10
+    #   wing_top_t   [42,62] size [14,6,1]   -> 30x7
+    #   wing_mid_b   [0,76]  size [16,7,2]   -> 36x9
+    #   wing_mid_t   [38,76] size [12,5,1]   -> 26x6
+    #   wing_low     [0,88]  size [18,6,2]   -> 40x8
+    img = Image.new("RGBA", (128, 128), (34, 30, 68, 255))
+    mer = Image.new("RGB", (128, 128), (40, 20, 110))
+
+    # Torso: Carved alabaster-pearl breastplate with deep indigo under-armor & golden chest filigree
+    paint_box_uv(img, mer, 0, 0, 14, 18, 10, (238, 232, 224), (228, 182, 72), emis=18, metal=90, rough=88, pattern="gilded")
+    # Front breastplate ornamental crest (x:10..24, y:10..28)
+    for y in range(10, 28):
+        for x in range(10, 24):
+            dx = abs(x - 16.5)
+            dy = y - 10
+            if dx >= 5.5 or dy in (0, 17):
+                img.putpixel((x, y), (234, 184, 68, 255))
+                mer.putpixel((x, y), (235, 45, 40))
+            elif dy >= 11 and dx <= 4.0:
+                # Deep indigo-velvet lower cuirass chevron
+                img.putpixel((x, y), (38, 34, 84, 255))
+                mer.putpixel((x, y), (40, 25, 115))
+            elif abs(dx - (dy * 0.45)) < 0.85 and dy < 13:
+                # Gilded V-shaped chest trim
+                img.putpixel((x, y), (252, 214, 106, 255))
+                mer.putpixel((x, y), (242, 95, 34))
+            elif dx < 2.2 and 3 <= dy <= 8:
+                # Glowing aquamarine star-heart recess
+                img.putpixel((x, y), (118, 248, 246, 255))
+                mer.putpixel((x, y), (60, 245, 22))
+    # Back wing-socket celestial crest (x:34..48, y:10..28)
+    for y in range(12, 26):
+        for x in range(36, 46):
+            if abs(x - 40.5) <= 1.2 or abs(y - 18.5) <= 1.0:
+                img.putpixel((x, y), (246, 202, 88, 255))
+                mer.putpixel((x, y), (240, 110, 35))
+
+    # Waist sash: Royal indigo & burnished gold belt with cyan buckle
+    paint_box_uv(img, mer, 48, 0, 10, 6, 8, (42, 38, 92), (244, 198, 84), emis=25, metal=110, rough=85, pattern="gilded")
+    for y in range(9, 13):
+        for x in range(59, 63):
+            img.putpixel((x, y), (118, 248, 246, 255))
+            mer.putpixel((x, y), (60, 235, 25))
+
+    # Pauldrons (sculpted layered gold-rimmed alabaster shoulder guards)
+    paint_box_uv(img, mer, 86, 0, 7, 6, 8, (242, 236, 226), (246, 200, 82), emis=30, metal=160, rough=65, pattern="gilded")
+    # Upper sleeves (indigo velvet with gold bands) & Forearms (gleaming golden gauntlets + aqua runes)
+    paint_box_uv(img, mer, 86, 16, 5, 10, 5, (44, 40, 96), (236, 186, 72), emis=25, metal=80, rough=95, pattern="gilded")
+    paint_box_uv(img, mer, 106, 16, 5, 10, 5, (238, 190, 74), (114, 248, 244), emis=70, metal=235, rough=38, pattern="gilded")
+    for y in range(23, 29):
+        img.putpixel((113, y), (118, 252, 248, 255))
+        mer.putpixel((113, y), (50, 245, 22))
+
+    # Head: Sculpted porcelain helm with recessed twilight mask, twin glowing eyes & forehead star
+    paint_box_uv(img, mer, 0, 30, 10, 10, 10, (244, 238, 230), (242, 196, 84), emis=25, metal=125, rough=72, pattern="gilded")
+    # Front face of head is x:10..20, y:40..50
+    for y in range(41, 49):
+        for x in range(11, 19):
+            img.putpixel((x, y), (28, 24, 58, 255))
+            mer.putpixel((x, y), (40, 25, 85))
+    # Golden bridge & temple cheek-guards
+    for y in range(41, 49):
+        img.putpixel((14, y), (244, 200, 88, 255))
+        img.putpixel((15, y), (244, 200, 88, 255))
+        mer.putpixel((14, y), (240, 75, 35))
+        mer.putpixel((15, y), (240, 75, 35))
+    # Blazing twin golden-aqua seraph eyes + crown third-eye jewel!
+    for ex in (12, 13, 16, 17):
+        img.putpixel((ex, 44), (144, 252, 252, 255))
+        img.putpixel((ex, 45), (255, 244, 178, 255))
+        mer.putpixel((ex, 44), (60, 255, 18))
+        mer.putpixel((ex, 45), (100, 255, 18))
+    for cx in (14, 15):
+        img.putpixel((cx, 41), (246, 154, 255, 255))
+        mer.putpixel((cx, 41), (80, 255, 20))
+
+    # Sculpted Radiant Golden Crown & Blazing Star Heart
+    paint_box_uv(img, mer, 42, 30, 12, 6, 2, (252, 208, 86), (255, 248, 196), emis=145, metal=248, rough=28, pattern="gilded")
+    paint_box_uv(img, mer, 42, 40, 6, 6, 6, (255, 232, 164), (228, 120, 255), emis=255, rough=16, pattern="crystal")
+
+    # Flowing Starry Twilight Robe Ribbons (indigo velvet, gold trim, glowing star flecks!)
+    paint_box_uv(img, mer, 70, 34, 8, 18, 2, (36, 32, 84), (244, 198, 82), emis=35, metal=75, rough=102, pattern="gilded")
+    for y in range(38, 52):
+        for x in range(72, 88):
+            if (x * 7 + y * 13) % 19 == 0:
+                img.putpixel((x, y), (255, 234, 158, 255))
+                mer.putpixel((x, y), (120, 230, 30))
+            elif y >= 50:
+                img.putpixel((x, y), (248, 206, 94, 255))
+                mer.putpixel((x, y), (240, 130, 32))
+
+    # Radiant Astral Halberd / Scepter Shaft & Glowing Crystalline Crescent Blade
+    paint_box_uv(img, mer, 94, 34, 2, 30, 2, (238, 192, 74), (255, 238, 160), emis=90, metal=242, rough=32, pattern="gilded")
+    paint_box_uv(img, mer, 104, 34, 6, 12, 2, (112, 248, 250), (252, 255, 255), emis=255, metal=90, rough=16, pattern="crystal")
+
+    # Twin Astrolabe Halo Rings & Cardinal Gems
+    paint_box_uv(img, mer, 0, 54, 28, 2, 2, (252, 208, 84), (255, 248, 194), emis=210, metal=248, rough=26, pattern="gilded")
+    paint_box_uv(img, mer, 70, 56, 3, 3, 3, (124, 252, 250), (255, 240, 178), emis=255, rough=18, pattern="crystal")
+
+    # Sculpted Multi-Tier Feathered Wings (distinct individual feather plumes + dark quills + glowing tips!)
+    def paint_feathered_wing(u, v, w, h, d, c_root, c_mid, c_tip, c_quill):
+        x0, x1 = u, u + 2 * (w + d)
+        y0, y1 = v, v + d + h
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                tx = (x - x0) / max(1, (x1 - x0 - 1))
+                ty = (y - y0) / max(1, (y1 - y0 - 1))
+                # Blend root -> mid -> bright feather tip
+                col = lerp_rgb(c_root, c_mid, min(1.0, tx * 1.6)) if tx < 0.6 else lerp_rgb(c_mid, c_tip, (tx - 0.6) / 0.4)
+                emis = clamp(120 + tx * 125)
+                metal = 40
+                # Distinct layered feather barbs & golden-ivory rachis veins
+                if (x - x0) % 4 == 0 and ty > 0.25:
+                    col = lerp_rgb(col, c_quill, 0.55)
+                    emis = clamp(emis - 55)
+                elif (y - y0) <= d + 1:
+                    # Burnished golden wing leading edge!
+                    col = lerp_rgb((244, 198, 86), (255, 244, 186), tx)
+                    metal = 235
+                    emis = 165
+                elif ty > 0.78:
+                    # Luminous glowing feather fringe
+                    col = lerp_rgb(col, (255, 250, 232), 0.45)
+                    emis = 245
+                img.putpixel((x, y), (*col, 255))
+                mer.putpixel((x, y), (metal, emis, 32))
+
+    paint_feathered_wing(0, 62, 18, 8, 2, (46, 178, 198), (118, 246, 242), (255, 232, 168), (22, 74, 108))
+    paint_feathered_wing(42, 62, 14, 6, 1, (118, 246, 242), (255, 224, 152), (255, 250, 224), (48, 132, 146))
+    paint_feathered_wing(0, 76, 16, 7, 2, (206, 98, 158), (252, 172, 194), (255, 236, 170), (96, 38, 84))
+    paint_feathered_wing(38, 76, 12, 5, 1, (252, 172, 194), (255, 220, 148), (255, 248, 220), (146, 68, 110))
+    paint_feathered_wing(0, 88, 18, 6, 2, (108, 92, 212), (186, 156, 255), (124, 248, 246), (44, 36, 108))
     save_entity_pbr("astral_seraph", img, mer)
 
     # --- 6. astral_bolt (32x32) ---
@@ -1158,6 +1438,104 @@ def generate_entities():
     mer = Image.new("RGB", (32, 32), (40, 255, 20))
     paint_box_uv(img, mer, 0, 0, 4, 4, 4, (132, 248, 248), (246, 158, 255), emis=255, rough=18, pattern="crystal")
     save_entity_pbr("astral_bolt", img, mer)
+
+    # --- 7. nimbus_stag (64x64) — Peaceful Celestial Cloud-Deer ---
+    # body [0,0] 10x9x18 -> 56x27 | neck [0,28] 5x9x5 -> 20x14 | head [22,28] 6x6x9 -> 30x15
+    # antlers [54,28] 2x8x2 -> 8x10 | legs [0,44] 3x12x3 -> 12x15 | tail [16,44] 3x3x4 -> 14x7
+    img = Image.new("RGBA", (64, 64), (240, 236, 232, 255))
+    mer = Image.new("RGB", (64, 64), (10, 18, 130))
+    paint_box_uv(img, mer, 0, 0, 10, 9, 18, (244, 240, 236), (212, 224, 232), emis=22, rough=128, pattern="body")
+    # Starry turquoise-pearl dapple spots along body flanks & back
+    for sx, sy in [(4, 21), (8, 20), (12, 22), (34, 21), (38, 20), (42, 22), (21, 6), (24, 9), (22, 13)]:
+        img.putpixel((sx, sy), (138, 246, 242, 255))
+        mer.putpixel((sx, sy), (20, 185, 45))
+    paint_box_uv(img, mer, 0, 28, 5, 9, 5, (238, 234, 230), (168, 234, 232), emis=28, rough=120, pattern="body")
+    paint_box_uv(img, mer, 22, 28, 6, 6, 9, (244, 240, 234), (214, 208, 218), emis=18, rough=118, pattern="body")
+    # Expressive luminous turquoise eyes on head sides/front (front x:31..37, y:37..43; sides x:22..31 & 37..46)
+    for ex in (28, 39):
+        img.putpixel((ex, 39), (32, 42, 72, 255))
+        img.putpixel((ex, 40), (118, 250, 246, 255))
+        mer.putpixel((ex, 40), (30, 235, 25))
+    # Soft dark nose on head front
+    for nx in (33, 34):
+        img.putpixel((nx, 41), (78, 74, 98, 255))
+    # Crystalline golden-aqua antlers
+    paint_box_uv(img, mer, 54, 28, 2, 8, 2, (246, 204, 96), (124, 250, 246), emis=195, metal=215, rough=34, pattern="crystal")
+    # Slender legs with burnished golden hooves at bottom
+    paint_box_uv(img, mer, 0, 44, 3, 12, 3, (234, 230, 228), (196, 212, 220), emis=14, rough=125, pattern="body")
+    for y in range(56, 59):
+        for x in range(0, 12):
+            img.putpixel((x, y), (224, 176, 72, 255))
+            mer.putpixel((x, y), (220, 45, 48))
+    paint_box_uv(img, mer, 16, 44, 3, 3, 4, (250, 248, 244), (156, 246, 242), emis=85, rough=95, pattern="crystal")
+    save_entity_pbr("nimbus_stag", img, mer)
+
+    # --- 8. tide_jelly (64x64) — Serene Bioluminescent Aurelia Cloud-Jelly ---
+    # bell_outer [0,0] 12x8x12 -> 48x20 | bell_top [0,22] 8x3x8 -> 32x11 | inner_core [34,22] 5x5x5 -> 20x10
+    # tentacle_upper [0,36] 2x8x2 -> 8x10 | tentacle_lower [12,36] 1x7x1 -> 4x8
+    img = Image.new("RGBA", (64, 64), (238, 162, 198, 255))
+    mer = Image.new("RGB", (64, 64), (15, 160, 45))
+    paint_box_uv(img, mer, 0, 0, 12, 8, 12, (246, 152, 194), (122, 246, 244), emis=175, rough=36, pattern="crystal")
+    # Scalloped golden-aqua luminescence rim along bottom edge of bell (y:18..20)
+    for x in range(0, 48):
+        if x % 3 != 0:
+            img.putpixel((x, 19), (255, 234, 162, 255))
+            mer.putpixel((x, 19), (40, 248, 22))
+    paint_box_uv(img, mer, 0, 22, 8, 3, 8, (255, 196, 218), (156, 250, 246), emis=205, rough=30, pattern="crystal")
+    paint_box_uv(img, mer, 34, 22, 5, 5, 5, (255, 242, 176), (255, 178, 212), emis=255, rough=18, pattern="crystal")
+    paint_box_uv(img, mer, 0, 36, 2, 8, 2, (112, 244, 244), (248, 168, 210), emis=205, rough=34, pattern="crystal")
+    paint_box_uv(img, mer, 12, 36, 1, 7, 1, (255, 234, 166), (132, 250, 248), emis=235, rough=25, pattern="crystal")
+    save_entity_pbr("tide_jelly", img, mer)
+
+    # --- 9. shard_stalker (64x64) — Agile Twilight Crystalline Lynx Predator ---
+    # body [0,0] 9x8x16 -> 50x24 | head [0,26] 8x7x8 -> 32x15 | spines [34,26] 2x6x3 -> 10x9
+    # legs [0,44] 3x9x3 -> 12x12 | tail [16,44] 2x2x10 -> 24x12
+    img = Image.new("RGBA", (64, 64), (34, 30, 72, 255))
+    mer = Image.new("RGB", (64, 64), (35, 25, 105))
+    paint_box_uv(img, mer, 0, 0, 9, 8, 16, (36, 32, 76), (76, 62, 134), emis=20, metal=45, rough=95, pattern="body")
+    # Glowing violet-cyan crystalline rib seams along predator flanks
+    for x in (4, 8, 12, 30, 34, 38):
+        for y in range(18, 22):
+            img.putpixel((x, y), (144, 198, 255, 255))
+            mer.putpixel((x, y), (60, 195, 32))
+    paint_box_uv(img, mer, 0, 26, 8, 7, 8, (42, 36, 86), (86, 72, 148), emis=25, metal=55, rough=90, pattern="body")
+    # Blazing golden-magenta predator eyes on front face (x:8..16, y:34..41)
+    for ex in (9, 10, 13, 14):
+        img.putpixel((ex, 37), (255, 212, 102, 255))
+        img.putpixel((ex, 38), (242, 118, 255, 255))
+        mer.putpixel((ex, 37), (80, 255, 18))
+        mer.putpixel((ex, 38), (80, 255, 18))
+    paint_box_uv(img, mer, 34, 26, 2, 6, 3, (108, 244, 248), (228, 134, 255), emis=240, rough=22, pattern="crystal")
+    paint_box_uv(img, mer, 0, 44, 3, 9, 3, (32, 28, 68), (64, 54, 118), emis=15, metal=40, rough=102, pattern="body")
+    for x in range(0, 12):
+        img.putpixel((x, 55), (128, 246, 248, 255))
+        mer.putpixel((x, 55), (60, 215, 28))
+    paint_box_uv(img, mer, 16, 44, 2, 2, 10, (48, 42, 96), (226, 132, 255), emis=135, rough=45, pattern="wing")
+    save_entity_pbr("shard_stalker", img, mer)
+
+    # --- 10. astral_weaver (64x64) — Cloaked Twilight Ruin Spellcaster ---
+    # torso_cloak [0,0] 10x14x8 -> 36x22 | hood_head [0,24] 9x9x9 -> 36x18 | sleeves [38,0] 4x11x5 -> 18x16
+    # robe_hem [0,44] 10x8x8 -> 36x16 | chime_orb [38,20] 4x4x4 -> 16x8 | sigil_ring [38,30] 14x1x2 -> 32x3 (fit w=10 -> 24x3)
+    img = Image.new("RGBA", (64, 64), (32, 28, 72, 255))
+    mer = Image.new("RGB", (64, 64), (35, 25, 105))
+    paint_box_uv(img, mer, 0, 0, 10, 14, 8, (36, 32, 82), (240, 194, 82), emis=32, metal=85, rough=96, pattern="gilded")
+    paint_box_uv(img, mer, 0, 24, 9, 9, 9, (44, 38, 94), (242, 196, 86), emis=25, metal=75, rough=96, pattern="gilded")
+    # Hooded dark face cavity (x:9..18, y:33..42) with golden crescent-moon mask & glowing cyan eyes
+    for y in range(34, 41):
+        for x in range(10, 17):
+            img.putpixel((x, y), (16, 14, 34, 255))
+            mer.putpixel((x, y), (10, 10, 150))
+    for ex in (11, 15):
+        img.putpixel((ex, 37), (124, 250, 250, 255))
+        mer.putpixel((ex, 37), (40, 255, 18))
+    for mx in (12, 13, 14):
+        img.putpixel((mx, 35), (252, 214, 102, 255))
+        mer.putpixel((mx, 35), (235, 185, 32))
+    paint_box_uv(img, mer, 38, 0, 4, 11, 5, (48, 42, 104), (242, 198, 88), emis=35, metal=90, rough=94, pattern="gilded")
+    paint_box_uv(img, mer, 0, 44, 10, 8, 8, (32, 28, 74), (114, 244, 242), emis=68, metal=50, rough=90, pattern="gilded")
+    paint_box_uv(img, mer, 38, 20, 4, 4, 4, (226, 134, 255), (255, 238, 166), emis=255, rough=18, pattern="crystal")
+    paint_box_uv(img, mer, 38, 30, 10, 1, 2, (250, 208, 90), (255, 244, 184), emis=200, metal=245, rough=28, pattern="gilded")
+    save_entity_pbr("astral_weaver", img, mer)
 
 
 # =============================================================================
@@ -1446,7 +1824,7 @@ def main():
     scratch_dir = Path("/home/antigravity/.gemini/jetski/brain/v1/default/jetski_remote_agents_3p/7bbadaad-6a3c-4ea7-a099-4ed7d35e937e/scratch")
     scratch_dir.mkdir(parents=True, exist_ok=True)
     build_contact_sheet(block_names, item_names, scratch_dir / "textures_preview.png")
-    print(f"Generated {len(block_names)} PBR blocks, {len(item_names)} items, 6 PBR entities, 1 particle atlas, and pack_icon.png!")
+    print(f"Generated {len(block_names)} PBR blocks, {len(item_names)} items, 10 PBR entities, 1 particle atlas, and preserved pack_icon.png!")
 
 
 if __name__ == "__main__":

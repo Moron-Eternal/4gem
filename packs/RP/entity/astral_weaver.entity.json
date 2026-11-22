@@ -1,0 +1,39 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:astral_weaver",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/astral_weaver"
+      },
+      "geometry": {
+        "default": "geometry.auralis_astral_weaver"
+      },
+      "animations": {
+        "hover": "animation.auralis.astral_weaver.hover",
+        "cast": "animation.auralis.astral_weaver.cast",
+        "look": "animation.auralis.look_at_target",
+        "ctrl": "controller.animation.auralis.weaver"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl",
+          "look"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#2C2664",
+        "overlay_color": "#F4CA64"
+      },
+      "particle_effects": {
+        "aura": "auralis:sentinel_beam"
+      }
+    }
+  }
+}

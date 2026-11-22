@@ -379,13 +379,64 @@ def build_particles():
     )
     write_json(RP / "particles/star_pillar.particle.json", p)
 
+    # 14. cloud_updraft: Silky rising pearl & rose-gold breeze columns above Cloud-Vents!
+    p = make_particle(
+        "cloud_updraft", 3, 1,
+        emitter_rate={"num_particles": 10},
+        lifetime="math.random(1.3, 2.2)",
+        speed="math.random(1.2, 2.4)",
+        accel=("math.cos(v.particle_age * 4.5) * 0.65", 2.4, "math.sin(v.particle_age * 4.5) * 0.65"),
+        drag=0.6,
+        size=("0.26 + 0.14 * (v.particle_age / v.particle_lifetime)", "0.26 + 0.14 * (v.particle_age / v.particle_lifetime)"),
+        gradient={
+            "0.0": "#00FFF4EC",
+            "0.22": "#E0FFF0E4",
+            "0.62": "#CCFFAEC6",
+            "1.0": "#008AF4F2",
+        },
+        spin={"initial_rotation": "math.random(0, 360)", "rotation_rate": 180},
+    )
+    del p["minecraft:particle_effect"]["components"]["minecraft:emitter_shape_point"]
+    p["minecraft:particle_effect"]["components"]["minecraft:emitter_shape_disc"] = {
+        "radius": 0.9,
+        "plane_normal": "y",
+        "surface_only": False,
+        "direction": [0, 1, 0],
+    }
+    write_json(RP / "particles/cloud_updraft.particle.json", p)
+
+    # 15. seraph_charge: Converging golden-violet astrolabe aura telegraphing boss abilities!
+    p = make_particle(
+        "seraph_charge", 1, 3,
+        emitter_rate={"num_particles": 14},
+        lifetime="0.85",
+        speed="math.random(-2.4, -1.2)",
+        accel=(0, 0.2, 0),
+        drag=0.5,
+        size=("0.34 * (1.0 - v.particle_age / v.particle_lifetime * 0.5)", "0.34 * (1.0 - v.particle_age / v.particle_lifetime * 0.5)"),
+        gradient={
+            "0.0": "#00FFE296",
+            "0.25": "#FFFFE296",
+            "0.70": "#E6E498FF",
+            "1.0": "#0098F4F6",
+        },
+        spin={"initial_rotation": "math.random(0, 360)", "rotation_rate": 240},
+    )
+    del p["minecraft:particle_effect"]["components"]["minecraft:emitter_shape_point"]
+    p["minecraft:particle_effect"]["components"]["minecraft:emitter_shape_sphere"] = {
+        "radius": 2.4,
+        "surface_only": True,
+        "direction": "outwards",
+    }
+    write_json(RP / "particles/seraph_charge.particle.json", p)
+
 
 def build_lang():
     write_json(RP / "texts/languages.json", ["en_US"])
 
     lang_lines = [
         "pack.name=§e✦ §bAuralis: §dThe Prism-Tide Firmament §e✦",
-        "pack.description=§7A celestial twilight floating-archipelago dimension with a unique Harmonic Resonance entry ritual, custom OST, SFX, VFX, PBR blocks, mobs, and the Astral Seraph boss.",
+        "pack.description=§7A celestial twilight floating-archipelago dimension with a unique Harmonic Resonance entry ritual, walkable Cloud-Shelf Plains, custom OST, gentle SFX, VFX, PBR blocks, 9 living mobs, and the Astral Seraph boss.",
         "",
         "## Dimension & Biome",
         "biome.auralis:firmament.name=Auralis Firmament",
@@ -405,6 +456,9 @@ def build_lang():
         "tile.auralis:lantern_bloom.name=Lantern Bloom",
         "tile.auralis:chime_reed.name=Singing Chime-Reed",
         "tile.auralis:gilded_brass.name=Celestial Gilded Brass",
+        "tile.auralis:cloudstone.name=Luminous Cloudstone",
+        "tile.auralis:rose_cloud.name=Rose-Gold Cloud Bank",
+        "tile.auralis:cloud_vent.name=§bUpdraft Cloud-Vent",
         "tile.auralis:astrolabe_pedestal.name=§eCelestial Astrolabe Pedestal",
         "tile.auralis:starlight_veil.name=§bStarlight Mirror Veil",
         "tile.auralis:vespera_altar.name=§dVespera Sanctum Altar",
@@ -427,12 +481,20 @@ def build_lang():
         "entity.auralis:lumina_ray.name=Lumina Ray",
         "entity.auralis:choir_wisp.name=Choir Wisp",
         "entity.auralis:glass_crab.name=Tide-Glass Crab",
+        "entity.auralis:nimbus_stag.name=Nimbus Stag",
+        "entity.auralis:tide_jelly.name=Aurelia Cloud-Jelly",
+        "entity.auralis:shard_stalker.name=Shard Stalker",
+        "entity.auralis:astral_weaver.name=Astral Weaver",
         "entity.auralis:gilded_sentinel.name=Gilded Sentinel",
         "entity.auralis:astral_seraph.name=The Astral Seraph",
         "entity.auralis:astral_bolt.name=Astral Pulse Bolt",
         "item.spawn_egg.entity.auralis:lumina_ray.name=Spawn Lumina Ray",
         "item.spawn_egg.entity.auralis:choir_wisp.name=Spawn Choir Wisp",
         "item.spawn_egg.entity.auralis:glass_crab.name=Spawn Tide-Glass Crab",
+        "item.spawn_egg.entity.auralis:nimbus_stag.name=Spawn Nimbus Stag",
+        "item.spawn_egg.entity.auralis:tide_jelly.name=Spawn Aurelia Cloud-Jelly",
+        "item.spawn_egg.entity.auralis:shard_stalker.name=Spawn Shard Stalker",
+        "item.spawn_egg.entity.auralis:astral_weaver.name=Spawn Astral Weaver",
         "item.spawn_egg.entity.auralis:gilded_sentinel.name=Spawn Gilded Sentinel",
         "item.spawn_egg.entity.auralis:astral_seraph.name=Spawn The Astral Seraph",
     ]
@@ -442,7 +504,7 @@ def build_lang():
 def main():
     build_particles()
     build_lang()
-    print("Generated 13 custom particle VFX JSONs and en_US.lang localization!")
+    print("Generated 15 custom particle VFX JSONs and en_US.lang localization!")
 
 
 if __name__ == "__main__":

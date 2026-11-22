@@ -12,43 +12,53 @@
       },
       "bones": [
         {
-          "name": "center_spire",
+          "name": "crystal_base",
           "pivot": [0, 0, 0],
-          "rotation": [4, 15, -3],
           "cubes": [
-            { "origin": [-2, 0, -2], "size": [4, 14, 4], "uv": [0, 0] }
+            { "origin": [-4, 0, -4], "size": [8, 2, 8], "uv": [0, 8] }
+          ]
+        },
+        {
+          "name": "center_spire",
+          "pivot": [0, 1, 0],
+          "rotation": [3, 18, -2],
+          "cubes": [
+            { "origin": [-2, 1, -2], "size": [4, 10, 4], "uv": [0, 2] },
+            { "origin": [-1.25, 11, -1.25], "size": [2.5, 3, 2.5], "uv": [4, 0] }
           ]
         },
         {
           "name": "spire_ne",
-          "pivot": [2, 0, -2],
-          "rotation": [-24, 25, 22],
+          "pivot": [2, 1, -2],
+          "rotation": [-22, 24, 20],
           "cubes": [
-            { "origin": [0.5, 0, -3.5], "size": [3, 10, 3], "uv": [4, 2] }
+            { "origin": [0.5, 1, -3], "size": [2.5, 8, 2.5], "uv": [4, 3] },
+            { "origin": [1, 9, -2.5], "size": [1.5, 2, 1.5], "uv": [8, 0] }
           ]
         },
         {
           "name": "spire_sw",
-          "pivot": [-2, 0, 2],
-          "rotation": [26, -15, -24],
+          "pivot": [-2, 1, 2],
+          "rotation": [24, -18, -22],
           "cubes": [
-            { "origin": [-3.5, 0, 0.5], "size": [3, 9, 3], "uv": [2, 4] }
+            { "origin": [-3, 1, 0.5], "size": [2.5, 7.5, 2.5], "uv": [2, 4] },
+            { "origin": [-2.5, 8.5, 1], "size": [1.5, 2, 1.5], "uv": [6, 0] }
           ]
         },
         {
           "name": "spire_nw",
-          "pivot": [-2.5, 0, -2],
-          "rotation": [-20, -30, -28],
+          "pivot": [-2, 1, -2],
+          "rotation": [-18, -28, -24],
           "cubes": [
-            { "origin": [-3.5, 0, -3], "size": [2.5, 7, 2.5], "uv": [6, 5] }
+            { "origin": [-3, 1, -3], "size": [2, 6, 2], "uv": [6, 5] }
           ]
         },
         {
           "name": "spire_se",
-          "pivot": [2.5, 0, 2],
-          "rotation": [22, 20, 26],
+          "pivot": [2, 1, 2],
+          "rotation": [20, 20, 22],
           "cubes": [
-            { "origin": [1.5, 0, 1], "size": [2.5, 6.5, 2.5], "uv": [8, 6] }
+            { "origin": [1, 1, 1], "size": [2, 5.5, 2], "uv": [8, 6] }
           ]
         }
       ]

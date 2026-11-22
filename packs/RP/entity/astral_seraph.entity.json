@@ -13,12 +13,18 @@
         "default": "geometry.auralis_astral_seraph"
       },
       "animations": {
-        "main_anim": "animation.auralis.astral_seraph.majesty",
-        "ctrl": "controller.animation.auralis.always_active"
+        "majesty": "animation.auralis.astral_seraph.majesty",
+        "bolt_volley": "animation.auralis.astral_seraph.bolt_volley",
+        "swoop_slash": "animation.auralis.astral_seraph.swoop_slash",
+        "harmonic_nova": "animation.auralis.astral_seraph.harmonic_nova",
+        "star_pillars": "animation.auralis.astral_seraph.star_pillars",
+        "look": "animation.auralis.look_at_target",
+        "ctrl": "controller.animation.auralis.seraph_boss"
       },
       "scripts": {
         "animate": [
-          "ctrl"
+          "ctrl",
+          "look"
         ]
       },
       "render_controllers": [

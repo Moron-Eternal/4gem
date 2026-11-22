@@ -1,24 +1,31 @@
-// Lag-Free Procedural Floating Archipelago Generator for Auralis: The Prism-Tide Firmament
-// Uses system.runJob coroutines + cached BlockPermutations + persisted sector registry.
+// Worldgen 2.0 — Non-Overlapping 80x80 Macro-Cell Floating Archipelago, Walkable Cloud-Shelf Plains,
+// 6 Curated Architectural Landmarks & Grounded Crystal Geode Outcrops for Auralis: The Prism-Tide Firmament.
+// Guarantees ZERO chunk-boundary slicing (full bounding-box chunk probe + missed-write guard)
+// and ZERO island-to-island clipping (strict CELL_SAFE_SPAN clamping).
 
 import { world, system, BlockPermutation, ItemStack } from "@minecraft/server";
 import {
   DIMENSION_ID,
   SANCTUARY_CENTER,
-  FIRST_CITADEL_CENTER,
   DP_SANCTUARY_BUILT,
   DP_GEN_BUCKETS,
   BLOCKS,
   ITEMS,
 } from "./constants.js";
-import { hash2, hash3, fbm2, getZoneAt, getNearestCitadel } from "./noise.js";
+import {
+  CELL_SIZE,
+  hash2,
+  hash3,
+  fbm2,
+  worldToCell,
+  getCellLayout,
+} from "./noise.js";
 
-const SECTOR_SIZE = 32;
 const MAX_BUCKET_LEN = 24000;
 const permCache = new Map();
-const generatedSectors = new Set();
-const queuedSectors = new Set();
-let sectorsLoaded = false;
+const generatedCells = new Set();
+const queuedCells = new Set();
+let cellsLoaded = false;
 let sanctuaryBuilding = false;
 let activeJobs = 0;
 
@@ -32,27 +39,63 @@ function perm(id, states = undefined) {
   return p;
 }
 
-function setBlk(dim, x, y, z, blockPerm) {
+function setBlk(dim, x, y, z, blockPerm, ctx = null) {
   try {
-    if (y < -60 || y > 315) return false;
-    const b = dim.getBlock({ x: Math.floor(x), y: Math.floor(y), z: Math.floor(z) });
-    if (!b) return false;
+    const iy = Math.floor(y);
+    if (iy < -60 || iy > 315) return false;
+    const b = dim.getBlock({ x: Math.floor(x), y: iy, z: Math.floor(z) });
+    if (!b) {
+      if (ctx) ctx.missedWrites++;
+      return false;
+    }
     b.setPermutation(blockPerm);
     return true;
   } catch {
+    if (ctx) ctx.missedWrites++;
     return false;
   }
 }
 
-function loadGeneratedSectors() {
-  if (sectorsLoaded) return;
-  sectorsLoaded = true;
+/**
+ * Verifies EVERY chunk spanning [minX-4..maxX+4] x [minZ-4..maxZ+4] is loaded
+ * BEFORE starting a cell build job — completely eliminating cut-off / sliced islands!
+ */
+function isAreaLoaded(dim, minX, maxX, minZ, maxZ) {
+  const x0 = Math.floor(minX) - 4;
+  const x1 = Math.floor(maxX) + 4;
+  const z0 = Math.floor(minZ) - 4;
+  const z1 = Math.floor(maxZ) + 4;
+
+  const xs = [];
+  for (let x = x0; x <= x1; x += 16) xs.push(x);
+  if (xs[xs.length - 1] !== x1) xs.push(x1);
+
+  const zs = [];
+  for (let z = z0; z <= z1; z += 16) zs.push(z);
+  if (zs[zs.length - 1] !== z1) zs.push(z1);
+
+  for (const x of xs) {
+    for (const z of zs) {
+      try {
+        const b = dim.getBlock({ x, y: 80, z });
+        if (!b) return false;
+      } catch {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function loadGeneratedCells() {
+  if (cellsLoaded) return;
+  cellsLoaded = true;
   for (let i = 0; i < 16; i++) {
     try {
       const raw = world.getDynamicProperty(`${DP_GEN_BUCKETS}${i}`);
       if (typeof raw === "string" && raw.length > 0) {
         for (const k of raw.split(";")) {
-          if (k) generatedSectors.add(k);
+          if (k) generatedCells.add(k);
         }
       }
     } catch {
@@ -61,10 +104,10 @@ function loadGeneratedSectors() {
   }
 }
 
-function persistSector(key) {
-  generatedSectors.add(key);
+function persistCell(key) {
+  generatedCells.add(key);
   try {
-    const all = Array.from(generatedSectors);
+    const all = Array.from(generatedCells);
     let bucket = 0;
     let cur = "";
     for (const k of all) {
@@ -98,7 +141,9 @@ export async function withTickingArea(dim, id, from, to, fn) {
       await world.tickingAreaManager.createTickingArea(id, { dimension: dim, from, to });
       usedApi = true;
     } else {
-      dim.runCommand(`tickingarea add ${Math.floor(from.x)} ${Math.floor(from.y)} ${Math.floor(from.z)} ${Math.floor(to.x)} ${Math.floor(to.y)} ${Math.floor(to.z)} ${id} true`);
+      dim.runCommand(
+        `tickingarea add ${Math.floor(from.x)} ${Math.floor(from.y)} ${Math.floor(from.z)} ${Math.floor(to.x)} ${Math.floor(to.y)} ${Math.floor(to.z)} ${id} true`
+      );
       await system.waitTicks(12);
     }
     return await fn();
@@ -116,48 +161,130 @@ export async function withTickingArea(dim, id, from, to, fn) {
 }
 
 // =============================================================================
-// ARCHITECTURAL & BOTANICAL BUILDING HELPERS
+// CURATED BOTANICAL, GEOLOGICAL & ARCHITECTURAL HELPERS
 // =============================================================================
 
-function placePrismTree(dim, cx, cy, cz, seed) {
+const NON_GROUND_IDS = new Set([
+  "minecraft:air",
+  "minecraft:water",
+  "minecraft:flowing_water",
+  BLOCKS.PRISM_LEAVES,
+  BLOCKS.LANTERN_BLOOM,
+  BLOCKS.CHIME_REED,
+  BLOCKS.SEA_CRYSTAL,
+]);
+
+/**
+ * Finds the highest solid terrain block at (x, z) within [minY..maxY]
+ * so trees, crystal outcrops, and updraft vents NEVER float or get buried on slopes!
+ */
+function findLocalTopY(dim, x, z, maxY, minY) {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  for (let y = Math.floor(maxY); y >= Math.floor(minY); y--) {
+    try {
+      const b = dim.getBlock({ x: ix, y, z: iz });
+      if (!b) continue;
+      if (!NON_GROUND_IDS.has(b.typeId)) return y;
+    } catch {
+      // Ignore probe error
+    }
+  }
+  return null;
+}
+
+function groundFoundationColumn(dim, x, startY, maxDepth, fillPerm, ctx) {
+  const ix = Math.floor(x);
+  const iz = Math.floor(startY.z);
+  for (let d = 1; d <= maxDepth; d++) {
+    const y = Math.floor(startY.y) - d;
+    try {
+      const below = dim.getBlock({ x: ix, y, z: iz });
+      if (below && below.typeId !== "minecraft:air") break;
+      setBlk(dim, ix, y, iz, fillPerm, ctx);
+    } catch {
+      break;
+    }
+  }
+}
+
+function placePrismTree(dim, cx, cy, cz, seed, ctx) {
+  const groundY = findLocalTopY(dim, cx, cz, cy + 4, cy - 4);
+  if (groundY === null) return;
+  const baseY = groundY + 1;
+
   const height = 5 + Math.floor(hash2(cx, cz, seed) * 4);
   const logP = perm(BLOCKS.PRISM_LOG);
   const leafP = perm(BLOCKS.PRISM_LEAVES);
   const lanternP = perm(BLOCKS.LANTERN_BLOOM);
 
   for (let y = 0; y < height; y++) {
-    setBlk(dim, cx, cy + y, cz, logP);
+    setBlk(dim, cx, baseY + y, cz, logP, ctx);
   }
-  // Curved sculptural weeping coral-prism canopy
-  const topY = cy + height;
+  const topY = baseY + height;
   for (let dy = -1; dy <= 2; dy++) {
-    const rad = dy === 2 ? 1.5 : dy === 1 ? 2.6 : 3.2;
+    const rad = dy === 2 ? 1.6 : dy === 1 ? 2.7 : 3.3;
     for (let dx = -3; dx <= 3; dx++) {
       for (let dz = -3; dz <= 3; dz++) {
         const d = Math.hypot(dx, dz);
-        if (d <= rad + (hash3(cx + dx, topY + dy, cz + dz, seed) - 0.5) * 0.7) {
+        if (d <= rad + (hash3(cx + dx, topY + dy, cz + dz, seed) - 0.5) * 0.65) {
           if (dx === 0 && dz === 0 && dy < 0) continue;
-          setBlk(dim, cx + dx, topY + dy, cz + dz, leafP);
+          setBlk(dim, cx + dx, topY + dy, cz + dz, leafP, ctx);
         }
       }
     }
   }
-  // Delicate hanging weeping leaf tendrils & Lantern Blooms!
+  // Delicate hanging weeping leaf tendrils & Lantern Blooms
   for (const [dx, dz] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) {
     if (hash2(cx + dx, cz + dz, seed + 5) > 0.35) {
-      setBlk(dim, cx + dx, topY - 2, cz + dz, leafP);
-      if (hash2(cx + dx, cz + dz, seed + 9) > 0.55) {
-        setBlk(dim, cx + dx, topY - 3, cz + dz, lanternP);
+      setBlk(dim, cx + dx, topY - 2, cz + dz, leafP, ctx);
+      if (hash2(cx + dx, cz + dz, seed + 9) > 0.58) {
+        setBlk(dim, cx + dx, topY - 3, cz + dz, lanternP, ctx);
       }
     }
   }
 }
 
-function placeAstrolabeRing(dim, cx, cy, cz, radius, tiltX = 0.25, tiltZ = 0.15, useGlassAccent = true) {
+/**
+ * Grounded Rocky Crystal Geode Outcrop — replaces awkward random single crystals!
+ * Snaps cleanly to local terrain height, back-fills any slope step under the rock base,
+ * and seats 2..4 Sea-Crystal clusters intentionally atop Starstone/Auralite rock.
+ */
+function placeCrystalOutcrop(dim, cx, cy, cz, seed, ctx) {
+  const groundY = findLocalTopY(dim, cx, cz, cy + 4, cy - 4);
+  if (groundY === null) return;
+  const baseY = groundY + 1;
+
+  const star = perm(BLOCKS.STARSTONE);
+  const stone = perm(BLOCKS.AURALITE);
+  const crystal = perm(BLOCKS.SEA_CRYSTAL);
+
+  const offsets = [
+    [0, 0, 0, star],
+    [1, 0, 0, star],
+    [-1, 0, 0, stone],
+    [0, 0, 1, stone],
+    [0, 0, -1, star],
+    [0, 1, 0, star],
+  ];
+  for (const [dx, dy, dz, blk] of offsets) {
+    setBlk(dim, cx + dx, baseY + dy, cz + dz, blk, ctx);
+    if (dy === 0) {
+      groundFoundationColumn(dim, cx + dx, { y: baseY, z: cz + dz }, 2, stone, ctx);
+    }
+  }
+  // Grounded crystal shards resting cleanly on rock faces
+  setBlk(dim, cx, baseY + 2, cz, crystal, ctx);
+  if (hash2(cx, cz, seed + 1) > 0.25) setBlk(dim, cx + 1, baseY + 1, cz, crystal, ctx);
+  if (hash2(cx, cz, seed + 2) > 0.35) setBlk(dim, cx, baseY + 1, cz - 1, crystal, ctx);
+  if (hash2(cx, cz, seed + 3) > 0.55) setBlk(dim, cx - 1, baseY + 1, cz, crystal, ctx);
+}
+
+function placeAstrolabeRing(dim, cx, cy, cz, radius, tiltX = 0.25, tiltZ = 0.15, useGlassAccent = true, ctx = null) {
   const brass = perm(BLOCKS.GILDED_BRASS);
   const solarium = perm(BLOCKS.SOLARIUM_BLOCK);
   const glass = perm(BLOCKS.STARLIGHT_GLASS);
-  const steps = Math.max(36, Math.floor(radius * 7));
+  const steps = Math.max(40, Math.floor(radius * 7));
   for (let i = 0; i < steps; i++) {
     const ang = (i / steps) * Math.PI * 2;
     const rx = Math.cos(ang) * radius;
@@ -167,13 +294,13 @@ function placeAstrolabeRing(dim, cx, cy, cz, radius, tiltX = 0.25, tiltZ = 0.15,
     const by = Math.round(cy + ry);
     const bz = Math.round(cz + rz);
     const blk = i % 12 === 0 ? solarium : (useGlassAccent && i % 4 === 0 ? glass : brass);
-    setBlk(dim, bx, by, bz, blk);
+    setBlk(dim, bx, by, bz, blk, ctx);
   }
 }
 
-function placeTreasureChest(dim, x, y, z) {
+function placeTreasureChest(dim, x, y, z, ctx) {
   try {
-    setBlk(dim, x, y, z, perm("minecraft:chest"));
+    setBlk(dim, x, y, z, perm("minecraft:chest"), ctx);
     const blk = dim.getBlock({ x: Math.floor(x), y: Math.floor(y), z: Math.floor(z) });
     const inv = blk?.getComponent("minecraft:inventory")?.container;
     if (!inv) return;
@@ -183,9 +310,10 @@ function placeTreasureChest(dim, x, y, z) {
       [ITEMS.PRISM_BERRY, 3 + Math.floor(hash2(x, z, 13) * 5)],
       [ITEMS.CELESTIAL_NECTAR, 1 + Math.floor(hash2(x, z, 14) * 2)],
     ];
-    if (hash2(x, z, 15) > 0.55) pool.push([ITEMS.GALE_PRISM, 1]);
-    if (hash2(x, z, 16) > 0.62) pool.push([ITEMS.STAR_CORE, 1]);
-    if (hash2(x, z, 17) > 0.72) pool.push([BLOCKS.LANTERN_BLOOM, 2]);
+    if (hash2(x, z, 15) > 0.52) pool.push([ITEMS.GALE_PRISM, 1]);
+    if (hash2(x, z, 16) > 0.58) pool.push([ITEMS.STAR_CORE, 1]);
+    if (hash2(x, z, 17) > 0.65) pool.push([BLOCKS.LANTERN_BLOOM, 2]);
+    if (hash2(x, z, 18) > 0.55) pool.push([BLOCKS.CLOUD_VENT, 1]);
 
     let slot = 4;
     for (const [id, count] of pool) {
@@ -201,13 +329,288 @@ function placeTreasureChest(dim, x, y, z) {
   }
 }
 
+/**
+ * Builds a lower walkable Cloud-Landing Shelf with a glowing Updraft Cloud-Vent
+ * tucked neatly inside an upper island's macro-cell so explorers can glide down and
+ * ride the breeze effortlessly back up without endless bridging!
+ */
+function* placeLowerCloudShelfJob(dim, cx, cy, cz, rad, seed, ctx) {
+  const cloud = perm(BLOCKS.CLOUDSTONE);
+  const rose = perm(BLOCKS.ROSE_CLOUD);
+  const vent = perm(BLOCKS.CLOUD_VENT);
+  const brass = perm(BLOCKS.GILDED_BRASS);
+  let ops = 0;
+
+  for (let dx = -rad; dx <= rad; dx++) {
+    for (let dz = -rad; dz <= rad; dz++) {
+      const d = Math.hypot(dx, dz);
+      const eff = rad + (fbm2((cx + dx) * 0.16, (cz + dz) * 0.16, 2, seed + 7) - 0.5) * 3.0;
+      if (d > eff) continue;
+      const norm = 1.0 - d / eff;
+      const depth = Math.max(1, Math.floor(norm * 4.2));
+      for (let dy = -depth; dy <= 0; dy++) {
+        const isRim = d > eff - 2.6 || dy === -depth;
+        setBlk(dim, cx + dx, cy + dy, cz + dz, isRim ? rose : cloud, ctx);
+        if (++ops % 40 === 0) yield;
+      }
+    }
+  }
+  // Ornate brass-rimmed Updraft Cloud-Vent pad at shelf center
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    setBlk(dim, cx + dx, cy, cz + dz, brass, ctx);
+  }
+  setBlk(dim, cx, cy, cz, vent, ctx);
+}
+
+/**
+ * Curated Architectural Building: Ornate Wayfarer's Sky-Pavilion (11x11 domed tea-shrine!)
+ */
+function* placeWayfarerPavilionJob(dim, cx, cy, cz, ctx) {
+  const gilded = perm(BLOCKS.GILDED_TRAVERTINE);
+  const stone = perm(BLOCKS.AURALITE);
+  const brass = perm(BLOCKS.GILDED_BRASS);
+  const planks = perm(BLOCKS.PRISM_PLANKS);
+  const log = perm(BLOCKS.PRISM_LOG);
+  const glass = perm(BLOCKS.STARLIGHT_GLASS);
+  const lantern = perm(BLOCKS.LANTERN_BLOOM);
+  const air = perm("minecraft:air");
+  let ops = 0;
+
+  // Raised carved terrace floor (11x11 octagonal) with flush stone foundation plinth
+  for (let dx = -5; dx <= 5; dx++) {
+    for (let dz = -5; dz <= 5; dz++) {
+      if (Math.abs(dx) + Math.abs(dz) > 8) continue;
+      const border = Math.abs(dx) === 5 || Math.abs(dz) === 5 || Math.abs(dx) + Math.abs(dz) === 8;
+      const p = border ? brass : (Math.abs(dx) <= 2 && Math.abs(dz) <= 2 ? planks : gilded);
+      setBlk(dim, cx + dx, cy, cz + dz, p, ctx);
+      groundFoundationColumn(dim, cx + dx, { y: cy, z: cz + dz }, 4, border ? gilded : stone, ctx);
+      // Clear interior airspace cleanly
+      for (let h = 1; h <= 7; h++) {
+        setBlk(dim, cx + dx, cy + h, cz + dz, air, ctx);
+      }
+      if (++ops % 40 === 0) yield;
+    }
+  }
+
+  // 8 Graceful Perimeter Pillars (4 corners + 4 doorway frames)
+  for (const [px, pz] of [[-4, -4], [4, -4], [-4, 4], [4, 4], [-2, -5], [2, -5], [-2, 5], [2, 5], [-5, -2], [-5, 2], [5, -2], [5, 2]]) {
+    for (let h = 1; h <= 5; h++) {
+      setBlk(dim, cx + px, cy + h, cz + pz, h === 5 ? brass : (Math.abs(px) === 4 ? log : gilded), ctx);
+    }
+    if (++ops % 24 === 0) yield;
+  }
+
+  // Sculpted Domed Starlight-Glass & Prism-Plank Roof + Hanging Lantern Chandelier
+  for (let dx = -5; dx <= 5; dx++) {
+    for (let dz = -5; dz <= 5; dz++) {
+      const m = Math.abs(dx) + Math.abs(dz);
+      if (m > 8) continue;
+      if (m >= 6) {
+        setBlk(dim, cx + dx, cy + 6, cz + dz, planks, ctx);
+      } else if (m >= 3) {
+        setBlk(dim, cx + dx, cy + 7, cz + dz, (dx === 0 || dz === 0) ? brass : glass, ctx);
+      } else {
+        setBlk(dim, cx + dx, cy + 8, cz + dz, m === 0 ? brass : glass, ctx);
+      }
+      if (++ops % 40 === 0) yield;
+    }
+  }
+  setBlk(dim, cx, cy + 9, cz, lantern, ctx);
+  setBlk(dim, cx, cy + 6, cz, lantern, ctx);
+
+  // Cozy interior furnishings: Crafting table + Supply Chest + corner lanterns
+  setBlk(dim, cx - 2, cy + 1, cz - 2, perm("minecraft:crafting_table"), ctx);
+  placeTreasureChest(dim, cx + 2, cy + 1, cz - 2, ctx);
+  setBlk(dim, cx - 3, cy + 1, cz + 3, lantern, ctx);
+  setBlk(dim, cx + 3, cy + 1, cz + 3, lantern, ctx);
+}
+
+/**
+ * Curated Architectural Building: 22-Block Climbable Alabaster & Brass Bell-Tower (Campanile!)
+ */
+function* placeBellCampanileJob(dim, cx, cy, cz, ctx) {
+  const gilded = perm(BLOCKS.GILDED_TRAVERTINE);
+  const stone = perm(BLOCKS.AURALITE);
+  const brass = perm(BLOCKS.GILDED_BRASS);
+  const planks = perm(BLOCKS.PRISM_PLANKS);
+  const solBlk = perm(BLOCKS.SOLARIUM_BLOCK);
+  const glass = perm(BLOCKS.STARLIGHT_GLASS);
+  const lantern = perm(BLOCKS.LANTERN_BLOOM);
+  const air = perm("minecraft:air");
+  let ops = 0;
+
+  // Base foundation plinth (7x7) grounded firmly into terrain
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = -3; dz <= 3; dz++) {
+      const edge = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+      setBlk(dim, cx + dx, cy, cz + dz, edge ? brass : gilded, ctx);
+      groundFoundationColumn(dim, cx + dx, { y: cy, z: cz + dz }, 4, edge ? gilded : stone, ctx);
+    }
+  }
+  yield;
+
+  // Tower shaft H = 1..15 with arched entry doors + climbable interior spiral stairs!
+  const stairRing = [
+    [-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2],
+    [2, -1], [2, 0], [2, 1], [2, 2],
+    [1, 2], [0, 2], [-1, 2], [-2, 2],
+    [-2, 1], [-2, 0], [-2, -1],
+  ];
+  for (let h = 1; h <= 15; h++) {
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dz = -3; dz <= 3; dz++) {
+        const isWall = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+        const isCorner = Math.abs(dx) === 3 && Math.abs(dz) === 3;
+        if (!isWall) {
+          setBlk(dim, cx + dx, cy + h, cz + dz, air, ctx);
+        } else if (isCorner) {
+          setBlk(dim, cx + dx, cy + h, cz + dz, h % 5 === 0 ? brass : gilded, ctx);
+        } else if (h <= 3 && (dx === 0 || dz === 0)) {
+          // Tall open entrance arches on all 4 ground sides!
+          setBlk(dim, cx + dx, cy + h, cz + dz, air, ctx);
+        } else if (h % 4 === 0 && (dx === 0 || dz === 0)) {
+          setBlk(dim, cx + dx, cy + h, cz + dz, glass, ctx);
+        } else {
+          setBlk(dim, cx + dx, cy + h, cz + dz, h === 15 ? brass : gilded, ctx);
+        }
+        if (++ops % 45 === 0) yield;
+      }
+    }
+    // Walkable spiral stepping shelf circling up the inner wall!
+    const [sx, sz] = stairRing[(h - 1) % stairRing.length];
+    const [sx2, sz2] = stairRing[h % stairRing.length];
+    setBlk(dim, cx + sx, cy + h, cz + sz, planks, ctx);
+    setBlk(dim, cx + sx2, cy + h, cz + sz2, planks, ctx);
+  }
+
+  // Belfry Floor (H=16) + Open Colonnade Belfry (H=17..20) + Golden Resonance Bell + Spire Roof!
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = -3; dz <= 3; dz++) {
+      if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) continue; // stairwell hatch opening!
+      setBlk(dim, cx + dx, cy + 16, cz + dz, planks, ctx);
+    }
+  }
+  for (const [px, pz] of [[-3, -3], [3, -3], [-3, 3], [3, 3]]) {
+    for (let h = 17; h <= 21; h++) {
+      setBlk(dim, cx + px, cy + h, cz + pz, h === 21 ? brass : gilded, ctx);
+    }
+  }
+  // Stepped Golden Pyramid Belfry Roof
+  for (let tier = 0; tier <= 3; tier++) {
+    const r = 3 - tier;
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dz = -r; dz <= r; dz++) {
+        setBlk(dim, cx + dx, cy + 21 + tier, cz + dz, tier === 3 ? solBlk : (tier % 2 === 0 ? brass : gilded), ctx);
+      }
+    }
+  }
+  setBlk(dim, cx, cy + 25, cz, lantern, ctx);
+  // Suspended Golden Resonance Bell inside the belfry + Treasure Chest!
+  setBlk(dim, cx, cy + 20, cz, brass, ctx);
+  setBlk(dim, cx, cy + 19, cz, solBlk, ctx);
+  setBlk(dim, cx, cy + 18, cz, lantern, ctx);
+  placeTreasureChest(dim, cx + 2, cy + 17, cz, ctx);
+}
+
+/**
+ * Curated Architectural Building: Cloud-Harbor Shrine & Timber Sky-Dock (built atop Cloud Plains!)
+ */
+function* placeCloudHarborJob(dim, cx, cy, cz, ctx) {
+  const planks = perm(BLOCKS.PRISM_PLANKS);
+  const log = perm(BLOCKS.PRISM_LOG);
+  const gilded = perm(BLOCKS.GILDED_TRAVERTINE);
+  const brass = perm(BLOCKS.GILDED_BRASS);
+  const glass = perm(BLOCKS.STARLIGHT_GLASS);
+  const lantern = perm(BLOCKS.LANTERN_BLOOM);
+  const vent = perm(BLOCKS.CLOUD_VENT);
+  const cloud = perm(BLOCKS.CLOUDSTONE);
+  const air = perm("minecraft:air");
+  let ops = 0;
+
+  // Sweeping Prism-Plank Harbor Boardwalk (North-South pier + timber pilings)
+  for (let dz = -14; dz <= 14; dz++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      const isPiling = Math.abs(dx) === 2 && dz % 4 === 0;
+      setBlk(dim, cx + dx, cy + 1, cz + dz, isPiling ? log : planks, ctx);
+      setBlk(dim, cx + dx, cy + 2, cz + dz, air, ctx);
+      setBlk(dim, cx + dx, cy + 3, cz + dz, air, ctx);
+      if (isPiling) {
+        groundFoundationColumn(dim, cx + dx, { y: cy + 1, z: cz + dz }, 4, log, ctx);
+      }
+      if (++ops % 40 === 0) yield;
+    }
+    if (dz % 6 === 0) {
+      // Dockside lantern posts!
+      for (const sx of [-3, 3]) {
+        setBlk(dim, cx + sx, cy + 1, cz + dz, log, ctx);
+        groundFoundationColumn(dim, cx + sx, { y: cy + 1, z: cz + dz }, 4, log, ctx);
+        setBlk(dim, cx + sx, cy + 2, cz + dz, log, ctx);
+        setBlk(dim, cx + sx, cy + 3, cz + dz, brass, ctx);
+        setBlk(dim, cx + sx, cy + 4, cz + dz, lantern, ctx);
+      }
+    }
+  }
+
+  // Cozy Harbor Shelter House beside the dock (x: +4..+11, z: -4..+4)
+  for (let dx = 4; dx <= 11; dx++) {
+    for (let dz = -4; dz <= 4; dz++) {
+      setBlk(dim, cx + dx, cy + 1, cz + dz, gilded, ctx);
+      groundFoundationColumn(dim, cx + dx, { y: cy + 1, z: cz + dz }, 4, cloud, ctx);
+      const wall = dx === 4 || dx === 11 || dz === -4 || dz === 4;
+      const corner = (dx === 4 || dx === 11) && (dz === -4 || dz === 4);
+      for (let h = 2; h <= 5; h++) {
+        if (!wall) {
+          setBlk(dim, cx + dx, cy + h, cz + dz, air, ctx);
+        } else if (corner) {
+          setBlk(dim, cx + dx, cy + h, cz + dz, log, ctx);
+        } else if (dx === 4 && Math.abs(dz) <= 1 && h <= 4) {
+          // Open entrance facing the dock!
+          setBlk(dim, cx + dx, cy + h, cz + dz, air, ctx);
+        } else if (h === 3 && (dz === 0 || dx === 7 || dx === 8)) {
+          setBlk(dim, cx + dx, cy + h, cz + dz, glass, ctx);
+        } else {
+          setBlk(dim, cx + dx, cy + h, cz + dz, planks, ctx);
+        }
+        if (++ops % 40 === 0) yield;
+      }
+    }
+  }
+  // Pitched Alabaster & Prism-Plank Gable Roof
+  for (let tier = 0; tier <= 3; tier++) {
+    for (let dx = 3 + tier; dx <= 12 - tier; dx++) {
+      for (let dz = -5; dz <= 5; dz++) {
+        if (dx === 3 + tier || dx === 12 - tier || tier === 3) {
+          setBlk(dim, cx + dx, cy + 6 + tier, cz + dz, tier === 3 ? brass : planks, ctx);
+        }
+      }
+    }
+  }
+  setBlk(dim, cx + 8, cy + 2, cz - 2, perm("minecraft:crafting_table"), ctx);
+  setBlk(dim, cx + 9, cy + 2, cz + 2, lantern, ctx);
+  placeTreasureChest(dim, cx + 9, cy + 2, cz, ctx);
+
+  // Three glowing Updraft Cloud-Vents snapped cleanly to local cloud surface!
+  for (const [vx, vz] of [[0, -17], [0, 17], [-12, 0]]) {
+    const vy = findLocalTopY(dim, cx + vx, cz + vz, cy + 4, cy - 2) ?? cy;
+    for (const [bx, bz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      setBlk(dim, cx + vx + bx, vy, cz + vz + bz, brass, ctx);
+      setBlk(dim, cx + vx + bx, vy + 1, cz + vz + bz, air, ctx);
+    }
+    setBlk(dim, cx + vx, vy, cz + vz, vent, ctx);
+    setBlk(dim, cx + vx, vy + 1, cz + vz, air, ctx);
+    setBlk(dim, cx + vx, vy + 2, cz + vz, air, ctx);
+  }
+}
+
 // =============================================================================
-// 1. GRAND ARRIVAL ATOLL — THE SANCTUARY CROWN (0, 84, 0)
+// 1. GRAND ARRIVAL ATOLL — SANCTUARY CROWN 2.0 (0, 84, 0, Radius 28!)
 // =============================================================================
 
 function* buildSanctuaryCrownJob(dim) {
   const { x: cx, y: cy, z: cz } = SANCTUARY_CENTER;
-  const radius = 22;
+  const radius = 28;
+  const ctx = { missedWrites: 0 };
+
   const stone = perm(BLOCKS.AURALITE);
   const star = perm(BLOCKS.STARSTONE);
   const moss = perm(BLOCKS.TIDE_MOSS);
@@ -218,38 +621,38 @@ function* buildSanctuaryCrownJob(dim) {
   const glass = perm(BLOCKS.STARLIGHT_GLASS);
   const water = perm("minecraft:water");
   const veil = perm(BLOCKS.STARLIGHT_VEIL);
-  const crystal = perm(BLOCKS.SEA_CRYSTAL);
   const lantern = perm(BLOCKS.LANTERN_BLOOM);
   const reed = perm(BLOCKS.CHIME_REED);
+  const cloud = perm(BLOCKS.CLOUDSTONE);
+  const rose = perm(BLOCKS.ROSE_CLOUD);
+  const vent = perm(BLOCKS.CLOUD_VENT);
+  const air = perm("minecraft:air");
   const astrolabeOn = perm(BLOCKS.ASTROLABE, { "auralis:attuned": true });
-
   let ops = 0;
 
-  // 1. Sculpted Multi-Tiered Floating Island Body + Tapered Starstone Stalactite Underbelly
-  for (let dx = -radius; dx <= radius; dx++) {
-    for (let dz = -radius; dz <= radius; dz++) {
+  // 1. Sweeping 56-block wide Multi-Tiered Porcelain Sanctuary Plateau
+  for (let dx = -34; dx <= 34; dx++) {
+    for (let dz = -34; dz <= 34; dz++) {
       const dist = Math.hypot(dx, dz);
-      const edgeNoise = (fbm2((cx + dx) * 0.11, (cz + dz) * 0.11, 2, 11) - 0.5) * 4.2;
-      const effR = radius + edgeNoise;
+      const taper = Math.max(0, 1.0 - Math.max(0, dist - 22) / 10);
+      const edgeNoise = (fbm2((cx + dx) * 0.09, (cz + dz) * 0.09, 2, 11) - 0.5) * 4.8 * taper;
+      const effR = Math.min(32, radius + edgeNoise);
       if (dist > effR) continue;
 
       const norm = 1.0 - dist / effR;
-      // Terraced porcelain plateau profile: raised central Sanctuary dais!
-      const topH = dist < 8.5 ? 2 : dist < 14 ? 1 : 0;
-      const depth = Math.max(2, Math.floor(Math.pow(norm, 1.15) * 19 + hash2(dx, dz, 3) * 3));
+      const topH = dist < 9.5 ? 2 : dist < 17 ? 1 : 0;
+      const depth = Math.max(2, Math.floor(Math.pow(norm, 1.15) * 20 + hash2(dx, dz, 3) * 3));
 
       for (let dy = -depth; dy <= topH; dy++) {
         let p = stone;
         if (dy === topH) {
-          // Central Observatory Dais vs Outer Tide-Moss Gardens
-          if (dist < 6.8) {
-            p = dist > 5.4 ? brass : gilded;
-          } else if (Math.abs(dx) <= 1 && dz > 6 && dz < 16) {
-            // Southern aquamarine stream feeding the starlight waterfall!
+          if (dist < 7.2) {
+            p = dist > 5.8 ? brass : gilded;
+          } else if (Math.abs(dx) <= 1 && dz > 7 && dz < 25) {
             p = water;
-            setBlk(dim, cx + dx, cy + dy - 1, cz + dz, glass);
-          } else if (Math.abs(dx) <= 1 && dz < -6 && dz > -21) {
-            // Northern gilded walkway pointing toward the Astral Citadel!
+            setBlk(dim, cx + dx, cy + dy - 1, cz + dz, glass, ctx);
+          } else if ((Math.abs(dx) <= 1 && dz < -7 && dz > -27) || (Math.abs(dz) <= 1 && Math.abs(dx) > 7 && Math.abs(dx) < 27)) {
+            // Cardinal gilded promenade avenues!
             p = gilded;
           } else {
             p = moss;
@@ -257,107 +660,101 @@ function* buildSanctuaryCrownJob(dim) {
         } else if (dy < -3) {
           p = hash3(dx, dy, dz, 55) > 0.94 ? solOre : star;
         }
-        setBlk(dim, cx + dx, cy + dy, cz + dz, p);
-        if (++ops % 45 === 0) yield;
+        setBlk(dim, cx + dx, cy + dy, cz + dz, p, ctx);
+        if (++ops % 40 === 0) yield;
       }
 
-      // Lush organic surface flora on outer moss ring
-      if (dist >= 9.5 && dist <= effR - 2.2 && !(Math.abs(dx) <= 2 && Math.abs(dz) > 6)) {
+      // Lush Chime-Reeds (NO random loose crystals on grass!)
+      if (dist >= 12 && dist <= effR - 2.5 && Math.abs(dx) > 3 && Math.abs(dz) > 3) {
         const r = hash2(dx, dz, 88);
-        if (r > 0.965) {
-          setBlk(dim, cx + dx, cy + topH + 1, cz + dz, crystal);
-        } else if (r > 0.925 && r <= 0.955) {
-          setBlk(dim, cx + dx, cy + topH + 1, cz + dz, reed);
+        if (r > 0.952) {
+          setBlk(dim, cx + dx, cy + topH + 1, cz + dz, reed, ctx);
         }
       }
     }
   }
 
-  // 2. Cascading Starlight Waterfall plunging off South edge into the Rose-Gold Cloud Sea!
+  // 2. Cascading Starlight Waterfall plunging off South edge into the Rose-Gold Cloud Sea
   for (let wy = cy; wy >= 34; wy--) {
     for (let dx = -1; dx <= 1; dx++) {
-      setBlk(dim, cx + dx, wy, cz + 17, water);
+      setBlk(dim, cx + dx, wy, cz + 26, water, ctx);
     }
     if (++ops % 30 === 0) yield;
   }
 
-  // 3. Central Astral Mirror Observatory (Awakened Return Astrolabe + 3x3 Starlight Veil + 4 Arches!)
+  // 3. Central Mirrored Observatory Dais (Awakened Return Astrolabe + 4 Grand Arches)
   const oy = cy + 2;
-  setBlk(dim, cx, oy, cz, astrolabeOn);
+  setBlk(dim, cx, oy, cz, astrolabeOn, ctx);
   for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    setBlk(dim, cx + dx, oy, cz + dz, veil);
-    setBlk(dim, cx + dx, oy - 1, cz + dz, solBlk);
+    setBlk(dim, cx + dx, oy, cz + dz, veil, ctx);
+    setBlk(dim, cx + dx, oy - 1, cz + dz, solBlk, ctx);
   }
   for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-    setBlk(dim, cx + dx, oy, cz + dz, brass);
+    setBlk(dim, cx + dx, oy, cz + dz, brass, ctx);
   }
-
-  // Four soaring Alabaster & Gold Observatory Pillars + Connecting Crown Archways
-  const pillars = [[5, 5], [5, -5], [-5, 5], [-5, -5]];
-  for (const [px, pz] of pillars) {
-    for (let h = 1; h <= 8; h++) {
-      setBlk(dim, cx + px, oy + h, cz + pz, h === 1 || h === 8 ? brass : gilded);
+  for (const [px, pz] of [[5, 5], [5, -5], [-5, 5], [-5, -5]]) {
+    for (let h = 1; h <= 9; h++) {
+      setBlk(dim, cx + px, oy + h, cz + pz, h === 1 || h === 9 ? brass : gilded, ctx);
     }
-    setBlk(dim, cx + px, oy + 9, cz + pz, lantern);
+    setBlk(dim, cx + px, oy + 10, cz + pz, lantern, ctx);
     yield;
   }
-  // Graceful starlight glass & brass high bridge arcs between pillars
   for (let i = -4; i <= 4; i++) {
-    const archH = Math.round(9 + Math.cos((i / 4.5) * (Math.PI / 2)) * 3.2);
+    const archH = Math.round(10 + Math.cos((i / 4.5) * (Math.PI / 2)) * 3.4);
     const blk = Math.abs(i) <= 1 ? solBlk : (Math.abs(i) % 2 === 0 ? brass : glass);
-    setBlk(dim, cx + i, oy + archH, cz - 5, blk);
-    setBlk(dim, cx + i, oy + archH, cz + 5, blk);
-    setBlk(dim, cx - 5, oy + archH, cz + i, blk);
-    setBlk(dim, cx + 5, oy + archH, cz + i, blk);
+    setBlk(dim, cx + i, oy + archH, cz - 5, blk, ctx);
+    setBlk(dim, cx + i, oy + archH, cz + 5, blk, ctx);
+    setBlk(dim, cx - 5, oy + archH, cz + i, blk, ctx);
+    setBlk(dim, cx + 5, oy + archH, cz + i, blk, ctx);
   }
   yield;
 
-  // 4. Giant Hovering Golden Astrolabe Rings framing the Sanctuary Crown in the twilight sky!
-  placeAstrolabeRing(dim, cx, cy + 18, cz, 19, 0.36, 0.14, true);
+  // 4. Giant Hovering Golden Astrolabe Rings crowning the Sanctuary Sky
+  placeAstrolabeRing(dim, cx, cy + 20, cz, 21, 0.34, 0.14, true, ctx);
   yield;
-  placeAstrolabeRing(dim, cx, cy + 16, cz, 15, -0.28, 0.34, false);
+  placeAstrolabeRing(dim, cx, cy + 18, cz, 16, -0.28, 0.34, false, ctx);
   yield;
 
-  // 5. Four Signature Prism-Coral Trees gracing the Sanctuary terraces
-  for (const [tx, tz] of [[-12, -10], [13, -9], [-13, 8], [12, 10]]) {
-    placePrismTree(dim, cx + tx, cy + 1, cz + tz, 300 + tx * 7 + tz);
+  // 5. Sanctuary Wayfarer Library Gazebo on the NW terrace!
+  yield* placeWayfarerPavilionJob(dim, cx - 15, cy + 1, cz - 14, ctx);
+
+  // 6. Signature Prism-Coral Trees & Grounded Cliff-Rim Crystal Geode Outcrops
+  for (const [tx, tz] of [[16, -14], [17, 13], [-17, 13], [12, 18], [-12, 18]]) {
+    placePrismTree(dim, cx + tx, cy + 1, cz + tz, 300 + tx * 7 + tz, ctx);
+    yield;
+  }
+  for (const [gx, gz] of [[21, -7], [-22, 6], [19, 17]]) {
+    placeCrystalOutcrop(dim, cx + gx, cy + 1, cz + gz, 700 + gx * 11 + gz, ctx);
     yield;
   }
 
-  // 6. Three Stepping-Stone Prism Islets leading North toward the First Astral Citadel!
-  for (let step = 1; step <= 3; step++) {
-    const iz = cz - 28 - step * 18;
-    const ix = cx + (step % 2 === 0 ? 4 : -4);
-    const iy = cy + step * 4;
-    for (let dx = -4; dx <= 4; dx++) {
-      for (let dz = -4; dz <= 4; dz++) {
+  // 7. Four Cardinal Cloud-Terrace Launch Piers (with Updraft Cloud-Vents!) strictly inside ±35
+  for (const [px, pz] of [[0, -31], [0, 31], [31, 0], [-31, 0]]) {
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dz = -3; dz <= 3; dz++) {
         const d = Math.hypot(dx, dz);
-        if (d <= 4.2) {
-          setBlk(dim, ix + dx, iy, iz + dz, d < 2 ? gilded : moss);
-          setBlk(dim, ix + dx, iy - 1, iz + dz, stone);
-          if (d < 2.6) setBlk(dim, ix + dx, iy - 2, iz + dz, star);
+        if (d <= 3.4) {
+          setBlk(dim, cx + px + dx, cy - 1, cz + pz + dz, d > 2.2 ? rose : cloud, ctx);
+          if (d < 2.2) setBlk(dim, cx + px + dx, cy - 2, cz + pz + dz, rose, ctx);
+          setBlk(dim, cx + px + dx, cy, cz + pz + dz, air, ctx);
+          setBlk(dim, cx + px + dx, cy + 1, cz + pz + dz, air, ctx);
         }
       }
     }
-    setBlk(dim, ix, iy + 1, iz, step === 2 ? lantern : crystal);
+    setBlk(dim, cx + px, cy - 1, cz + pz, vent, ctx);
     yield;
   }
 
-  // Mark origin sectors as generated so procedural gen doesn't overwrite Sanctuary
-  for (let sx = -1; sx <= 1; sx++) {
-    for (let sz = -1; sz <= 1; sz++) {
-      persistSector(`${sx},${sz}`);
-    }
-  }
+  persistCell("0,0");
   world.setDynamicProperty(DP_SANCTUARY_BUILT, true);
 }
 
 // =============================================================================
-// 2. PROCEDURAL FLOATING ISLANDS, SPIRE GARDENS, BELL-REEFS & ASTRAL CITADELS
+// 2. GRAND ASTRAL CITADEL 2.0 (Wide 52-Block Open Boss Arena!)
 // =============================================================================
 
-function* buildAstralCitadelJob(dim, cx, cy, cz) {
-  const R = 19;
+function* buildAstralCitadelJob(dim, layout, ctx) {
+  const { cx, cy, cz, radius: R } = layout;
   const gilded = perm(BLOCKS.GILDED_TRAVERTINE);
   const stone = perm(BLOCKS.AURALITE);
   const star = perm(BLOCKS.STARSTONE);
@@ -366,138 +763,263 @@ function* buildAstralCitadelJob(dim, cx, cy, cz) {
   const glass = perm(BLOCKS.STARLIGHT_GLASS);
   const lantern = perm(BLOCKS.LANTERN_BLOOM);
   const altar = perm(BLOCKS.VESPERA_ALTAR);
-
   let ops = 0;
-  // Circular marble-and-starstone palace arena platform
+
+  // Wide, uncluttered 52-block diameter circular Boss Arena Platform
   for (let dx = -R; dx <= R; dx++) {
     for (let dz = -R; dz <= R; dz++) {
       const d = Math.hypot(dx, dz);
       if (d > R) continue;
-      const depth = Math.max(2, Math.floor((1 - d / R) * 14));
+      const depth = Math.max(2, Math.floor((1 - d / R) * 16));
       for (let dy = -depth; dy <= 0; dy++) {
         let p = dy < -3 ? star : stone;
         if (dy === 0) {
-          if (d < 3.5) p = brass;
-          else if (Math.abs(d - 11) < 1.2 || d > R - 1.5) p = brass;
-          else if ((Math.abs(dx) <= 1 || Math.abs(dz) <= 1) && d < R - 1) p = solBlk;
+          if (d < 4.0) p = brass;
+          else if (Math.abs(d - 14) < 1.2 || d > R - 1.6) p = brass;
+          else if ((Math.abs(dx) <= 1 || Math.abs(dz) <= 1) && d < R - 1.5) p = solBlk;
           else p = gilded;
         }
-        setBlk(dim, cx + dx, cy + dy, cz + dz, p);
-        if (++ops % 45 === 0) yield;
+        setBlk(dim, cx + dx, cy + dy, cz + dz, p, ctx);
+        if (++ops % 40 === 0) yield;
       }
     }
   }
 
-  // 8 Towering Colonnade Pillars + Glowing Dome Ribs
+  // 8 Outer Perimeter Triumphal Obelisks (at R=22, keeping central 42-block arena WIDE OPEN for boss combat!)
   for (let i = 0; i < 8; i++) {
     const ang = (i / 8) * Math.PI * 2;
-    const px = Math.round(cx + Math.cos(ang) * 15);
-    const pz = Math.round(cz + Math.sin(ang) * 15);
-    for (let h = 1; h <= 13; h++) {
-      setBlk(dim, px, cy + h, pz, h % 4 === 0 ? brass : gilded);
+    const px = Math.round(cx + Math.cos(ang) * 22);
+    const pz = Math.round(cz + Math.sin(ang) * 22);
+    for (let h = 1; h <= 11; h++) {
+      setBlk(dim, px, cy + h, pz, h % 4 === 0 ? brass : (h > 9 ? glass : gilded), ctx);
     }
-    setBlk(dim, px, cy + 14, pz, lantern);
-    // Graceful starlight-glass dome rib arching toward zenith!
-    for (let s = 1; s <= 10; s++) {
-      const t = s / 10;
-      const rx = Math.round(cx + Math.cos(ang) * (15 * (1 - t)));
-      const rz = Math.round(cz + Math.sin(ang) * (15 * (1 - t)));
-      const ry = Math.round(cy + 13 + Math.sin(t * Math.PI * 0.5) * 9);
-      setBlk(dim, rx, ry, rz, s % 3 === 0 ? brass : glass);
-    }
+    setBlk(dim, px, cy + 12, pz, lantern, ctx);
     yield;
   }
 
-  // Twin majestic interlocking Golden Astrolabe Rings crowning the Citadel!
-  placeAstrolabeRing(dim, cx, cy + 16, cz, 21, 0.32, -0.22, true);
+  // High Overhead Interlocking Astrolabe Crown Rings (cy + 22 -> completely clear of Seraph flight!)
+  placeAstrolabeRing(dim, cx, cy + 22, cz, 23, 0.28, -0.18, true, ctx);
   yield;
-  placeAstrolabeRing(dim, cx, cy + 16, cz, 17, -0.35, 0.28, false);
+  placeAstrolabeRing(dim, cx, cy + 22, cz, 18, -0.32, 0.24, false, ctx);
   yield;
 
-  // Vespera Sanctum Altar at the heart of the Citadel!
-  setBlk(dim, cx, cy + 1, cz, altar);
-  // Two treasure chests tucked near the outer pillars
-  placeTreasureChest(dim, cx + 12, cy + 1, cz);
-  placeTreasureChest(dim, cx - 12, cy + 1, cz);
+  // Vespera Sanctum Altar + Twin Perimeter Treasure Chests
+  setBlk(dim, cx, cy + 1, cz, altar, ctx);
+  placeTreasureChest(dim, cx + 18, cy + 1, cz, ctx);
+  placeTreasureChest(dim, cx - 18, cy + 1, cz, ctx);
+
+  // Lower Cloud-Shelf Approach Deck with Updraft Cloud-Vent right into the Citadel!
+  yield* placeLowerCloudShelfJob(dim, cx, 50, cz + 20, 11, layout.seed + 99, ctx);
 }
 
-function* buildPearlAtollJob(dim, cx, cy, cz, seed) {
-  const rad = 8 + Math.floor(hash2(cx, cz, seed) * 8);
+// =============================================================================
+// 3. WALKABLE CLOUD-SHELF PLAINS & CLOUD-HARBOR SHRINE
+// =============================================================================
+
+function* buildCloudPlainsJob(dim, layout, ctx) {
+  const { cx, cy, cz, radius: rad, minX, maxX, minZ, maxZ, seed } = layout;
+  const cloud = perm(BLOCKS.CLOUDSTONE);
+  const rose = perm(BLOCKS.ROSE_CLOUD);
+  const moss = perm(BLOCKS.TIDE_MOSS);
+  let ops = 0;
+
+  for (let bx = minX; bx <= maxX; bx++) {
+    for (let bz = minZ; bz <= maxZ; bz++) {
+      const dx = bx - cx;
+      const dz = bz - cz;
+      const dist = Math.hypot(dx, dz);
+      const edgeLimit = Math.min(bx - minX, maxX - bx, bz - minZ, maxZ - bz);
+      const taper = Math.min(1.0, edgeLimit / 4.0);
+      const jitter = (fbm2(bx * 0.08, bz * 0.08, 2, seed) - 0.5) * 6.5 * taper;
+      const eff = rad + jitter;
+      if (dist > eff) continue;
+
+      const norm = 1.0 - dist / eff;
+      // Gentle billowy walkable cloud terraces (+0..+2 blocks, easy to walk without jumping!)
+      const billow = Math.floor(fbm2(bx * 0.06, bz * 0.06, 2, seed + 17) * 2.4 * norm);
+      const topY = cy + (dist < 16 ? 0 : billow);
+      const depth = Math.max(2, Math.floor(Math.pow(norm, 0.85) * 7 + 1));
+
+      for (let y = topY - depth; y <= topY; y++) {
+        let p = cloud;
+        if (y === topY && dist > eff - 4.0) p = rose;
+        else if (y <= topY - depth + 1) p = rose;
+        else if (y === topY && dist > 16 && fbm2(bx * 0.12, bz * 0.12, 2, seed + 44) > 0.72) p = moss;
+        setBlk(dim, bx, y, bz, p, ctx);
+        if (++ops % 40 === 0) yield;
+      }
+    }
+  }
+
+  // Curated Cloud-Harbor Shrine, Sky-Dock & 3 Updraft Cloud-Vents!
+  yield* placeCloudHarborJob(dim, cx, cy, cz, ctx);
+
+  // Two sculptural Prism-Coral trees growing on moss pockets of the cloud plain
+  for (const [tx, tz] of [[-16, -12], [-15, 13]]) {
+    if (Math.hypot(tx, tz) < rad - 5) {
+      placePrismTree(dim, cx + tx, cy + 1, cz + tz, seed + tx * 5 + tz, ctx);
+      yield;
+    }
+  }
+}
+
+// =============================================================================
+// 4. GRAND PEARL-TERRACE ATOLL (Huge Island + Wayfarer Sky-Pavilion!)
+// =============================================================================
+
+function* buildPearlAtollJob(dim, layout, ctx) {
+  const { cx, cy, cz, radius: rad, minX, maxX, minZ, maxZ, seed } = layout;
   const stone = perm(BLOCKS.AURALITE);
   const star = perm(BLOCKS.STARSTONE);
   const moss = perm(BLOCKS.TIDE_MOSS);
   const solOre = perm(BLOCKS.SOLARIUM_ORE);
   const water = perm("minecraft:water");
-  const crystal = perm(BLOCKS.SEA_CRYSTAL);
   const reed = perm(BLOCKS.CHIME_REED);
-  const lantern = perm(BLOCKS.LANTERN_BLOOM);
-  const hasPool = rad >= 11 && hash2(cx, cz, seed + 2) > 0.35;
   let ops = 0;
 
-  for (let dx = -rad; dx <= rad; dx++) {
-    for (let dz = -rad; dz <= rad; dz++) {
+  for (let bx = minX; bx <= maxX; bx++) {
+    for (let bz = minZ; bz <= maxZ; bz++) {
+      const dx = bx - cx;
+      const dz = bz - cz;
       const dist = Math.hypot(dx, dz);
-      const jitter = (fbm2((cx + dx) * 0.14, (cz + dz) * 0.14, 2, seed) - 0.5) * 3.4;
+      const edgeLimit = Math.min(bx - minX, maxX - bx, bz - minZ, maxZ - bz);
+      const taper = Math.min(1.0, edgeLimit / 4.0);
+      const jitter = (fbm2(bx * 0.09, bz * 0.09, 2, seed) - 0.5) * 5.2 * taper;
       const eff = rad + jitter;
       if (dist > eff) continue;
+
       const norm = 1.0 - dist / eff;
-      const topOff = norm > 0.55 ? 1 : 0;
-      const depth = Math.max(2, Math.floor(Math.pow(norm, 1.15) * (rad * 0.95)));
+      const topOff = dist < 9.5 ? 1 : (norm > 0.42 ? 1 : 0);
+      const depth = Math.max(2, Math.floor(Math.pow(norm, 1.15) * (rad * 0.72)));
+
+      // Small scenic spring pool tucked at (+11, +6) away from central Pavilion!
+      const poolDist = Math.hypot(dx - 11, dz - 6);
+      const inPool = poolDist < 3.8 && dist < eff - 4.0;
 
       for (let dy = -depth; dy <= topOff; dy++) {
         let p = stone;
         if (dy === topOff) {
-          if (hasPool && dist < 3.4) {
-            p = water;
-            setBlk(dim, cx + dx, cy + dy - 1, cz + dz, stone);
-          } else {
-            p = moss;
-          }
-        } else if (dy < -2) {
-          p = hash3(cx + dx, cy + dy, cz + dz, seed) > 0.935 ? solOre : star;
+          p = inPool ? water : moss;
+        } else if (dy === topOff - 1 && inPool) {
+          p = stone;
+        } else if (dy < -3) {
+          p = hash3(bx, cy + dy, bz, seed) > 0.935 ? solOre : star;
         }
-        setBlk(dim, cx + dx, cy + dy, cz + dz, p);
-        if (++ops % 45 === 0) yield;
+        setBlk(dim, bx, cy + dy, bz, p, ctx);
+        if (++ops % 40 === 0) yield;
       }
 
-      // Surface crystals & chime reeds
-      if (!(hasPool && dist < 4.0) && dist < eff - 1.5) {
-        const r = hash2(cx + dx, cz + dz, seed + 21);
-        if (r > 0.965) setBlk(dim, cx + dx, cy + topOff + 1, cz + dz, crystal);
-        else if (r > 0.935 && r <= 0.955) setBlk(dim, cx + dx, cy + topOff + 1, cz + dz, reed);
+      if (!inPool && dist >= 9.0 && dist <= eff - 2.5) {
+        const r = hash2(bx, bz, seed + 21);
+        if (r > 0.955) setBlk(dim, bx, cy + topOff + 1, bz, reed, ctx);
       }
     }
   }
 
-  // Signature Prism-Coral Tree(s)
-  const treeCount = rad >= 12 ? 2 : 1;
-  for (let i = 0; i < treeCount; i++) {
-    const ang = hash2(cx + i, cz - i, seed + 40) * Math.PI * 2;
-    const dist = hasPool ? Math.min(rad - 3, 5.5) : 2.0;
-    const tx = Math.round(cx + Math.cos(ang) * dist);
-    const tz = Math.round(cz + Math.sin(ang) * dist);
-    placePrismTree(dim, tx, cy + 2, tz, seed + i * 19);
-    yield;
+  // Grand Centerpiece Building: Wayfarer's Sky-Pavilion!
+  yield* placeWayfarerPavilionJob(dim, cx, cy + 1, cz, ctx);
+
+  // 4 Signature Prism-Coral Trees gracing the wide plateau
+  for (const [tx, tz] of [[-14, -12], [14, -12], [-15, 11], [-8, 16]]) {
+    if (Math.hypot(tx, tz) < rad - 4) {
+      placePrismTree(dim, cx + tx, cy + 1, cz + tz, seed + tx * 7 + tz, ctx);
+      yield;
+    }
   }
 
-  // Occasional cascading starlight waterfall down to the cloud sea!
-  if (hasPool && hash2(cx, cz, seed + 77) > 0.45) {
-    const wx = cx + Math.floor(rad - 1);
-    for (let wy = cy; wy >= 34; wy--) {
-      setBlk(dim, wx, wy, cz, water);
-      if (++ops % 30 === 0) yield;
+  // Grounded Rocky Crystal Geode Outcrops near cliff ledges (zero random grass crystals!)
+  for (const [gx, gz] of [[17, -4], [-17, -2]]) {
+    if (Math.hypot(gx, gz) < rad - 3) {
+      placeCrystalOutcrop(dim, cx + gx, cy + 1, cz + gz, seed + gx * 13, ctx);
+      yield;
     }
-  } else {
-    setBlk(dim, cx, cy + 2, cz, lantern);
   }
+
+  // Lower walkable Cloud-Landing Shelf with Updraft Cloud-Vent
+  yield* placeLowerCloudShelfJob(dim, cx, 50, cz + Math.min(18, rad - 4), 10, seed + 88, ctx);
 }
 
-function* buildSpireGardenJob(dim, cx, cy, cz, seed) {
-  const baseRad = 6 + Math.floor(hash2(cx, cz, seed) * 5);
-  const spireH = 16 + Math.floor(hash2(cx, cz, seed + 3) * 18);
+// =============================================================================
+// 5. SUNKEN BELL-REEF (Wide Reflecting Lagoon + 22-Block Climbable Bell-Tower!)
+// =============================================================================
+
+function* buildBellReefJob(dim, layout, ctx) {
+  const { cx, cy, cz, radius: rad, minX, maxX, minZ, maxZ, seed } = layout;
+  const stone = perm(BLOCKS.AURALITE);
+  const star = perm(BLOCKS.STARSTONE);
+  const moss = perm(BLOCKS.TIDE_MOSS);
+  const planks = perm(BLOCKS.PRISM_PLANKS);
+  const glass = perm(BLOCKS.STARLIGHT_GLASS);
+  const reed = perm(BLOCKS.CHIME_REED);
+  const water = perm("minecraft:water");
+  let ops = 0;
+
+  for (let bx = minX; bx <= maxX; bx++) {
+    for (let bz = minZ; bz <= maxZ; bz++) {
+      const dx = bx - cx;
+      const dz = bz - cz;
+      const dist = Math.hypot(dx, dz);
+      const edgeLimit = Math.min(bx - minX, maxX - bx, bz - minZ, maxZ - bz);
+      const taper = Math.min(1.0, edgeLimit / 4.0);
+      const jitter = (fbm2(bx * 0.10, bz * 0.10, 2, seed) - 0.5) * 4.5 * taper;
+      const eff = rad + jitter;
+      if (dist > eff) continue;
+
+      // Central tower island (dist < 6.5) surrounded by serene turquoise lagoon ring (6.5..eff-5.5) + wide mossy shore!
+      const isLagoon = dist >= 6.8 && dist < eff - 5.5 && !(Math.abs(dx) <= 1 || Math.abs(dz) <= 1);
+      const isBridge = dist >= 6.8 && dist < eff - 5.5 && (Math.abs(dx) <= 1 || Math.abs(dz) <= 1);
+      const depth = Math.max(3, Math.floor((1 - dist / eff) * 10));
+
+      for (let dy = -depth; dy <= 0; dy++) {
+        let p = dy < -3 ? star : stone;
+        if (dy === 0) {
+          p = isLagoon ? water : (isBridge ? planks : moss);
+        } else if (dy === -1 && isLagoon) {
+          p = water;
+        } else if (dy === -2 && isLagoon) {
+          // Luminous Starlight Glass & Auralite floor — ZERO underwater custom crystals / ZERO air bubbles!
+          p = hash2(bx, bz, seed + 9) > 0.85 ? glass : stone;
+        }
+        setBlk(dim, bx, cy + dy, bz, p, ctx);
+        if (++ops % 40 === 0) yield;
+      }
+
+      if (!isLagoon && !isBridge && dist > eff - 5.0 && dist < eff - 1.8) {
+        if (hash2(bx, bz, seed + 31) > 0.945) {
+          setBlk(dim, bx, cy + 1, bz, reed, ctx);
+        }
+      }
+    }
+  }
+
+  // Towering 22-Block Climbable Alabaster & Brass Bell-Tower!
+  yield* placeBellCampanileJob(dim, cx, cy, cz, ctx);
+
+  // Two grounded rocky Crystal Geode Outcrops + Prism Trees on the dry outer shore
+  for (const [gx, gz] of [[rad - 4, 4], [-(rad - 4), -4]]) {
+    placeCrystalOutcrop(dim, cx + gx, cy + 1, cz + gz, seed + gx * 9, ctx);
+    yield;
+  }
+  for (const [tx, tz] of [[-(rad - 5), 10], [rad - 5, -10]]) {
+    if (Math.hypot(tx, tz) < rad - 2) {
+      placePrismTree(dim, cx + tx, cy + 1, cz + tz, seed + tx * 11, ctx);
+      yield;
+    }
+  }
+
+  yield* placeLowerCloudShelfJob(dim, cx, 48, cz - Math.min(18, rad - 4), 10, seed + 77, ctx);
+}
+
+// =============================================================================
+// 6. GILDED SPIRE GARDENS (Broad Observatory Terrace + Shattered Dome Ruins!)
+// =============================================================================
+
+function* buildSpireGardenJob(dim, layout, ctx) {
+  const { cx, cy, cz, radius: rad, minX, maxX, minZ, maxZ, seed } = layout;
   const gilded = perm(BLOCKS.GILDED_TRAVERTINE);
   const stone = perm(BLOCKS.AURALITE);
   const star = perm(BLOCKS.STARSTONE);
+  const moss = perm(BLOCKS.TIDE_MOSS);
   const solOre = perm(BLOCKS.SOLARIUM_ORE);
   const solBlk = perm(BLOCKS.SOLARIUM_BLOCK);
   const brass = perm(BLOCKS.GILDED_BRASS);
@@ -505,141 +1027,119 @@ function* buildSpireGardenJob(dim, cx, cy, cz, seed) {
   const lantern = perm(BLOCKS.LANTERN_BLOOM);
   let ops = 0;
 
-  // Tapered cathedral needle rising high into twilight + sharp starstone root below!
-  for (let dy = -baseRad * 2; dy <= spireH; dy++) {
-    const t = dy >= 0 ? 1.0 - dy / (spireH + 2) : 1.0 - Math.abs(dy) / (baseRad * 2 + 1);
-    const r = Math.max(0.8, baseRad * Math.pow(t, 0.85));
-    const ir = Math.ceil(r);
-    for (let dx = -ir; dx <= ir; dx++) {
-      for (let dz = -ir; dz <= ir; dz++) {
-        if (Math.hypot(dx, dz) <= r) {
-          let p = stone;
-          if (dy < -2) p = hash3(cx + dx, cy + dy, cz + dz, seed) > 0.91 ? solOre : star;
-          else if (dy === 0 || dy % 6 === 0) p = brass;
-          else if (Math.abs(dx) === Math.floor(r) || Math.abs(dz) === Math.floor(r)) p = gilded;
-          else if (dy > spireH - 4) p = glass;
-          setBlk(dim, cx + dx, cy + dy, cz + dz, p);
-          if (++ops % 45 === 0) yield;
-        }
-      }
-    }
-  }
-  setBlk(dim, cx, cy + spireH + 1, cz, solBlk);
-  setBlk(dim, cx, cy + spireH + 2, cz, lantern);
-
-  // Floating Golden Astrolabe Ring orbiting the Spire Garden pinnacle!
-  placeAstrolabeRing(dim, cx, cy + Math.floor(spireH * 0.65), cz, baseRad + 4, 0.35, -0.25, true);
-  yield;
-}
-
-function* buildBellReefJob(dim, cx, cy, cz, seed) {
-  const rad = 10 + Math.floor(hash2(cx, cz, seed) * 6);
-  const stone = perm(BLOCKS.AURALITE);
-  const star = perm(BLOCKS.STARSTONE);
-  const moss = perm(BLOCKS.TIDE_MOSS);
-  const gilded = perm(BLOCKS.GILDED_TRAVERTINE);
-  const brass = perm(BLOCKS.GILDED_BRASS);
-  const crystal = perm(BLOCKS.SEA_CRYSTAL);
-  const lantern = perm(BLOCKS.LANTERN_BLOOM);
-  const reed = perm(BLOCKS.CHIME_REED);
-  const water = perm("minecraft:water");
-  let ops = 0;
-
-  // Low-altitude flooded turquoise reef lagoon hovering right above the cloud sea!
-  for (let dx = -rad; dx <= rad; dx++) {
-    for (let dz = -rad; dz <= rad; dz++) {
+  // Wide terraced amphitheater island (fully explorable, rich with Solarium Ore in starstone roots!)
+  for (let bx = minX; bx <= maxX; bx++) {
+    for (let bz = minZ; bz <= maxZ; bz++) {
+      const dx = bx - cx;
+      const dz = bz - cz;
       const dist = Math.hypot(dx, dz);
-      const eff = rad + (fbm2((cx + dx) * 0.15, (cz + dz) * 0.15, 2, seed) - 0.5) * 3.0;
+      const edgeLimit = Math.min(bx - minX, maxX - bx, bz - minZ, maxZ - bz);
+      const taper = Math.min(1.0, edgeLimit / 4.0);
+      const jitter = (fbm2(bx * 0.09, bz * 0.09, 2, seed) - 0.5) * 4.6 * taper;
+      const eff = rad + jitter;
       if (dist > eff) continue;
-      const isBasin = dist < eff - 3.2;
-      const depth = Math.max(3, Math.floor((1 - dist / eff) * 8));
 
-      for (let dy = -depth; dy <= 0; dy++) {
-        let p = dy < -3 ? star : stone;
-        if (dy === 0) p = isBasin ? water : moss;
-        else if (dy === -1 && isBasin) p = water;
-        else if (dy === -2 && isBasin) p = hash2(cx + dx, cz + dz, seed + 9) > 0.88 ? crystal : stone;
-        setBlk(dim, cx + dx, cy + dy, cz + dz, p);
-        if (++ops % 45 === 0) yield;
-      }
+      const norm = 1.0 - dist / eff;
+      const topOff = dist < 10.5 ? 2 : (dist < 16 ? 1 : 0);
+      const depth = Math.max(3, Math.floor(Math.pow(norm, 1.1) * (rad * 0.85)));
 
-      if (!isBasin && hash2(cx + dx, cz + dz, seed + 31) > 0.91) {
-        setBlk(dim, cx + dx, cy + 1, cz + dz, hash2(dx, dz, seed) > 0.5 ? crystal : reed);
-      }
-    }
-  }
-
-  // Ruined Alabaster Bell-Temple Pavilion in the center of the lagoon + Treasure Chest!
-  for (let dx = -2; dx <= 2; dx++) {
-    for (let dz = -2; dz <= 2; dz++) {
-      setBlk(dim, cx + dx, cy, cz + dz, Math.abs(dx) === 2 || Math.abs(dz) === 2 ? brass : gilded);
-    }
-  }
-  for (const [px, pz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
-    for (let h = 1; h <= 5; h++) {
-      setBlk(dim, cx + px, cy + h, cz + pz, h === 5 ? brass : gilded);
-    }
-  }
-  for (let dx = -2; dx <= 2; dx++) {
-    for (let dz = -2; dz <= 2; dz++) {
-      if (Math.abs(dx) + Math.abs(dz) <= 3) {
-        setBlk(dim, cx + dx, cy + 6, cz + dz, brass);
+      for (let dy = -depth; dy <= topOff; dy++) {
+        let p = stone;
+        if (dy === topOff) {
+          if (dist < 10.5) {
+            p = Math.abs(dist - 9.5) < 1.1 || dist < 2.2 ? brass : (Math.abs(dx) === Math.abs(dz) ? star : gilded);
+          } else if (dist < 15.5) {
+            p = Math.abs(dist - 14.5) < 1.0 ? gilded : moss;
+          } else {
+            p = moss;
+          }
+        } else if (dy < -2) {
+          p = hash3(bx, cy + dy, bz, seed) > 0.91 ? solOre : star;
+        }
+        setBlk(dim, bx, cy + dy, bz, p, ctx);
+        if (++ops % 40 === 0) yield;
       }
     }
   }
-  setBlk(dim, cx, cy + 5, cz, lantern);
-  placeTreasureChest(dim, cx, cy + 1, cz);
+
+  // Celestial Observatory Ruin: 6 Sculpted Pillars + Shattered Starlight-Glass Dome Ribs!
+  const oy = cy + 2;
+  for (let i = 0; i < 6; i++) {
+    const ang = (i / 6) * Math.PI * 2;
+    const px = Math.round(cx + Math.cos(ang) * 9.5);
+    const pz = Math.round(cz + Math.sin(ang) * 9.5);
+    const pillarH = i % 2 === 0 ? 11 : 7; // weathered ruin silhouette!
+    for (let h = 1; h <= pillarH; h++) {
+      setBlk(dim, px, oy + h, pz, h % 4 === 0 ? brass : gilded, ctx);
+    }
+    if (pillarH === 11) {
+      setBlk(dim, px, oy + 12, pz, lantern, ctx);
+      // Graceful arching glass dome rib curving halfway across sky
+      for (let s = 1; s <= 6; s++) {
+        const t = s / 8;
+        const rx = Math.round(cx + Math.cos(ang) * (9.5 * (1 - t)));
+        const rz = Math.round(cz + Math.sin(ang) * (9.5 * (1 - t)));
+        const ry = Math.round(oy + 11 + Math.sin(t * Math.PI * 0.5) * 6);
+        setBlk(dim, rx, ry, rz, s % 2 === 0 ? brass : glass, ctx);
+      }
+    }
+    yield;
+  }
+
+  // Central Star-Podium + Reliquary Chest + Twin Orbiting Armillary Rings!
+  setBlk(dim, cx, oy + 1, cz, solBlk, ctx);
+  setBlk(dim, cx, oy + 2, cz, lantern, ctx);
+  placeTreasureChest(dim, cx + 4, oy + 1, cz, ctx);
+
+  placeAstrolabeRing(dim, cx, oy + 14, cz, 12, 0.38, -0.24, true, ctx);
   yield;
+  placeAstrolabeRing(dim, cx, oy + 14, cz, 9, -0.32, 0.30, false, ctx);
+  yield;
+
+  // Grounded Crystal Geode Outcrops along outer rocky terraces
+  for (const [gx, gz] of [[15, 8], [-15, -8], [10, -14]]) {
+    if (Math.hypot(gx, gz) < rad - 3) {
+      placeCrystalOutcrop(dim, cx + gx, cy + 1, cz + gz, seed + gx * 7 + gz, ctx);
+      yield;
+    }
+  }
+
+  yield* placeLowerCloudShelfJob(dim, cx - 8, 50, cz + 12, 10, seed + 66, ctx);
 }
 
-function* generateSectorJob(dim, sx, sz) {
-  const key = `${sx},${sz}`;
+// =============================================================================
+// MACRO-CELL DISPATCHER
+// =============================================================================
+
+function* generateCellJob(dim, gx, gz) {
+  const key = `${gx},${gz}`;
+  const ctx = { missedWrites: 0 };
   activeJobs++;
   try {
-    const worldX = sx * SECTOR_SIZE + 16;
-    const worldZ = sz * SECTOR_SIZE + 16;
-
-    // Check if an Astral Citadel belongs in this exact sector!
-    const nearestCitadel = getNearestCitadel(worldX, worldZ);
-    const citSx = Math.floor(nearestCitadel.x / SECTOR_SIZE);
-    const citSz = Math.floor(nearestCitadel.z / SECTOR_SIZE);
-    if (citSx === sx && citSz === sz) {
-      yield* buildAstralCitadelJob(dim, nearestCitadel.x, nearestCitadel.y, nearestCitadel.z);
-      persistSector(key);
-      return;
-    }
-    // Leave scenic sky clearance immediately around a Citadel
-    if (nearestCitadel.distance < 36) {
-      persistSector(key);
+    const layout = getCellLayout(gx, gz);
+    if (layout.kind === "sanctuary" || layout.kind === "empty_sky") {
+      persistCell(key);
       return;
     }
 
-    // Decide whether this 32x32 sector hosts a floating island (~68% density -> dramatic vistas!)
-    const roll = hash2(sx, sz, 404);
-    if (roll > 0.68) {
-      persistSector(key);
-      return;
-    }
-
-    const ox = sx * SECTOR_SIZE + 8 + Math.floor(hash2(sx, sz, 405) * 16);
-    const oz = sz * SECTOR_SIZE + 8 + Math.floor(hash2(sx, sz, 406) * 16);
-    const zone = getZoneAt(ox, oz);
-    const seed = Math.abs(sx * 73856093 ^ sz * 19349663) % 100000;
-
-    if (zone === "spire_gardens") {
-      const oy = 90 + Math.floor(hash2(sx, sz, 407) * 34);
-      yield* buildSpireGardenJob(dim, ox, oy, oz, seed);
-    } else if (zone === "bell_reefs") {
-      const oy = 56 + Math.floor(hash2(sx, sz, 408) * 16);
-      yield* buildBellReefJob(dim, ox, oy, oz, seed);
+    if (layout.kind === "astral_citadel") {
+      yield* buildAstralCitadelJob(dim, layout, ctx);
+    } else if (layout.kind === "cloud_plains") {
+      yield* buildCloudPlainsJob(dim, layout, ctx);
+    } else if (layout.kind === "spire_gardens") {
+      yield* buildSpireGardenJob(dim, layout, ctx);
+    } else if (layout.kind === "bell_reefs") {
+      yield* buildBellReefJob(dim, layout, ctx);
     } else {
-      const oy = 74 + Math.floor(hash2(sx, sz, 409) * 32);
-      yield* buildPearlAtollJob(dim, ox, oy, oz, seed);
+      yield* buildPearlAtollJob(dim, layout, ctx);
     }
 
-    persistSector(key);
+    // Only persist cell as completed if ZERO chunk-unload write misses occurred!
+    if (ctx.missedWrites === 0) {
+      persistCell(key);
+    }
   } finally {
-    queuedSectors.delete(key);
+    queuedCells.delete(key);
     activeJobs = Math.max(0, activeJobs - 1);
   }
 }
@@ -649,12 +1149,12 @@ function* generateSectorJob(dim, sx, sz) {
 // =============================================================================
 
 export async function ensureSanctuaryReady() {
-  loadGeneratedSectors();
+  loadGeneratedCells();
   if (world.getDynamicProperty(DP_SANCTUARY_BUILT) === true) {
     return true;
   }
   if (sanctuaryBuilding) {
-    for (let i = 0; i < 60 && sanctuaryBuilding; i++) {
+    for (let i = 0; i < 80 && sanctuaryBuilding; i++) {
       await system.waitTicks(5);
     }
     return true;
@@ -665,9 +1165,9 @@ export async function ensureSanctuaryReady() {
     const dim = world.getDimension(DIMENSION_ID);
     await withTickingArea(
       dim,
-      "auralis_sanctuary_init",
-      { x: -32, y: 20, z: -96 },
-      { x: 32, y: 140, z: 32 },
+      "auralis_sanctuary_v2",
+      { x: -40, y: 20, z: -40 },
+      { x: 40, y: 140, z: 40 },
       async () => {
         await new Promise((resolve) => {
           system.runJob(
@@ -681,7 +1181,7 @@ export async function ensureSanctuaryReady() {
     );
     return true;
   } catch (err) {
-    console.warn(`[Auralis] Sanctuary init notice: ${err}`);
+    console.warn(`[Auralis] Sanctuary v2 init notice: ${err}`);
     return false;
   } finally {
     sanctuaryBuilding = false;
@@ -689,12 +1189,12 @@ export async function ensureSanctuaryReady() {
 }
 
 /**
- * Called periodically while players explore Auralis — smoothly streams surrounding
- * floating archipelago sectors without ever causing lag spikes.
+ * Called periodically while players explore Auralis — streams non-overlapping 80x80
+ * Macro-Cells ONLY once every chunk in the cell's full bounding box is loaded!
  */
 export function tickWorldGen() {
-  loadGeneratedSectors();
-  if (activeJobs >= 2) return;
+  loadGeneratedCells();
+  if (activeJobs >= 1) return;
 
   let dim;
   try {
@@ -707,35 +1207,33 @@ export function tickWorldGen() {
   if (players.length === 0) return;
 
   for (const player of players) {
-    if (activeJobs >= 2) break;
+    if (activeJobs >= 1) break;
     const loc = player.location;
-    const psx = Math.floor(loc.x / SECTOR_SIZE);
-    const psz = Math.floor(loc.z / SECTOR_SIZE);
+    const { gx: pgx, gz: pgz } = worldToCell(loc.x, loc.z);
 
-    // Spiral outward from player up to radius 3 sectors (~96 blocks)
-    for (let r = 0; r <= 3 && activeJobs < 2; r++) {
-      for (let dx = -r; dx <= r && activeJobs < 2; dx++) {
-        for (let dz = -r; dz <= r && activeJobs < 2; dz++) {
+    // Spiral outward up to radius 2 macro-cells (+/- 160 blocks)
+    for (let r = 0; r <= 2 && activeJobs < 1; r++) {
+      for (let dx = -r; dx <= r && activeJobs < 1; dx++) {
+        for (let dz = -r; dz <= r && activeJobs < 1; dz++) {
           if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-          const sx = psx + dx;
-          const sz = psz + dz;
-          const key = `${sx},${sz}`;
-          if (generatedSectors.has(key) || queuedSectors.has(key)) continue;
+          const gx = pgx + dx;
+          const gz = pgz + dz;
+          const key = `${gx},${gz}`;
+          if (generatedCells.has(key) || queuedCells.has(key)) continue;
 
-          // Verify center of sector is loaded before running job
-          try {
-            const probe = dim.getBlock({
-              x: sx * SECTOR_SIZE + 16,
-              y: 80,
-              z: sz * SECTOR_SIZE + 16,
-            });
-            if (!probe) continue;
-          } catch {
+          const layout = getCellLayout(gx, gz);
+          if (layout.kind === "empty_sky") {
+            persistCell(key);
             continue;
           }
 
-          queuedSectors.add(key);
-          system.runJob(generateSectorJob(dim, sx, sz));
+          // Strict full bounding-box chunk-load probe: NEVER start until ALL corner/edge chunks are loaded!
+          if (!isAreaLoaded(dim, layout.minX, layout.maxX, layout.minZ, layout.maxZ)) {
+            continue;
+          }
+
+          queuedCells.add(key);
+          system.runJob(generateCellJob(dim, gx, gz));
         }
       }
     }
@@ -743,6 +1241,6 @@ export function tickWorldGen() {
 }
 
 export function getGeneratedSectorCount() {
-  loadGeneratedSectors();
-  return generatedSectors.size;
+  loadGeneratedCells();
+  return generatedCells.size;
 }

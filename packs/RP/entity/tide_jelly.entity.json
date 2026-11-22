@@ -1,0 +1,36 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:tide_jelly",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/tide_jelly"
+      },
+      "geometry": {
+        "default": "geometry.auralis_tide_jelly"
+      },
+      "animations": {
+        "main_anim": "animation.auralis.tide_jelly.pulse",
+        "ctrl": "controller.animation.auralis.always_active"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#F69EC4",
+        "overlay_color": "#8AF4F0"
+      },
+      "particle_effects": {
+        "aura": "auralis:ambient_motes"
+      }
+    }
+  }
+}

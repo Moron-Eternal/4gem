@@ -3,7 +3,7 @@
     "sounds": {
       "ambient.auralis.wind": {
         "sound": "ambient.auralis.wind",
-        "volume": 0.55,
+        "volume": 0.4,
         "pitch": [
           0.96,
           1.04
@@ -11,15 +11,15 @@
       },
       "ambient.auralis.chimes": {
         "sound": "ambient.auralis.chimes",
-        "volume": 0.55,
+        "volume": 0.4,
         "pitch": [
           0.92,
-          1.08
+          1.06
         ]
       },
       "ambient.auralis.mood": {
         "sound": "ambient.auralis.mood",
-        "volume": 0.45,
+        "volume": 0.35,
         "pitch": [
           0.95,
           1.05
@@ -30,10 +30,10 @@
   "entity_sounds": {
     "entities": {
       "auralis:lumina_ray": {
-        "volume": 0.85,
+        "volume": 0.55,
         "pitch": [
-          0.92,
-          1.08
+          0.94,
+          1.06
         ],
         "events": {
           "ambient": "auralis.mob.manta_call",
@@ -42,10 +42,10 @@
         }
       },
       "auralis:choir_wisp": {
-        "volume": 0.75,
+        "volume": 0.48,
         "pitch": [
           0.95,
-          1.12
+          1.08
         ],
         "events": {
           "ambient": "auralis.mob.wisp_sing",
@@ -54,10 +54,10 @@
         }
       },
       "auralis:glass_crab": {
-        "volume": 0.72,
+        "volume": 0.48,
         "pitch": [
-          0.9,
-          1.12
+          0.92,
+          1.08
         ],
         "events": {
           "ambient": "auralis.mob.crab_click",
@@ -66,11 +66,61 @@
           "step": "auralis.crystal.step"
         }
       },
-      "auralis:gilded_sentinel": {
-        "volume": 0.9,
+      "auralis:nimbus_stag": {
+        "volume": 0.52,
+        "pitch": [
+          0.94,
+          1.08
+        ],
+        "events": {
+          "ambient": "auralis.mob.stag_call",
+          "hurt": "auralis.mob.stag_call",
+          "death": "auralis.mob.stag_call",
+          "step": "auralis.cloud.step"
+        }
+      },
+      "auralis:tide_jelly": {
+        "volume": 0.42,
         "pitch": [
           0.92,
+          1.08
+        ],
+        "events": {
+          "ambient": "auralis.mob.jelly_pulse",
+          "hurt": "auralis.crystal.step",
+          "death": "auralis.mob.jelly_pulse"
+        }
+      },
+      "auralis:shard_stalker": {
+        "volume": 0.58,
+        "pitch": [
+          0.92,
+          1.08
+        ],
+        "events": {
+          "ambient": "auralis.mob.stalker_growl",
+          "hurt": "auralis.crystal.break",
+          "death": "auralis.mob.stalker_growl",
+          "step": "auralis.crystal.step"
+        }
+      },
+      "auralis:astral_weaver": {
+        "volume": 0.55,
+        "pitch": [
+          0.94,
           1.06
+        ],
+        "events": {
+          "ambient": "auralis.mob.weaver_cast",
+          "hurt": "auralis.mob.sentinel_hurt",
+          "death": "auralis.crystal.break"
+        }
+      },
+      "auralis:gilded_sentinel": {
+        "volume": 0.58,
+        "pitch": [
+          0.94,
+          1.05
         ],
         "events": {
           "ambient": "auralis.mob.sentinel_hum",
@@ -79,10 +129,10 @@
         }
       },
       "auralis:astral_seraph": {
-        "volume": 1.0,
+        "volume": 0.72,
         "pitch": [
-          0.95,
-          1.05
+          0.96,
+          1.04
         ],
         "events": {
           "ambient": "auralis.mob.sentinel_hum",

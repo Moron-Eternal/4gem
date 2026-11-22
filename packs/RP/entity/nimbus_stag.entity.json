@@ -1,0 +1,36 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "auralis:nimbus_stag",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/nimbus_stag"
+      },
+      "geometry": {
+        "default": "geometry.auralis_nimbus_stag"
+      },
+      "animations": {
+        "idle": "animation.auralis.nimbus_stag.idle",
+        "walk": "animation.auralis.nimbus_stag.walk",
+        "look": "animation.auralis.look_at_target",
+        "ctrl": "controller.animation.auralis.quadruped"
+      },
+      "scripts": {
+        "animate": [
+          "ctrl",
+          "look"
+        ]
+      },
+      "render_controllers": [
+        "controller.render.auralis_entity"
+      ],
+      "spawn_egg": {
+        "base_color": "#F4F0EC",
+        "overlay_color": "#7EF0EC"
+      }
+    }
+  }
+}

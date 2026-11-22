@@ -1,0 +1,29 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:prism_sticks"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      "P",
+      "P"
+    ],
+    "key": {
+      "P": {
+        "item": "auralis:prism_planks"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:prism_planks"
+      }
+    ],
+    "result": {
+      "item": "minecraft:stick",
+      "count": 4
+    }
+  }
+}

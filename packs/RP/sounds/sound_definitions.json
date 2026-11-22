@@ -7,19 +7,19 @@
         {
           "name": "sounds/music/auralis/glass_horizon",
           "stream": true,
-          "volume": 0.72,
+          "volume": 0.68,
           "load_on_low_memory": true
         },
         {
           "name": "sounds/music/auralis/drifting_atolls",
           "stream": true,
-          "volume": 0.72,
+          "volume": 0.68,
           "load_on_low_memory": true
         },
         {
           "name": "sounds/music/auralis/sunken_chimes",
           "stream": true,
-          "volume": 0.72,
+          "volume": 0.68,
           "load_on_low_memory": true
         }
       ]
@@ -30,7 +30,7 @@
         {
           "name": "sounds/music/auralis/glass_horizon",
           "stream": true,
-          "volume": 0.78,
+          "volume": 0.72,
           "load_on_low_memory": true
         }
       ]
@@ -41,7 +41,7 @@
         {
           "name": "sounds/music/auralis/drifting_atolls",
           "stream": true,
-          "volume": 0.78,
+          "volume": 0.72,
           "load_on_low_memory": true
         }
       ]
@@ -52,7 +52,7 @@
         {
           "name": "sounds/music/auralis/sunken_chimes",
           "stream": true,
-          "volume": 0.78,
+          "volume": 0.72,
           "load_on_low_memory": true
         }
       ]
@@ -63,7 +63,7 @@
         {
           "name": "sounds/music/auralis/seraph_crescendo",
           "stream": true,
-          "volume": 0.85,
+          "volume": 0.78,
           "load_on_low_memory": true
         }
       ]
@@ -74,7 +74,7 @@
         {
           "name": "sounds/auralis/ambient_wind",
           "stream": true,
-          "volume": 0.38
+          "volume": 0.3
         }
       ]
     },
@@ -83,11 +83,11 @@
       "sounds": [
         {
           "name": "sounds/auralis/ambient_chime_1",
-          "volume": 0.45
+          "volume": 0.34
         },
         {
           "name": "sounds/auralis/ambient_chime_2",
-          "volume": 0.45
+          "volume": 0.34
         }
       ]
     },
@@ -96,7 +96,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/ambient_mood",
-          "volume": 0.4
+          "volume": 0.32
         }
       ]
     },
@@ -105,7 +105,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/ritual_chime",
-          "volume": 0.9
+          "volume": 0.62
         }
       ]
     },
@@ -114,7 +114,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/ritual_swell",
-          "volume": 0.95
+          "volume": 0.66
         }
       ]
     },
@@ -123,7 +123,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/portal_ascend",
-          "volume": 0.95
+          "volume": 0.68
         }
       ]
     },
@@ -132,7 +132,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/portal_return",
-          "volume": 0.92
+          "volume": 0.64
         }
       ]
     },
@@ -141,7 +141,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/portal_hum",
-          "volume": 0.45
+          "volume": 0.32
         }
       ]
     },
@@ -150,7 +150,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/crystal_step",
-          "volume": 0.65
+          "volume": 0.42
         }
       ]
     },
@@ -159,7 +159,25 @@
       "sounds": [
         {
           "name": "sounds/auralis/crystal_break",
-          "volume": 0.8
+          "volume": 0.5
+        }
+      ]
+    },
+    "auralis.cloud.step": {
+      "category": "block",
+      "sounds": [
+        {
+          "name": "sounds/auralis/cloud_step",
+          "volume": 0.42
+        }
+      ]
+    },
+    "auralis.cloud.updraft": {
+      "category": "player",
+      "sounds": [
+        {
+          "name": "sounds/auralis/cloud_updraft",
+          "volume": 0.58
         }
       ]
     },
@@ -168,7 +186,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/gale_prism",
-          "volume": 0.88
+          "volume": 0.58
         }
       ]
     },
@@ -177,7 +195,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/starblade_slash",
-          "volume": 0.9
+          "volume": 0.58
         }
       ]
     },
@@ -186,15 +204,15 @@
       "sounds": [
         {
           "name": "sounds/auralis/lyre_chord_1",
-          "volume": 0.85
+          "volume": 0.58
         },
         {
           "name": "sounds/auralis/lyre_chord_2",
-          "volume": 0.85
+          "volume": 0.58
         },
         {
           "name": "sounds/auralis/lyre_chord_3",
-          "volume": 0.85
+          "volume": 0.58
         }
       ]
     },
@@ -203,7 +221,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/manta_call",
-          "volume": 0.72
+          "volume": 0.48
         }
       ]
     },
@@ -212,7 +230,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/wisp_sing",
-          "volume": 0.68
+          "volume": 0.42
         }
       ]
     },
@@ -221,7 +239,43 @@
       "sounds": [
         {
           "name": "sounds/auralis/crab_click",
-          "volume": 0.65
+          "volume": 0.42
+        }
+      ]
+    },
+    "auralis.mob.stag_call": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/auralis/stag_call",
+          "volume": 0.46
+        }
+      ]
+    },
+    "auralis.mob.jelly_pulse": {
+      "category": "neutral",
+      "sounds": [
+        {
+          "name": "sounds/auralis/jelly_pulse",
+          "volume": 0.36
+        }
+      ]
+    },
+    "auralis.mob.stalker_growl": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/stalker_growl",
+          "volume": 0.52
+        }
+      ]
+    },
+    "auralis.mob.weaver_cast": {
+      "category": "hostile",
+      "sounds": [
+        {
+          "name": "sounds/auralis/weaver_cast",
+          "volume": 0.52
         }
       ]
     },
@@ -230,7 +284,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/sentinel_hum",
-          "volume": 0.7
+          "volume": 0.44
         }
       ]
     },
@@ -239,7 +293,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/sentinel_blast",
-          "volume": 0.85
+          "volume": 0.54
         }
       ]
     },
@@ -248,7 +302,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/sentinel_hurt",
-          "volume": 0.82
+          "volume": 0.52
         }
       ]
     },
@@ -257,7 +311,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/seraph_awaken",
-          "volume": 1.0
+          "volume": 0.72
         }
       ]
     },
@@ -266,7 +320,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/seraph_pulse",
-          "volume": 0.95
+          "volume": 0.66
         }
       ]
     },
@@ -275,7 +329,7 @@
       "sounds": [
         {
           "name": "sounds/auralis/seraph_defeat",
-          "volume": 1.0
+          "volume": 0.72
         }
       ]
     }

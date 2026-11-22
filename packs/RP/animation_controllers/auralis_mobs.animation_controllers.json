@@ -10,6 +10,211 @@
           ]
         }
       }
+    },
+    "controller.animation.auralis.quadruped": {
+      "initial_state": "idle",
+      "states": {
+        "idle": {
+          "animations": [
+            "idle"
+          ],
+          "transitions": [
+            {
+              "walk": "query.modified_move_speed > 0.12"
+            }
+          ],
+          "blend_transition": 0.2
+        },
+        "walk": {
+          "animations": [
+            "idle",
+            "walk"
+          ],
+          "transitions": [
+            {
+              "idle": "query.modified_move_speed <= 0.12"
+            }
+          ],
+          "blend_transition": 0.2
+        }
+      }
+    },
+    "controller.animation.auralis.stalker": {
+      "initial_state": "idle",
+      "states": {
+        "idle": {
+          "animations": [
+            "idle"
+          ],
+          "transitions": [
+            {
+              "attack": "variable.attack_time > 0.0"
+            },
+            {
+              "walk": "query.modified_move_speed > 0.12"
+            }
+          ],
+          "blend_transition": 0.15
+        },
+        "walk": {
+          "animations": [
+            "idle",
+            "walk"
+          ],
+          "transitions": [
+            {
+              "attack": "variable.attack_time > 0.0"
+            },
+            {
+              "idle": "query.modified_move_speed <= 0.12"
+            }
+          ],
+          "blend_transition": 0.15
+        },
+        "attack": {
+          "animations": [
+            "attack"
+          ],
+          "transitions": [
+            {
+              "idle": "query.all_animations_finished"
+            }
+          ],
+          "blend_transition": 0.1
+        }
+      }
+    },
+    "controller.animation.auralis.weaver": {
+      "initial_state": "hover",
+      "states": {
+        "hover": {
+          "animations": [
+            "hover"
+          ],
+          "transitions": [
+            {
+              "cast": "query.property('auralis:casting') == true"
+            }
+          ],
+          "blend_transition": 0.2
+        },
+        "cast": {
+          "animations": [
+            "cast"
+          ],
+          "transitions": [
+            {
+              "hover": "query.property('auralis:casting') == false"
+            }
+          ],
+          "blend_transition": 0.2
+        }
+      }
+    },
+    "controller.animation.auralis.seraph_boss": {
+      "initial_state": "majesty",
+      "states": {
+        "majesty": {
+          "animations": [
+            "majesty"
+          ],
+          "transitions": [
+            {
+              "bolt_volley": "query.property('auralis:boss_state') == 1"
+            },
+            {
+              "swoop_slash": "query.property('auralis:boss_state') == 2"
+            },
+            {
+              "harmonic_nova": "query.property('auralis:boss_state') == 3"
+            },
+            {
+              "star_pillars": "query.property('auralis:boss_state') == 4"
+            }
+          ],
+          "blend_transition": 0.25
+        },
+        "bolt_volley": {
+          "animations": [
+            "bolt_volley"
+          ],
+          "transitions": [
+            {
+              "majesty": "query.property('auralis:boss_state') == 0"
+            },
+            {
+              "swoop_slash": "query.property('auralis:boss_state') == 2"
+            },
+            {
+              "harmonic_nova": "query.property('auralis:boss_state') == 3"
+            },
+            {
+              "star_pillars": "query.property('auralis:boss_state') == 4"
+            }
+          ],
+          "blend_transition": 0.22
+        },
+        "swoop_slash": {
+          "animations": [
+            "swoop_slash"
+          ],
+          "transitions": [
+            {
+              "majesty": "query.property('auralis:boss_state') == 0"
+            },
+            {
+              "bolt_volley": "query.property('auralis:boss_state') == 1"
+            },
+            {
+              "harmonic_nova": "query.property('auralis:boss_state') == 3"
+            },
+            {
+              "star_pillars": "query.property('auralis:boss_state') == 4"
+            }
+          ],
+          "blend_transition": 0.18
+        },
+        "harmonic_nova": {
+          "animations": [
+            "harmonic_nova"
+          ],
+          "transitions": [
+            {
+              "majesty": "query.property('auralis:boss_state') == 0"
+            },
+            {
+              "bolt_volley": "query.property('auralis:boss_state') == 1"
+            },
+            {
+              "swoop_slash": "query.property('auralis:boss_state') == 2"
+            },
+            {
+              "star_pillars": "query.property('auralis:boss_state') == 4"
+            }
+          ],
+          "blend_transition": 0.22
+        },
+        "star_pillars": {
+          "animations": [
+            "star_pillars"
+          ],
+          "transitions": [
+            {
+              "majesty": "query.property('auralis:boss_state') == 0"
+            },
+            {
+              "bolt_volley": "query.property('auralis:boss_state') == 1"
+            },
+            {
+              "swoop_slash": "query.property('auralis:boss_state') == 2"
+            },
+            {
+              "harmonic_nova": "query.property('auralis:boss_state') == 3"
+            }
+          ],
+          "blend_transition": 0.22
+        }
+      }
     }
   }
 }

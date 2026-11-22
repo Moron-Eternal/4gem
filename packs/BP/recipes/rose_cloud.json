@@ -1,0 +1,33 @@
+{
+  "format_version": "1.20.10",
+  "minecraft:recipe_shaped": {
+    "description": {
+      "identifier": "auralis:rose_cloud"
+    },
+    "tags": [
+      "crafting_table"
+    ],
+    "pattern": [
+      " C ",
+      "CBC",
+      " C "
+    ],
+    "key": {
+      "C": {
+        "item": "auralis:cloudstone"
+      },
+      "B": {
+        "item": "auralis:prism_berry"
+      }
+    },
+    "unlock": [
+      {
+        "item": "auralis:cloudstone"
+      }
+    ],
+    "result": {
+      "item": "auralis:rose_cloud",
+      "count": 4
+    }
+  }
+}

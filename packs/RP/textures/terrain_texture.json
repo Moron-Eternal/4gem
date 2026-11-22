@@ -63,6 +63,15 @@
     },
     "auralis_vespera_altar": {
       "textures": "textures/blocks/vespera_altar"
+    },
+    "auralis_cloudstone": {
+      "textures": "textures/blocks/cloudstone"
+    },
+    "auralis_rose_cloud": {
+      "textures": "textures/blocks/rose_cloud"
+    },
+    "auralis_cloud_vent": {
+      "textures": "textures/blocks/cloud_vent"
     }
   }
 }

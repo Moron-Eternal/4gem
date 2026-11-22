@@ -1,40 +1,42 @@
-# ✦ Auralis: The Prism-Tide Firmament ✦
+# ✦ Auralis: The Prism-Tide Firmament (v2.0) ✦
 
 **A Minecraft: Bedrock Edition (1.26.50+) Custom Dimension Add-On**
 
-*Step beyond the Overworld, the Nether, and the End — into an endless celestial twilight archipelago of pearl-alabaster atolls, glowing turquoise lagoons, floating golden astrolabe rings, weeping prism-coral canopies, and a buoyant sea of rose-gold clouds suspended beneath your feet.*
+*Step beyond the Overworld, the Nether, and the End — into an endless celestial twilight archipelago of vast pearl-alabaster continents, walkable rose-gold cloud plains, glowing updraft vents, soaring bell-towers, wayfarer sky-pavilions, weeping prism-coral groves, 9 bespoke animated creatures, and The Astral Seraph boss.*
 
 ---
 
 ## ✨ What Makes Auralis Unique
 
-Unlike the Overworld's sunlit earth, the Nether's crimson caverns, or the End's bleak black void, **Auralis (`auralis:firmament`)** is a luminous twilight sky-archipelago built on Minecraft Bedrock's **native 1.26.50 Custom Dimension JSON (`dimensions/firmament.json`)** paired with a **zero-lag procedural world generator**, **full Vibrant Visuals PBR support**, **4 original studio-synthesized soundtrack tracks**, **25 custom sound effects**, **13 custom particle VFX**, **17 custom blocks**, **12 relics & items**, and **5 custom-modeled animated mobs** culminating in a **3-phase boss encounter**.
+Built natively on Minecraft Bedrock's **stable 1.26.50 Custom Dimension JSON (`dimensions/firmament.json`)** (zero experimental Beta API toggles required!), **Auralis (`auralis:firmament`)** combines a **zero-overlap, zero-cutoff 80×80 Macro-Cell Worldgen 2.0 engine**, **full Vibrant Visuals PBR materials & colored local lighting**, **4 original studio-synthesized soundtrack tracks**, **31 gentle remastered sound effects**, **15 custom particle VFX**, **20 custom blocks**, **12 relics & items**, and **9 custom-modeled multi-state animated creatures** culminating in a **sculpted 24-bone 3-phase boss fight**.
 
 ### 🌟 Signature Features
-- **Native Custom Dimension (`auralis:firmament`)** — Separate dimension space with a rose-gold cloud sea positioned **below the floating islands (`Y = 32`)**, volumetric lavender-peach twilight fog, custom Vibrant Visuals atmospheric scattering, painterly color grading, crystal-clear turquoise caustics water, and colored point lights — **no experimental Beta API toggles required!**
-- **Buoyant Rose-Gold Cloud Sea** — Plunging off an island below `Y = 24` triggers a shimmering rose-gold updraft that buoys you back skyward with Slow Falling instead of instant void frustration.
-- **Unique Entry Mechanic: The Harmonic Wellspring & Sky-Gaze Ascension** — No obsidian portal frames! Build a 3×3 reflecting mirror pool around a **Celestial Astrolabe Pedestal**, strike it with a **Starlight Tuning Fork** to watch a 4.5-second multi-stage harmonic convergence transform the water into **Starlight Veil**, then stand atop the awakened Astrolabe and **gaze straight up at the sky** (or crouch) to ascend through a rose-gold camera fade and float down onto the **Sanctuary Crown**.
-- **Infinite Procedural Multi-Zone Archipelago**:
-  - **Sanctuary Crown (`0, 84, 0`)** — Guaranteed pre-built arrival observatory framed by twin giant golden astrolabe rings, weeping Prism-Coral trees, and a cascading starlight waterfall pouring into the clouds.
-  - **Pearl-Terrace Atolls** — Sweeping alabaster travertine & iridescent Tide-Moss islands veined with glowing Solarium Ore beneath their starstone roots.
-  - **Gilded Spire Gardens** — Soaring cathedral-like alabaster & celestial brass pinnacles orbited by floating golden astrolabe rings.
-  - **Sunken Bell-Reefs** — Luminous low-altitude turquoise lagoons housing ruined Alabaster Bell-Temples with treasure chests.
-  - **Astral Citadels** *(first citadel sits ~112 blocks North of spawn!)* — Grand domed sky-palaces housing the **Vespera Sanctum Altar**.
+- **Native Custom Dimension (`auralis:firmament`)** — Separate dimension space with a rose-gold cloud sea positioned **below the floating islands (`Y = 32`)**, volumetric lavender-peach twilight fog, Vibrant Visuals atmospheric scattering, painterly color grading, crystal-clear turquoise caustics water, and colored point lights.
+- **Unique Entry Mechanic: The Harmonic Wellspring & Sky-Gaze Ascension** — No obsidian portal frames! Build a 3×3 reflecting mirror pool around a **Celestial Astrolabe Pedestal**, strike it with a **Starlight Tuning Fork** to watch a 4.5-second harmonic convergence transform the water into **Starlight Veil**, then stand atop the awakened Astrolabe and **gaze straight up at the sky** (or crouch) to ascend through a rose-gold veil onto **Sanctuary Crown 2.0**.
+- **Worldgen 2.0 — Huge Non-Overlapping Islands, Walkable Cloud Plains & 6 Architectural Landmarks**:
+  - **Zero Cutoffs & Zero Clipping:** Full bounding-box chunk-load gating guarantees islands never slice off mid-chunk, while strict `80×80` macro-cell margins mathematically prevent neighboring islands from merging or clipping into each other.
+  - **Sanctuary Crown 2.0 (`0, 84, 0`, 56 blocks wide)** — Arrival observatory plateau with the Mirrored Astrolabe Dais, a Prism-Wood & Alabaster **Wayfarer Gazebo**, twin starlight waterfalls, grounded rocky crystal outcrops, and **4 Cardinal Cloud-Vent Launch Piers**.
+  - **Rose-Gold Cloud Plains & Cloud-Harbor Shrines** — Sprawling walkable `Luminous Cloudstone` & `Rose-Gold Cloud Bank` meadows (`52–64` blocks wide!) featuring timber sky-docks, cozy harbor shelters, and glowing **Updraft Cloud-Vents** that lift you effortlessly up to elevated islands!
+  - **Pearl-Terrace Atolls** — Vast `46–56`-block Tide-Moss plateaus crowned by ornate domed **Wayfarer Sky-Pavilions** with crafting tables, lanterns, supply chests, and Prism-Coral groves.
+  - **Sunken Bell-Reefs** — Tranquil reflecting lagoons bridged by Prism-Wood boardwalks surrounding **22-block climbable Alabaster & Brass Bell-Towers** with interior spiral staircases and belfry treasure.
+  - **Gilded Spire Gardens** — Broad terraced marble amphitheaters hosting shattered **Celestial Observatory Ruins** beneath hovering golden armillary rings.
+  - **Grand Astral Citadels** *(first citadel sits at `0, 100, -160`, connected via a scenic Cloud Promenade!)* — Wide, unobstructed 52-block circular boss arenas housing the **Vespera Sanctum Altar**.
+- **Buoyant Rose-Gold Cloud Sea** — Plunging below `Y = 24` triggers a gentle rose-gold updraft that lifts you safely skyward with Slow Falling instead of instant void loss.
 
 ---
 
-## 🎵 Original Soundtrack (OST) & Custom Audio
+## 🎵 Original Soundtrack (OST) & Gentle Remastered SFX
 
-All audio is originally composed and synthesized in stereo 44.1 kHz Ogg Vorbis with algorithmic hall reverb & octave shimmer delay (`tools/generate_audio.py`), driven both natively by `client_biome.json` (`minecraft:biome_music` + `minecraft:ambient_sounds`) and by an intelligent Script API **Dynamic OST Director** (`packs/BP/scripts/ambience.js`) plus a **Live Jukebox** inside the Chronicle of Auralis:
+All audio is originally composed and synthesized in stereo 44.1 kHz Ogg Vorbis (`tools/generate_audio.py`) with warm, ear-friendly linear headroom and soft acoustic/felt-mallet voicing:
 
 | Track | Key / Mood | Plays In |
 | :--- | :--- | :--- |
-| **`Glass Horizon`** (`glass_horizon.ogg`) | D Lydian · Concert Harp, Glass Celesta, Choir Pads & Cello | Sanctuary Crown & Pearl-Terrace Atolls |
+| **`Glass Horizon`** (`glass_horizon.ogg`) | D Lydian · Concert Harp, Felt Celesta, Choir Pads & Cello | Sanctuary Crown & Pearl-Terrace Atolls |
 | **`Drifting Atolls`** (`drifting_atolls.ogg`) | A Lydian · Spacious Cathedral Bells, Singing Bowls & Chimes | Gilded Spire Gardens & Astral Citadels |
-| **`Sunken Chimes`** (`sunken_chimes.ogg`) | E Minor 9 · Rolling Harp Waves & Intimate Twilight Kalimba | Sunken Bell-Reefs |
-| **`Crescendo of the Glass Tide`** (`seraph_crescendo.ogg`) | D Minor / Phrygian · Driving Taiko, Brass-Choir & Ostinato | **The Astral Seraph** Boss Battle |
+| **`Sunken Chimes`** (`sunken_chimes.ogg`) | E Minor 9 · Rolling Harp Waves & Warm Twilight Kalimba | Sunken Bell-Reefs & Rose-Gold Cloud Plains |
+| **`Crescendo of the Glass Tide`** (`seraph_crescendo.ogg`) | D Minor / Phrygian · Timpani, Warm Brass-Choir & Ostinato | **The Astral Seraph** Boss Battle |
 
-Plus **25 custom sound effects**: tuning fork strikes, harmonic ritual swells, Lydian harp portal glissandos, seamless twilight breeze & wind-chimes, musical pentatonic Sea-Crystal & Chime-Reed steps, Gale-Prism wind bursts, Starblade crescent slashes, Astral Lyre chords, whale-like Lumina Ray calls, Choir Wisp melodies, Sentinel pulses, and Seraph boss fanfares!
+Plus **31 gentle remastered SFX**: singing-bowl ritual chimes, Lydian harp portal glissandos, velvety cloud footsteps & updraft breezes, warm marimba crystal chimes, Gale-Prism whooshes, Starblade sweeps, Astral Lyre chords, and bespoke calls for all 9 creatures!
 
 ---
 
@@ -52,46 +54,47 @@ Plus **25 custom sound effects**: tuning fork strikes, harmonic ritual swells, L
    - **`[A]`** = Celestial Astrolabe Pedestal
    - **`[W]`** = Still Water
    - **`[C]`** = Amethyst Block, Prismarine, Gold Block, Quartz Block, Gilded Brass, Gilded Travertine, or Solarium Block
-3. **Strike the Astrolabe** with your **Starlight Tuning Fork**. Watch the harmonic rings pulse outward, corner star-pillars ignite, and the water turn into glowing **Starlight Veil**.
-4. **Ascend!** Stand atop the Awakened Astrolabe and **Look Straight Up at the Sky** (or Sneak) for 1 second. You will lift gracefully into a rose-gold twilight veil and descend gently onto the **Sanctuary Crown**!
+3. **Strike the Astrolabe** with your **Starlight Tuning Fork** to transform the pool into glowing **Starlight Veil**.
+4. **Ascend!** Stand atop the Awakened Astrolabe and **Look Straight Up at the Sky** (or Sneak) for 1 second.
 5. **Return Anytime:** Stand atop the Awakened Astrolabe at the heart of the Sanctuary Crown (or any shrine you build in Auralis) and look up at the sky again to return right to your exact Overworld shrine!
 
-*(Tip: Every new explorer automatically receives the **Chronicle of Auralis** guidebook, or open it anytime with `/auralis:codex`!)*
+*(Every new explorer automatically receives the **Chronicle of Auralis** guidebook, or open it anytime with `/auralis:codex`!)*
 
 ---
 
-## 🦋 Bestiary — 5 Custom 3D Animated Mobs (+ Boss)
+## 🦋 Bestiary — 9 Custom 3D Animated Creatures (+ Boss)
 
 | Creature | Role | Highlights |
 | :--- | :--- | :--- |
-| **Lumina Ray** (`auralis:lumina_ray`) | Passive Sky-Manta | Glides serenely between islands trailing stardust (`auralis:manta_trail`). Feed it a **Prism Berry** to hear its whale-song and receive **Slow Falling & Night Vision**! |
-| **Choir Wisp** (`auralis:choir_wisp`) | Friendly Lantern-Spirit | Porcelain-and-gold bell spirit with orbiting crystal petals; drawn curiously to Tuning Forks, Solarium & the Astral Lyre. |
-| **Tide-Glass Crab** (`auralis:glass_crab`) | Neutral Reef-Dweller | Carries a glowing sea-crystal cluster on its shell; peaceful until provoked. Drops **Prism Shards**. |
-| **Gilded Sentinel** (`auralis:gilded_sentinel`) | Hostile Guardian | Floating alabaster-and-brass construct with a rotating golden halo firing **Astral Pulse Bolts**. Drops **Solarium Ingots** & **Resonant Star-Cores**. |
-| **✦ The Astral Seraph ✦** (`auralis:astral_seraph`) | **3-Phase Boss** | Summoned by offering a **Resonant Star-Core** at a **Vespera Sanctum Altar** inside an Astral Citadel. Features 3 pairs of articulated luminous wings, twin counter-rotating astrolabe halos, custom boss OST, Harmonic Shockwaves, Guardian summons, and dodgeable Falling Star-Pillars! Drops the legendary **Sovereign's Starblade** & **Astral Lyre**. |
+| **Lumina Ray** (`auralis:lumina_ray`) | Passive Sky-Manta | Cruises in serene sweeping sky arcs trailing stardust. Feed a **Prism Berry** for **Slow Falling & Night Vision**! |
+| **Nimbus Stag** (`auralis:nimbus_stag`) | Passive Cloud-Deer *(New!)* | Graceful antlered deer roaming Tide-Moss plateaus & Cloud Plains in herds. Feed a **Prism Berry** for **Speed & Jump Boost**! |
+| **Aurelia Cloud-Jelly** (`auralis:tide_jelly`) | Passive Sky-Jellyfish *(New!)* | Calm bioluminescent jellyfish pulsing rhythmically with 6 flowing tentacles above Bell-Reefs & Cloud Plains. |
+| **Choir Wisp** (`auralis:choir_wisp`) | Friendly Lantern-Spirit | Smooth-hovering porcelain bell spirit drawn curiously to Tuning Forks, Solarium & the Astral Lyre. |
+| **Tide-Glass Crab** (`auralis:glass_crab`) | Neutral Reef-Dweller | Crystal-shelled lagoon crustacean; peaceful until provoked. Drops **Prism Shards**. |
+| **Shard Stalker** (`auralis:shard_stalker`) | Aggressive Lynx *(New!)* | Agile twilight feline predator with glowing crystal dorsal spines stalking island ruins with leaping melee ambushes. |
+| **Astral Weaver** (`auralis:astral_weaver`) | Aggressive Caster *(New!)* | Cloaked hovering ruin mage with crescent-moon mask, orbiting sigil & animated dual-orb spellcasting. |
+| **Gilded Sentinel** (`auralis:gilded_sentinel`) | Aggressive Guardian | Controlled hovering temple construct with rotating halo firing **Astral Pulse Bolts**. |
+| **✦ The Astral Seraph ✦** (`auralis:astral_seraph`) | **3-Phase Boss (v2.0)** | Sculpted 24-bone winged celestial sovereign wielding a radiant **Astral Halberd** with 5 synced combat animations, smooth target-facing rotation, arena-tethered flight, and 4 telegraphed attacks (**Bolt Volley**, **Radiant Swoop Slash**, **Harmonic Nova**, **Falling Star-Pillars**). Drops **Sovereign's Starblade** & **Astral Lyre**! |
 
 ---
 
 ## 🧱 Custom Blocks & Relics
 
-- **17 Custom Blocks (all with PBR MER + Heightmap Texture Sets & Vibrant Visuals Local Lights):**
-  `Auralite Travertine`, `Twilight Starstone`, `Tide-Moss Auralite`, `Gilded Travertine`, `Solarium Ore`, `Block of Solarium`, `Prism-Coral Log` (rotatable!), `Prism-Coral Planks`, `Prism-Coral Canopy`, `Starlight Etched Glass`, `Auralis Sea-Crystal` *(3D cluster)*, `Lantern Bloom` *(3D lantern)*, `Singing Chime-Reed` *(3D musical wind-chimes)*, `Celestial Gilded Brass`, `Celestial Astrolabe Pedestal` *(3D armillary gateway)*, `Starlight Mirror Veil`, and `Vespera Sanctum Altar` *(3D boss dais)*.
+- **20 Custom Blocks (all with PBR MER + Heightmap Texture Sets & Vibrant Visuals Local Lights):**
+  `Auralite Travertine`, `Twilight Starstone`, `Tide-Moss Auralite`, `Gilded Travertine`, `Solarium Ore`, `Block of Solarium`, `Prism-Coral Log` *(centered concentric rings & organic bark)*, `Prism-Coral Planks`, `Prism-Coral Canopy`, `Starlight Etched Glass`, `Auralis Sea-Crystal` *(faceted 3D geode cluster)*, `Lantern Bloom`, `Singing Chime-Reed`, `Celestial Gilded Brass`, `Luminous Cloudstone` *(walkable cloud plains!)*, `Rose-Gold Cloud Bank`, `Updraft Cloud-Vent` *(vertical wind launcher!)*, `Celestial Astrolabe Pedestal`, `Starlight Mirror Veil`, and `Vespera Sanctum Altar`.
 - **12 Custom Items & Relics:**
-  `Starlight Tuning Fork` *(ritual igniter + harmonic landmark compass in Auralis!)*, `Auralis Gale-Prism` *(rose-gold sky-dash + Slow Falling)*, `Sovereign's Starblade` *(unleashes a sweeping Crescent Starlight Wave!)*, `Astral Lyre` *(plays rolled harp chords & heals nearby players/Rays)*, `Solarium Pickaxe`, `Resonant Star-Core`, `Celestial Nectar`, `Prism Berry`, `Prism Shard`, `Raw Solarium`, `Solarium Ingot`, and `Chronicle of Auralis` *(interactive UI guidebook & OST Jukebox)*.
+  `Starlight Tuning Fork`, `Auralis Gale-Prism`, `Sovereign's Starblade`, `Astral Lyre`, `Solarium Pickaxe`, `Resonant Star-Core`, `Celestial Nectar`, `Prism Berry`, `Prism Shard`, `Raw Solarium`, `Solarium Ingot`, and `Chronicle of Auralis`.
 
 ---
 
 ## 📦 Installation
 
-### Option 1: One-Click `.mcaddon` Install (Easiest!)
+### Option 1: One-Click `.mcaddon` Install
 1. Download **`dist/Auralis_Firmament.mcaddon`**.
-2. Double-click (or open with Minecraft) on Windows, macOS, iOS, or Android to import both **Auralis BP** and **Auralis RP**.
-3. Create a new world (or edit an existing world) in **Minecraft: Bedrock Edition 1.26.50+**:
-   - Activate **Auralis: The Prism-Tide Firmament** under **Behavior Packs** (this pairs the Resource Pack automatically; verify it is also active under **Resource Packs**).
-   - Enable **Vibrant Visuals** in Video Settings for the full PBR, volumetric twilight fog, glowing emissive crystals, and turquoise water caustics experience *(also looks gorgeous in Classic/Fancy graphics!)*.
-
-### Option 2: Manual / Development Pack Install
-Copy `packs/BP` into `com.mojang/development_behavior_packs/Auralis_BP` and `packs/RP` into `com.mojang/development_resource_packs/Auralis_RP`.
+2. Double-click (or open with Minecraft) on Windows, macOS, iOS, or Android to import **Auralis BP v2.0** and **Auralis RP v2.0**.
+3. Create a **new world** in **Minecraft: Bedrock Edition 1.26.50+** *(recommended so Worldgen 2.0's clean `80×80` macro-cell islands and cloud plains generate fresh)*:
+   - Activate **Auralis: The Prism-Tide Firmament** under **Behavior Packs** (and verify **Resource Packs** is paired).
+   - Enable **Vibrant Visuals** in Video Settings for full PBR lighting, volumetric twilight fog, and turquoise water caustics *(also works cleanly in Classic/Fancy graphics!)*.
 
 ### Helpful Commands
 - `/auralis:codex` — Open the **Chronicle of Auralis** guidebook & Live OST Jukebox (available to all players, no cheats required).
@@ -102,14 +105,12 @@ Copy `packs/BP` into `com.mojang/development_behavior_packs/Auralis_BP` and `pac
 
 ## 🛠️ Rebuilding & Validation (For Developers)
 
-Every texture, PBR map, OST track, SFX, JSON definition, and `.mcaddon` package can be rebuilt and verified reproducibly:
-
 ```bash
-python3 tools/generate_textures.py      # Regenerate 16x16 pixel art, PBR MER+heightmaps, mob skins & particle atlas
-python3 tools/generate_audio.py         # Re-synthesize all 4 stereo OST tracks & 25 custom SFX -> .ogg Vorbis
-python3 tools/build_blocks_items.py     # Rebuild BP blocks, items, recipes & loot tables
-python3 tools/build_entities.py         # Rebuild BP/RP entities, 3D geometries, animations & controllers
-python3 tools/build_particles_lang.py   # Rebuild 13 particle VFX JSONs & en_US.lang
-python3 tools/validate_addon.py         # Run full static, PBR, ffprobe audio, JS syntax & noise tests
+python3 tools/generate_textures.py      # Regenerate 23 PBR block sets, 12 items, 10 PBR entity skins & particle atlas
+python3 tools/generate_audio.py         # Re-synthesize 4 stereo OST tracks & 31 gentle remastered SFX -> .ogg Vorbis
+python3 tools/build_blocks_items.py     # Rebuild 20 BP blocks, 12 items, 19 recipes & 13 loot tables
+python3 tools/build_entities.py         # Rebuild 10 BP/RP entities, 3D geometries, query.* animations & controllers
+python3 tools/build_particles_lang.py   # Rebuild 15 particle VFX JSONs & en_US.lang
+python3 tools/validate_addon.py         # Run full static, PBR, Molang/bone, audio softness & 10,000-cell worldgen tests
 python3 tools/build_mcaddon.py          # Bundle dist/Auralis_Firmament.mcaddon
 ```

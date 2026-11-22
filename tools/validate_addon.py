@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 """
-Comprehensive Static & Runtime Validator for Auralis: The Prism-Tide Firmament.
-Verifies JSON syntax, UUID uniqueness, dimension bounds, biome/Vibrant Visuals
-cross-references, PBR texture set channel compliance, 3D geometries, entities,
-particles, recipes, loot tables, Ogg Vorbis audio via ffprobe, and ES module JS syntax.
+Comprehensive Static, Audio-Softness, Animation-Molang & Worldgen-Math Validator for:
+    AURALIS: The Prism-Tide Firmament (v2 Overhaul)
+
+Verifies:
+  1. JSON syntax across every BP & RP file
+  2. Manifest UUID uniqueness, version sync, script entrypoint, pack icons
+  3. Native Custom Dimension bounds & all 5 Vibrant Visuals biome links
+  4. PBR texture set channel rules (MER RGB/RGBA, Heightmap single-channel L)
+  5. Blocks, items, recipes, loot tables, geometries & V2 custom component bindings
+  6. Strict 1.8.0 animation Molang (ZERO `q.` shorthand!), bone-existence checks,
+     and BP client_sync Entity Property <-> RP query.property cross-verification
+  7. Anti-erratic-flight AI guard (no float_wander + movement.hover collisions)
+  8. ffprobe Ogg Vorbis validation + ffmpeg PCM peak/RMS audio-softness regression gate
+  9. Node.js ES module syntax checks across all BP/scripts/*.js
+ 10. 10,000-cell Worldgen 2.0 mathematical non-overlap & biome-coverage proof test!
 """
 
 import json
@@ -11,6 +22,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -44,8 +56,21 @@ def load_json(path: Path):
         return None
 
 
+def collect_strings(obj):
+    out = []
+    if isinstance(obj, str):
+        out.append(obj)
+    elif isinstance(obj, list):
+        for item in obj:
+            out.extend(collect_strings(item))
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            out.extend(collect_strings(v))
+    return out
+
+
 def main():
-    print("=== Auralis Add-On Comprehensive Validation ===")
+    print("=== Auralis v2 Add-On Comprehensive Validation ===")
 
     # 1. Validate EVERY JSON file in packs/
     all_json_files = sorted(list(BP.rglob("*.json")) + list(RP.rglob("*.json")))
@@ -56,7 +81,7 @@ def main():
             parsed[p] = data
     ok(f"Parsed {len(parsed)}/{len(all_json_files)} JSON files cleanly")
 
-    # 2. Manifests, UUIDs & Pack Icons
+    # 2. Manifests, UUIDs, Version Sync & Pack Icons
     bp_man = parsed.get(BP / "manifest.json", {})
     rp_man = parsed.get(RP / "manifest.json", {})
     uuids = []
@@ -80,11 +105,13 @@ def main():
     else:
         ok(f"All {len(uuids)} manifest UUIDs are unique")
 
-    rp_dep = [d for d in bp_man.get("dependencies", []) if d.get("uuid") == rp_man.get("header", {}).get("uuid")]
-    if not rp_dep:
-        err("BP manifest does not depend on RP header UUID")
+    rp_uuid = rp_man.get("header", {}).get("uuid")
+    rp_ver = rp_man.get("header", {}).get("version")
+    rp_dep = [d for d in bp_man.get("dependencies", []) if d.get("uuid") == rp_uuid]
+    if not rp_dep or rp_dep[0].get("version") != rp_ver:
+        err(f"BP -> RP UUID/version dependency mismatch: dep={rp_dep}, rp_ver={rp_ver}")
     else:
-        ok("BP -> RP UUID dependency linked properly")
+        ok(f"BP -> RP UUID & version ({rp_ver}) dependency linked properly")
 
     entry = next((m.get("entry") for m in bp_man.get("modules", []) if m.get("type") == "script"), None)
     if not entry or not (BP / entry).exists():
@@ -130,7 +157,6 @@ def main():
     terrain_tex = parsed.get(RP / "textures/terrain_texture.json", {}).get("texture_data", {})
     item_tex = parsed.get(RP / "textures/item_texture.json", {}).get("texture_data", {})
 
-    # Verify all texture_set.json PBR channel rules!
     ts_files = list(RP.rglob("*.texture_set.json"))
     for tsf in ts_files:
         ts = parsed[tsf].get("minecraft:texture_set", {})
@@ -158,13 +184,15 @@ def main():
                     err(f"Heightmap {hp.name} must be single-channel 'L', got '{mode}'")
     ok(f"All {len(ts_files)} PBR *.texture_set.json files pass channel & file checks")
 
-    # Collect all block & entity geometry identifiers
-    geo_ids = set()
+    # Collect geometry identifiers AND their bone names for strict animation verification!
+    geo_bones = {}
     for gp in (RP / "models").rglob("*.geo.json"):
         for g in parsed[gp].get("minecraft:geometry", []):
-            geo_ids.add(g.get("description", {}).get("identifier"))
+            gid = g.get("description", {}).get("identifier")
+            if gid:
+                geo_bones[gid] = {b.get("name") for b in g.get("bones", []) if b.get("name")}
+    geo_ids = set(geo_bones.keys())
 
-    # Read script custom component registrations
     items_js = (BP / "scripts/items.js").read_text(encoding="utf-8")
     registered_comps = set(re.findall(r'registerCustomComponent\(["\'](auralis:[^"\']+)["\']', items_js))
 
@@ -227,13 +255,26 @@ def main():
                     err(f"Recipe {rp_rec.name} outputs unknown auralis item: {res_id}")
     ok(f"All {recipe_count} crafting & smelting recipes verified")
 
-    # 6. Entities (BP <-> RP <-> Models <-> Animations <-> Textures <-> Loot)
-    anim_ids = set()
+    # 6. Entities + Strict 1.8.0 Molang Guard + Bone Verification + Property Client Sync + AI Flight Guard!
+    anim_map = {}
     for ap in (RP / "animations").glob("*.json"):
-        anim_ids.update(parsed[ap].get("animations", {}).keys())
-    ac_ids = set()
+        doc = parsed[ap]
+        fv = doc.get("format_version", "")
+        for s in collect_strings(doc.get("animations", {})):
+            if re.search(r"\bq\.[a-z_]", s):
+                err(f"Shorthand 'q.' Molang found in {ap.name} (format_version={fv}): {s}")
+        anim_map.update(doc.get("animations", {}))
+    anim_ids = set(anim_map.keys())
+
+    ac_map = {}
     for acp in (RP / "animation_controllers").glob("*.json"):
-        ac_ids.update(parsed[acp].get("animation_controllers", {}).keys())
+        doc = parsed[acp]
+        for s in collect_strings(doc.get("animation_controllers", {})):
+            if re.search(r"\bq\.[a-z_]", s):
+                err(f"Shorthand 'q.' Molang found in {acp.name}: {s}")
+        ac_map.update(doc.get("animation_controllers", {}))
+    ac_ids = set(ac_map.keys())
+
     rc_ids = set()
     for rcp in (RP / "render_controllers").glob("*.json"):
         rc_ids.update(parsed[rcp].get("render_controllers", {}).keys())
@@ -241,9 +282,22 @@ def main():
     entity_count = 0
     for ep in sorted((BP / "entities").glob("*.json")):
         ent = parsed[ep].get("minecraft:entity", {})
-        eid = ent.get("description", {}).get("identifier")
+        bp_desc = ent.get("description", {})
+        eid = bp_desc.get("identifier")
+        comps = ent.get("components", {})
+        bp_props = bp_desc.get("properties", {})
         entity_count += 1
-        loot = ent.get("components", {}).get("minecraft:loot", {}).get("table")
+
+        # Anti-erratic-flight regression check!
+        if "minecraft:behavior.float_wander" in comps and "minecraft:movement.hover" in comps:
+            err(f"Entity {eid} combines erratic float_wander with movement.hover!")
+        if eid == "auralis:astral_seraph":
+            if "minecraft:follow_range" not in comps:
+                err("Boss auralis:astral_seraph missing minecraft:follow_range!")
+            if "minecraft:behavior.look_at_target" not in comps:
+                err("Boss auralis:astral_seraph missing minecraft:behavior.look_at_target!")
+
+        loot = comps.get("minecraft:loot", {}).get("table")
         if loot and not (BP / loot).exists():
             err(f"Entity {eid} missing loot table: {loot}")
         rp_ep = RP / "entity" / f"{ep.stem}.entity.json"
@@ -251,19 +305,43 @@ def main():
             err(f"Entity {eid} missing RP client entity: {rp_ep.name}")
             continue
         desc = parsed[rp_ep].get("minecraft:client_entity", {}).get("description", {})
+        ent_bones = set()
         for g in desc.get("geometry", {}).values():
             if g not in geo_ids:
                 err(f"Entity {eid} unknown geometry: {g}")
+            else:
+                ent_bones.update(geo_bones[g])
         for t in desc.get("textures", {}).values():
             if not (RP / f"{t}.png").exists():
                 err(f"Entity {eid} missing texture PNG: {t}.png")
-        for a in desc.get("animations", {}).values():
-            if a not in anim_ids and a not in ac_ids:
-                err(f"Entity {eid} unknown animation/controller: {a}")
+
+        # Verify every animation's bones exist in geometry & every query.property() is client_synced!
+        used_props = set()
+        for short_name, full_ref in desc.get("animations", {}).items():
+            if full_ref not in anim_ids and full_ref not in ac_ids:
+                err(f"Entity {eid} unknown animation/controller: {full_ref}")
+                continue
+            if full_ref in anim_map:
+                anim_def = anim_map[full_ref]
+                for bname in anim_def.get("bones", {}).keys():
+                    if bname not in ent_bones:
+                        err(f"Entity {eid} animation '{full_ref}' targets missing bone '{bname}'!")
+                for s in collect_strings(anim_def):
+                    used_props.update(re.findall(r"query\.property\(['\"]([^'\"]+)['\"]\)", s))
+            if full_ref in ac_map:
+                for s in collect_strings(ac_map[full_ref]):
+                    used_props.update(re.findall(r"query\.property\(['\"]([^'\"]+)['\"]\)", s))
+
+        for prop_id in used_props:
+            pdef = bp_props.get(prop_id)
+            if not pdef or pdef.get("client_sync") is not True:
+                err(f"Entity {eid} RP queries property '{prop_id}' which is missing or not client_sync:true in BP!")
+
         for rc in desc.get("render_controllers", []):
             if rc not in rc_ids:
                 err(f"Entity {eid} unknown render controller: {rc}")
-    ok(f"All {entity_count} custom entities fully verified across BP, RP, models, animations & loot")
+
+    ok(f"All {entity_count} custom entities verified (zero 'q.' Molang, 100% bone match, client_sync properties, smooth flight AI)")
 
     # 7. Particles & Constants Cross-Check
     particle_ids = set()
@@ -276,9 +354,10 @@ def main():
             err(f"Particle {pid} missing texture PNG: {tex}")
     ok(f"All {len(particle_ids)} custom particle VFX JSONs verified")
 
-    # 8. Audio & OST Verification via ffprobe
+    # 8. Audio & OST Verification via ffprobe + PCM Softness / Headroom Gate!
     sound_defs = parsed.get(RP / "sounds/sound_definitions.json", {}).get("sound_definitions", {})
     ogg_checked = set()
+    max_sfx_peak = 0.0
     for s_id, s_obj in sound_defs.items():
         for entry_s in s_obj.get("sounds", []):
             rel = entry_s["name"] if isinstance(entry_s, dict) else entry_s
@@ -297,20 +376,36 @@ def main():
                         err(f"Invalid Ogg Vorbis audio {ogg.name}: rc={proc.returncode}, dur={proc.stdout}")
                 except ValueError:
                     err(f"ffprobe failed on {ogg.name}: {proc.stderr}")
-    ok(f"All {len(sound_defs)} sound/music definitions & {len(ogg_checked)} .ogg Vorbis files verified via ffprobe")
 
-    # Verify constants.js sound, music, and particle strings resolve cleanly!
+                # Decode SFX files to PCM float32 and enforce gentle peak headroom (ZERO harsh brickwalled SFX!)
+                if ogg.parent.name == "auralis" and ogg.parent.parent.name == "sounds":
+                    dec = subprocess.run(
+                        ["ffmpeg", "-v", "error", "-i", str(ogg), "-f", "f32le", "-ac", "2", "-"],
+                        capture_output=True,
+                    )
+                    if dec.returncode != 0 or len(dec.stdout) < 64:
+                        err(f"ffmpeg PCM decode failed on SFX {ogg.name}")
+                    else:
+                        pcm = np.frombuffer(dec.stdout, dtype=np.float32)
+                        if not np.all(np.isfinite(pcm)):
+                            err(f"Non-finite audio samples in SFX {ogg.name}")
+                        pk = float(np.max(np.abs(pcm)))
+                        max_sfx_peak = max(max_sfx_peak, pk)
+                        if pk < 0.05:
+                            err(f"SFX {ogg.name} is nearly silent (peak={pk:.3f})")
+                        if pk > 0.68:
+                            err(f"SFX {ogg.name} exceeds gentle loudness ceiling (peak={pk:.3f} > 0.68)!")
+    ok(f"All {len(sound_defs)} sound/music definitions & {len(ogg_checked)} .ogg files verified (max SFX peak={max_sfx_peak:.3f} <= 0.68 gentle cap!)")
+
     const_js = (BP / "scripts/constants.js").read_text(encoding="utf-8")
     for s_ref in re.findall(r'["\']((?:auralis|music\.auralis)\.[a-z0-9_.]+)["\']', const_js):
         if s_ref not in sound_defs:
             err(f"constants.js references undefined sound/music ID: {s_ref}")
+    ent_ids = {f"auralis:{ep.stem}" for ep in (BP / "entities").glob("*.json")}
     for p_ref in re.findall(r':\s*["\'](auralis:[a-z0-9_]+)["\']', const_js):
-        if p_ref in particle_ids or p_ref in all_custom_ids or p_ref == "auralis:firmament":
+        if p_ref in particle_ids or p_ref in all_custom_ids or p_ref in ent_ids or p_ref == "auralis:firmament":
             continue
-        # Entities are also valid
-        ent_ids = {f"auralis:{ep.stem}" for ep in (BP / "entities").glob("*.json")}
-        if p_ref not in ent_ids:
-            err(f"constants.js references unknown auralis ID: {p_ref}")
+        err(f"constants.js references unknown auralis ID: {p_ref}")
     ok("All constants.js sound, music, particle, block, item & entity IDs match pack definitions")
 
     # 9. JavaScript ES Module Syntax Check via Node.js
@@ -321,28 +416,52 @@ def main():
             err(f"JS syntax error in {jsf.name}: {proc.stderr}")
     ok(f"All {len(js_files)} ES module scripts pass Node.js syntax check")
 
-    # 10. Runtime Unit Test on noise.js (deterministic biome distribution & citadel placement!)
+    # 10. 10,000-Cell Worldgen 2.0 Mathematical Non-Overlap & Archetype Coverage Proof Test!
     test_code = """
-import { getZoneAt, getNearestCitadel } from './packs/BP/scripts/noise.js';
-const originZone = getZoneAt(0, 0);
-if (originZone !== 'sanctuary') throw new Error('Expected sanctuary at (0,0), got ' + originZone);
-const cit = getNearestCitadel(0, -112);
-if (cit.distance !== 0 || getZoneAt(0, -112) !== 'astral_citadel') throw new Error('Expected Astral Citadel at (0,-112)');
+import { CELL_SIZE, CELL_SAFE_SPAN, getCellLayout, getZoneAt, getNearestCitadel } from './packs/BP/scripts/noise.js';
+
+const origin = getCellLayout(0, 0);
+if (origin.kind !== 'sanctuary') throw new Error('Expected sanctuary at cell (0,0), got ' + origin.kind);
+const prom = getCellLayout(0, -1);
+if (prom.kind !== 'cloud_plains') throw new Error('Expected cloud_plains promenade at (0,-1), got ' + prom.kind);
+const cit = getCellLayout(0, -2);
+if (cit.kind !== 'astral_citadel' || cit.cx !== 0 || cit.cz !== -160) {
+  throw new Error('Expected First Citadel at (0, -160), got ' + JSON.stringify(cit));
+}
+const nearest = getNearestCitadel(0, -160);
+if (nearest.distance !== 0) throw new Error('getNearestCitadel mismatch at (0, -160)');
+
 const counts = {};
-for (let x = -600; x <= 600; x += 32) {
-  for (let z = -600; z <= 600; z += 32) {
-    const zname = getZoneAt(x, z);
-    counts[zname] = (counts[zname] || 0) + 1;
+let minGap = Infinity;
+for (let gx = -50; gx < 50; gx++) {
+  for (let gz = -50; gz < 50; gz++) {
+    const a = getCellLayout(gx, gz);
+    counts[a.kind] = (counts[a.kind] || 0) + 1;
+    // Verify island circle fits strictly inside safe bounding box!
+    if (a.radius > 0) {
+      if (a.cx - a.radius < a.minX || a.cx + a.radius > a.maxX || a.cz - a.radius < a.minZ || a.cz + a.radius > a.maxZ) {
+        throw new Error(`Cell (${gx},${gz}) island breaches safe bounds: ${JSON.stringify(a)}`);
+      }
+    }
+    // Verify East & South neighbors have >= 10 blocks guaranteed sky separation!
+    const east = getCellLayout(gx + 1, gz);
+    const south = getCellLayout(gx, gz + 1);
+    const gapX = east.minX - a.maxX;
+    const gapZ = south.minZ - a.maxZ;
+    minGap = Math.min(minGap, gapX, gapZ);
+    if (gapX < 10 || gapZ < 10) {
+      throw new Error(`Cell overlap risk between (${gx},${gz}) and neighbor! gapX=${gapX}, gapZ=${gapZ}`);
+    }
   }
 }
-for (const req of ['pearl_atolls', 'spire_gardens', 'bell_reefs', 'astral_citadel', 'sanctuary']) {
-  if (!counts[req]) throw new Error('Missing procedural zone in sample grid: ' + req);
+for (const req of ['sanctuary', 'cloud_plains', 'pearl_atolls', 'bell_reefs', 'spire_gardens', 'astral_citadel']) {
+  if (!counts[req]) throw new Error('Missing macro-cell archetype in 10,000-cell grid: ' + req);
 }
-console.log('Zone distribution verified:', JSON.stringify(counts));
+console.log(`10,000-cell non-overlap proof PASSED (min sky gap=${minGap} blocks): ${JSON.stringify(counts)}`);
 """
     proc = subprocess.run(["node", "--input-type=module", "-e", test_code], cwd=ROOT, capture_output=True, text=True)
     if proc.returncode != 0:
-        err(f"noise.js runtime test failed: {proc.stderr}")
+        err(f"Worldgen 2.0 10,000-cell proof failed: {proc.stderr}")
     else:
         ok(proc.stdout.strip())
 

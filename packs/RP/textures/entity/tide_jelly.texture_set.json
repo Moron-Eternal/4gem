@@ -1,0 +1,7 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "tide_jelly",
+    "metalness_emissive_roughness": "tide_jelly_mer"
+  }
+}

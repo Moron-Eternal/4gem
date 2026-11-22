@@ -6,8 +6,8 @@
         "identifier": "geometry.auralis_lumina_ray",
         "texture_width": 64,
         "texture_height": 64,
-        "visible_bounds_width": 4.0,
-        "visible_bounds_height": 2.0,
+        "visible_bounds_width": 4.5,
+        "visible_bounds_height": 2.2,
         "visible_bounds_offset": [
           0,
           0.5,

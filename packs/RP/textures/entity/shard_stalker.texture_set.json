@@ -1,0 +1,7 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "shard_stalker",
+    "metalness_emissive_roughness": "shard_stalker_mer"
+  }
+}

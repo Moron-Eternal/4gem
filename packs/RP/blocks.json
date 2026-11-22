@@ -41,7 +41,7 @@
     "sound": "amethyst_block"
   },
   "auralis:chime_reed": {
-    "sound": "amethyst_cluster"
+    "sound": "cherry_leaves"
   },
   "auralis:gilded_brass": {
     "sound": "copper"
@@ -50,9 +50,18 @@
     "sound": "amethyst_block"
   },
   "auralis:starlight_veil": {
-    "sound": "amethyst_cluster"
+    "sound": "amethyst_block"
   },
   "auralis:vespera_altar": {
     "sound": "amethyst_block"
+  },
+  "auralis:cloudstone": {
+    "sound": "snow"
+  },
+  "auralis:rose_cloud": {
+    "sound": "snow"
+  },
+  "auralis:cloud_vent": {
+    "sound": "calcite"
   }
 }

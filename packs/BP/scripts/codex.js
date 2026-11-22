@@ -92,34 +92,46 @@ function showAtlasGuide(player) {
   showPage(
     player,
     "§bAtlas of the Firmament",
-    `§fSuspended above a glowing §dRose-Gold Cloud Sea §f(Y=32), Auralis unfolds endlessly as you explore:\n\n` +
+    `§fSuspended above a glowing §dRose-Gold Cloud Sea §f(Y=32), Auralis unfolds across grand non-overlapping floating continents and walkable cloud plains:\n\n` +
       `§e• Sanctuary Crown (0, 84, 0)\n` +
-      `§7Your arrival observatory, crowned by twin golden astrolabe rings and a cascading aquamarine waterfall.\n\n` +
+      `§7Your grand arrival plateau with the Mirrored Observatory, Wayfarer Gazebo, waterfalls, and 4 Cardinal Cloud-Vent launch piers.\n\n` +
+      `§f• Rose-Gold Cloud Plains\n` +
+      `§7Broad walkable §fCloudstone §7& §dRose-Gold Cloud §7meadows housing timber §eCloud-Harbor Shrines §7and §bUpdraft Cloud-Vents §7that buoy you effortlessly to upper islands!\n\n` +
       `§b• Pearl-Terrace Atolls\n` +
-      `§7Sweeping alabaster plateaus carpeted in turquoise Tide-Moss, weeping Prism-Coral trees, Sea-Crystals, Singing Chime-Reeds, and deep Solarium Ore veins.\n\n` +
+      `§7Vast Tide-Moss plateaus crowned by domed §eWayfarer Sky-Pavilions§7, Prism-Coral groves, and rocky Sea-Crystal geode outcrops.\n\n` +
       `§6• Gilded Spire Gardens\n` +
-      `§7Soaring brass-trimmed cathedral needles encircled by floating golden astrolabe rings.\n\n` +
+      `§7Tiered marble amphitheaters hosting shattered §eCelestial Observatory Ruins §7beneath hovering armillary rings.\n\n` +
       `§d• Sunken Bell-Reefs\n` +
-      `§7Low glowing coral lagoons housing ruined Alabaster Bell-Temples with treasure chests!\n\n` +
-      `§e✦ Astral Citadels (First lies ~112 blocks North!)\n` +
-      `§7Grand sky-palaces housing the §dVespera Altar§7. Use your §eTuning Fork §7inside Auralis to ping the nearest Citadel!`
+      `§7Tranquil reflecting lagoons bridged by Prism-Wood boardwalks around 22-block climbable §eAlabaster Bell-Towers§7!\n\n` +
+      `§e✦ Astral Citadels (First lies ~160 blocks North via Cloud Promenade!)\n` +
+      `§7Open marble boss arenas housing the §dVespera Altar§7. Use your §eTuning Fork §7inside Auralis to ping the nearest Citadel!`
   );
 }
 
 function showBestiaryGuide(player) {
   showPage(
     player,
-    "§dBestiary of Auralis",
-    `§b• Lumina Ray §8(Passive Sky-Manta)\n` +
-      `§7Glides peacefully between floating islands trailing stardust. Feed it a §dPrism Berry §7to hear its whale-song and receive §eSlow Falling & Night Vision§7!\n\n` +
-      `§e• Choir Wisp §8(Friendly Lantern-Spirit)\n` +
-      `§7Curiously drawn to Tuning Forks, Solarium, and the Astral Lyre.\n\n` +
-      `§3• Tide-Glass Crab §8(Neutral Reef-Dweller)\n` +
-      `§7Peaceful crystal-shelled crustacean; snaps back if provoked. Drops Prism Shards.\n\n` +
-      `§6• Gilded Sentinel §8(Hostile Guardian)\n` +
-      `§7Floating alabaster-and-brass construct firing Astral Pulse Bolts. Drops Solarium Ingots & Star-Cores.\n\n` +
+    "§dBestiary of Auralis (9 Creatures)",
+    `§a— PASSIVE & NEUTRAL WILDLIFE —\n` +
+      `§b• Lumina Ray §8(Sky-Manta)\n` +
+      `§7Glides in serene twilight arcs. Feed a §dPrism Berry §7for §eSlow Falling & Night Vision§7!\n` +
+      `§f• Nimbus Stag §8(Cloud-Deer)\n` +
+      `§7Roams Tide-Moss plateaus & Cloud Plains in herds. Feed a §dPrism Berry §7for §eSpeed & Jump Boost§7!\n` +
+      `§d• Aurelia Cloud-Jelly §8(Sky-Jellyfish)\n` +
+      `§7Pulses gently above Bell-Reefs & Cloud Harbors.\n` +
+      `§e• Choir Wisp §8(Lantern Spirit)\n` +
+      `§7Friendly spirit drawn to Tuning Forks, Solarium & the Astral Lyre.\n` +
+      `§3• Tide-Glass Crab §8(Neutral Defender)\n` +
+      `§7Crystal-shelled reef dweller; snaps back if provoked.\n\n` +
+      `§c— AGGRESSIVE GUARDIANS & BOSS —\n` +
+      `§5• Shard Stalker §8(Twilight Lynx)\n` +
+      `§7Agile ground predator stalking island terraces & ruins with leaping ambushes.\n` +
+      `§d• Astral Weaver §8(Ruin Spellcaster)\n` +
+      `§7Cloaked hovering mage haunting Bell-Towers & Observatories with starlight spells.\n` +
+      `§6• Gilded Sentinel §8(Temple Guardian)\n` +
+      `§7Alabaster-and-brass construct guarding ancient shrines.\n\n` +
       `§e✦ THE ASTRAL SERAPH §8(3-Phase Boss!)\n` +
-      `§7Offer a §dResonant Star-Core §7at a §dVespera Altar §7in an Astral Citadel. Dodge its Harmonic Shockwaves and Falling Star-Pillars to win the §bSovereign's Starblade §7& §eAstral Lyre§7!`
+      `§7Offer a §dResonant Star-Core §7at a §dVespera Altar§7. Survive its Bolt Volleys, Swoop Slashes, Harmonic Novas & Falling Star-Pillars to claim the §bSovereign's Starblade §7& §eAstral Lyre§7!`
   );
 }
 

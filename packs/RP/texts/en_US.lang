@@ -1,5 +1,5 @@
 pack.name=§e✦ §bAuralis: §dThe Prism-Tide Firmament §e✦
-pack.description=§7A celestial twilight floating-archipelago dimension with a unique Harmonic Resonance entry ritual, custom OST, SFX, VFX, PBR blocks, mobs, and the Astral Seraph boss.
+pack.description=§7A celestial twilight floating-archipelago dimension with a unique Harmonic Resonance entry ritual, walkable Cloud-Shelf Plains, custom OST, gentle SFX, VFX, PBR blocks, 9 living mobs, and the Astral Seraph boss.
 
 ## Dimension & Biome
 biome.auralis:firmament.name=Auralis Firmament
@@ -19,6 +19,9 @@ tile.auralis:sea_crystal.name=Auralis Sea-Crystal
 tile.auralis:lantern_bloom.name=Lantern Bloom
 tile.auralis:chime_reed.name=Singing Chime-Reed
 tile.auralis:gilded_brass.name=Celestial Gilded Brass
+tile.auralis:cloudstone.name=Luminous Cloudstone
+tile.auralis:rose_cloud.name=Rose-Gold Cloud Bank
+tile.auralis:cloud_vent.name=§bUpdraft Cloud-Vent
 tile.auralis:astrolabe_pedestal.name=§eCelestial Astrolabe Pedestal
 tile.auralis:starlight_veil.name=§bStarlight Mirror Veil
 tile.auralis:vespera_altar.name=§dVespera Sanctum Altar
@@ -41,11 +44,19 @@ item.auralis:chronicle_of_auralis.name=§dChronicle of Auralis
 entity.auralis:lumina_ray.name=Lumina Ray
 entity.auralis:choir_wisp.name=Choir Wisp
 entity.auralis:glass_crab.name=Tide-Glass Crab
+entity.auralis:nimbus_stag.name=Nimbus Stag
+entity.auralis:tide_jelly.name=Aurelia Cloud-Jelly
+entity.auralis:shard_stalker.name=Shard Stalker
+entity.auralis:astral_weaver.name=Astral Weaver
 entity.auralis:gilded_sentinel.name=Gilded Sentinel
 entity.auralis:astral_seraph.name=The Astral Seraph
 entity.auralis:astral_bolt.name=Astral Pulse Bolt
 item.spawn_egg.entity.auralis:lumina_ray.name=Spawn Lumina Ray
 item.spawn_egg.entity.auralis:choir_wisp.name=Spawn Choir Wisp
 item.spawn_egg.entity.auralis:glass_crab.name=Spawn Tide-Glass Crab
+item.spawn_egg.entity.auralis:nimbus_stag.name=Spawn Nimbus Stag
+item.spawn_egg.entity.auralis:tide_jelly.name=Spawn Aurelia Cloud-Jelly
+item.spawn_egg.entity.auralis:shard_stalker.name=Spawn Shard Stalker
+item.spawn_egg.entity.auralis:astral_weaver.name=Spawn Astral Weaver
 item.spawn_egg.entity.auralis:gilded_sentinel.name=Spawn Gilded Sentinel
 item.spawn_egg.entity.auralis:astral_seraph.name=Spawn The Astral Seraph

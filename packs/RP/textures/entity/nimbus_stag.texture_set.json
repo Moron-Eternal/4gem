@@ -1,0 +1,7 @@
+{
+  "format_version": "1.16.100",
+  "minecraft:texture_set": {
+    "color": "nimbus_stag",
+    "metalness_emissive_roughness": "nimbus_stag_mer"
+  }
+}
