@@ -288,10 +288,13 @@ export const KANTO_MAPS: Record<string, MapDefinition> = {
         y: 11,
         dir: 'right',
         spriteStyle: 'mart',
-        role: 'item_pickup',
+        role: 'item_giver',
         pickupItem: { itemId: 'potion', quantity: 2 },
         dialogue: [
           'MART CLERK: Hi! I work at the VIRIDIAN POKé MART up north. Take these free POTIONS as a sample!',
+        ],
+        postPickupDialogue: [
+          'MART CLERK: Drop by the VIRIDIAN POKé MART just north of Route 1 whenever you need POKé BALLS or POTIONS!',
         ],
       },
     ],

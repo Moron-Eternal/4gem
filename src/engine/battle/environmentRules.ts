@@ -1,6 +1,6 @@
 import { SPECIES } from '../../data/species';
 import { ArenaEnvSnapshot, MoveData, PokemonInstance, ZoneEnvSample } from '../../types/game';
-import { ArenaGrid } from '../physics/arenaGrid';
+import { ArenaGrid, ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, PLAYER_ANCHOR_X, PLAYER_ANCHOR_Y } from '../physics/arenaGrid';
 
 export interface EnvMoveModifiers {
   damageMultiplier: number;
@@ -8,12 +8,14 @@ export interface EnvMoveModifiers {
   guaranteedHit: boolean;
   bonusParalyzeChance: number;
   applySpeedDropOnTarget: boolean;
+  pillarBlocked: boolean;
+  shattersPillar: boolean;
   messages: string[];
 }
 
 export interface EndOfTurnEnvEvent {
   side: 'player' | 'enemy';
-  hpDelta: number; // negative = burn hazard damage, positive = flora heal
+  hpDelta: number;
   message: string;
 }
 
@@ -24,8 +26,8 @@ export function isGrounded(mon: PokemonInstance): boolean {
 }
 
 /**
- * Evaluates how persistent environmental conditions in the ArenaGrid modify
- * an incoming move's damage, accuracy, and tactical side-effects.
+ * Evaluates live tactical environmental modifiers including Electrified Water,
+ * Burning Ground, Steam Haze, Frozen Ice, Craters, Overgrown Flora, Wind, and Destructible Rock Pillars.
  */
 export function evaluateMoveEnvironment(
   move: MoveData,
@@ -34,7 +36,8 @@ export function evaluateMoveEnvironment(
   attackerZone: ZoneEnvSample,
   defenderZone: ZoneEnvSample,
   snapshot: ArenaEnvSnapshot,
-  grid?: ArenaGrid
+  grid?: ArenaGrid,
+  positions?: { ax: number; ay: number; dx: number; dy: number }
 ): EnvMoveModifiers {
   const result: EnvMoveModifiers = {
     damageMultiplier: 1.0,
@@ -42,6 +45,8 @@ export function evaluateMoveEnvironment(
     guaranteedHit: false,
     bonusParalyzeChance: 0,
     applySpeedDropOnTarget: false,
+    pillarBlocked: false,
+    shattersPillar: false,
     messages: [],
   };
 
@@ -53,12 +58,55 @@ export function evaluateMoveEnvironment(
   const attackerInFlames = attackerZone.fire >= 0.08;
   const attackerInWater = attackerZone.water >= 0.1;
 
-  // 1. Steam Haze accuracy reduction (unless move clears steam or auto-conducts)
+  // 0. Check Destructible Stone Pillar Cover!
+  if (grid && positions && grid.pillars.length > 0 && move.category !== 'status') {
+    const bypassesCover =
+      move.archetype === 'earthquake' ||
+      move.archetype === 'thunder_strike' ||
+      move.archetype === 'psychic_wave' ||
+      move.archetype === 'blizzard';
+    const heavyBreaker =
+      move.id === 'earthquake' ||
+      move.id === 'hydro_pump' ||
+      move.id === 'solar_beam' ||
+      move.id === 'fire_blast' ||
+      move.id === 'karate_chop';
+
+    if (move.id === 'earthquake') {
+      result.shattersPillar = true;
+      result.messages.push('EARTHQUAKE shattered the Stone Pillars into flying shrapnel!');
+    } else if (!bypassesCover) {
+      const blocking = grid.findBlockingPillar(
+        positions.ax,
+        positions.ay,
+        positions.dx,
+        positions.dy
+      );
+      if (blocking) {
+        if (heavyBreaker) {
+          result.shattersPillar = true;
+          grid.damagePillar(blocking.id, 3);
+          result.messages.push(`${move.name} smashed straight through the Stone Pillar!`);
+        } else {
+          result.pillarBlocked = true;
+          result.damageMultiplier *= 0.58;
+          const broken = grid.damagePillar(blocking.id, 1);
+          result.messages.push(
+            broken
+              ? 'The Stone Pillar absorbed part of the hit and crumbled!'
+              : 'A Stone Pillar partially shielded the attack!'
+          );
+        }
+      }
+    }
+  }
+
+  // 1. Steam Haze accuracy reduction
   if (snapshot.steamTurns > 0 && move.type !== 'flying') {
     result.accuracyDelta -= 15;
   }
 
-  // 2. Electric + Water Puddles = ELECTRIFIED WATER CHAIN REACTION!
+  // 2. Electric + Water = ELECTRIFIED WATER!
   if (move.type === 'electric' && defenderWet) {
     result.damageMultiplier *= 1.35;
     result.guaranteedHit = true;
@@ -66,7 +114,7 @@ export function evaluateMoveEnvironment(
     result.messages.push('Lightning surged through the flooded floor!');
   }
 
-  // 3. Fire interactions (Overgrown ignition, Burning boost, Water damping/Steam, Ice melt)
+  // 3. Fire interactions
   if (move.type === 'fire') {
     if (defenderOvergrown) {
       result.damageMultiplier *= 1.25;
@@ -83,7 +131,7 @@ export function evaluateMoveEnvironment(
     }
   }
 
-  // 4. Water interactions (Flooded boost, Extinguishing flames into Steam)
+  // 4. Water interactions
   if (move.type === 'water') {
     if (attackerInWater || defenderWet) {
       result.damageMultiplier *= 1.2;
@@ -93,7 +141,7 @@ export function evaluateMoveEnvironment(
     }
   }
 
-  // 5. Ice + Water Puddles = FLASH FREEZE!
+  // 5. Ice + Water = FLASH FREEZE!
   if (move.type === 'ice') {
     if (defenderWet) {
       result.damageMultiplier *= 1.2;
@@ -112,17 +160,16 @@ export function evaluateMoveEnvironment(
     result.messages.push('Shattered terrain amplified the seismic force!');
   }
 
-  // 7. Wind / Flying clears Steam & fans flames
+  // 7. Wind pushes Steam & fans flames
   if (move.type === 'flying') {
     if (snapshot.steamTurns > 0) {
       result.messages.push('The gust blew away the STEAM cloud!');
     } else if (defenderBurning || attackerInFlames) {
-      result.damageMultiplier *= 1.15;
-      result.messages.push('The wind fanned the roaring flames!');
+      result.damageMultiplier *= 1.18;
+      result.messages.push('The gale pushed and fanned the roaring flames!');
     }
   }
 
-  // Also check live grid reactions if fired after choreography
   if (grid) {
     if (grid.recentReactions.steamTriggered && !result.messages.some((m) => m.includes('STEAM'))) {
       result.messages.push('Fire and water collided into a STEAM cloud!');
@@ -139,15 +186,17 @@ export function evaluateMoveEnvironment(
 }
 
 /**
- * Evaluates persistent end-of-turn battlefield hazards (Burning ground chip & Overgrown Grass heal).
+ * Evaluates persistent end-of-turn battlefield hazards at each Pokémon's live arena coordinates.
  */
 export function evaluateEndOfTurnEnvironment(
   player: PokemonInstance,
   enemy: PokemonInstance,
-  grid: ArenaGrid
+  grid: ArenaGrid,
+  playerPos = { x: PLAYER_ANCHOR_X, y: PLAYER_ANCHOR_Y },
+  enemyPos = { x: ENEMY_ANCHOR_X, y: ENEMY_ANCHOR_Y }
 ): EndOfTurnEnvEvent[] {
   const events: EndOfTurnEnvEvent[] = [];
-  const snap = grid.getSnapshot();
+  const snap = grid.getSnapshot(playerPos.x, playerPos.y, enemyPos.x, enemyPos.y);
 
   const checkSide = (side: 'player' | 'enemy', mon: PokemonInstance, zone: ZoneEnvSample) => {
     if (mon.hp <= 0) return;
@@ -155,7 +204,6 @@ export function evaluateEndOfTurnEnvironment(
     if (!species) return;
     const grounded = isGrounded(mon);
 
-    // Burning ground hurts grounded non-Fire Pokémon
     if (grounded && zone.fire >= 0.14 && !species.types.includes('fire')) {
       const dmg = Math.max(1, Math.floor(mon.maxHp / 16));
       events.push({
@@ -165,7 +213,6 @@ export function evaluateEndOfTurnEnvironment(
       });
     }
 
-    // Overgrown flora gently restores Grass-type Pokémon
     if (grounded && zone.flora >= 0.22 && species.types.includes('grass') && mon.hp < mon.maxHp) {
       const heal = Math.max(1, Math.floor(mon.maxHp / 16));
       events.push({

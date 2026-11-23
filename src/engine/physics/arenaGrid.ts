@@ -1,18 +1,29 @@
-import { ArenaBiomeId, ArenaEnvSnapshot, EnvConditionTag, ZoneEnvSample } from '../../types/game';
+import {
+  ArenaBiomeId,
+  ArenaEnvSnapshot,
+  DestructiblePillar,
+  EnvConditionTag,
+  ZoneEnvSample,
+} from '../../types/game';
 
 export const ARENA_W = 192;
 export const ARENA_H = 108;
 export const ARENA_CELLS = ARENA_W * ARENA_H;
 
-/** Playable inner bounds inside side arena walls/borders */
+/** 2x crisp pixel-art render resolution so official 64x64 PokeAPI sprites render at EXACT 1:1 native pixel fidelity! */
+export const RENDER_SCALE = 2;
+export const RENDER_W = ARENA_W * RENDER_SCALE; // 384
+export const RENDER_H = ARENA_H * RENDER_SCALE; // 216
+
+/** Playable inner bounds inside side arena walls/borders (in 192x108 arena units) */
 export const PLAY_MIN_X = 16;
 export const PLAY_MAX_X = ARENA_W - 17;
-export const PLAY_MIN_Y = 6;
-export const PLAY_MAX_Y = ARENA_H - 7;
+export const PLAY_MIN_Y = 8;
+export const PLAY_MAX_Y = ARENA_H - 9;
 
-export const PLAYER_ANCHOR_X = 48;
+export const PLAYER_ANCHOR_X = 52;
 export const PLAYER_ANCHOR_Y = 56;
-export const ENEMY_ANCHOR_X = 144;
+export const ENEMY_ANCHOR_X = 140;
 export const ENEMY_ANCHOR_Y = 56;
 
 export const enum BaseMaterial {
@@ -53,8 +64,9 @@ export interface LightningSegment {
 }
 
 /**
- * Real-time 2D cellular-automata & shallow-water fluid grid for the 192x108 pixel battle arena.
- * Tracks both transient wave/fire/lightning physics and persistent battlefield destruction.
+ * Real-time 2D cellular-automata & shallow-water fluid grid for the battle arena.
+ * Tracks transient waves, flames, lightning, destructible Stone Pillars, wind advection,
+ * and persistent battlefield destruction.
  */
 export class ArenaGrid {
   public readonly width = ARENA_W;
@@ -64,47 +76,36 @@ export class ArenaGrid {
   public baseMaterial = new Uint8Array(ARENA_CELLS);
   public baseNoise = new Uint8Array(ARENA_CELLS);
 
-  /** Standing + transient water depth (0..2.5). Values > 0.08 render as puddles; > 0.45 as surging wave body */
   public water = new Float32Array(ARENA_CELLS);
   public waterNext = new Float32Array(ARENA_CELLS);
-  /** Transient wave foam intensity (0..1.5) created by high velocity / crest slopes / splashes */
   public foam = new Float32Array(ARENA_CELLS);
   public foamNext = new Float32Array(ARENA_CELLS);
-  /** Water surface velocity for advecting surging waves */
   public waterVx = new Float32Array(ARENA_CELLS);
   public waterVy = new Float32Array(ARENA_CELLS);
 
-  /** Active burning flame intensity (0..2.0) */
   public fire = new Float32Array(ARENA_CELLS);
   public fireNext = new Float32Array(ARENA_CELLS);
-  /** Combustible fuel on tile (grass, leaves, sprouted flora) (0..1.5) */
   public fuel = new Float32Array(ARENA_CELLS);
-  /** Permanent charred scorch scar (0..1.0) */
   public scorch = new Float32Array(ARENA_CELLS);
 
-  /** Solid frozen ice sheet (0..1.0) */
   public ice = new Float32Array(ARENA_CELLS);
-  /** Transient electric voltage conducted across wet tiles (0..1.5) */
   public charge = new Float32Array(ARENA_CELLS);
   public chargeNext = new Float32Array(ARENA_CELLS);
 
-  /** Persistent carved crater / fissure depth (0..1.0) */
   public crater = new Float32Array(ARENA_CELLS);
-  /** Persistent overgrown vines / grass tufts (0..1.0) */
   public flora = new Float32Array(ARENA_CELLS);
-  /** Drifting steam / smoke clouds (0..1.2) */
   public steam = new Float32Array(ARENA_CELLS);
   public steamNext = new Float32Array(ARENA_CELLS);
 
-  /** Transient additive floor light glow (R, G, B in 0..1) */
   public glowR = new Float32Array(ARENA_CELLS);
   public glowG = new Float32Array(ARENA_CELLS);
   public glowB = new Float32Array(ARENA_CELLS);
 
   public ripples: RippleRing[] = [];
   public lightningArcs: LightningSegment[] = [];
+  public pillars: DestructiblePillar[] = [];
+  private nextPillarId = 1;
 
-  /** Tracks environmental chain reactions triggered during the current move */
   public recentReactions = {
     steamTriggered: false,
     electricChainCells: 0,
@@ -112,6 +113,7 @@ export class ArenaGrid {
     floraIgnitedCells: 0,
     fireExtinguishedCells: 0,
     iceMeltedCells: 0,
+    pillarsShattered: 0,
   };
 
   public steamTurns = 0;
@@ -130,6 +132,7 @@ export class ArenaGrid {
     this.recentReactions.floraIgnitedCells = 0;
     this.recentReactions.fireExtinguishedCells = 0;
     this.recentReactions.iceMeltedCells = 0;
+    this.recentReactions.pillarsShattered = 0;
   }
 
   public reset(biome: ArenaBiomeId = this.biome): void {
@@ -156,6 +159,7 @@ export class ArenaGrid {
     this.glowB.fill(0);
     this.ripples = [];
     this.lightningArcs = [];
+    this.pillars = [];
     this.steamTurns = 0;
     this.resetRecentReactions();
 
@@ -188,22 +192,16 @@ export class ArenaGrid {
           }
           this.baseMaterial[idx] = BaseMaterial.GymFloor;
 
-          // Center Poké Ball Emblem modeled directly after the reference screenshots!
           const dx = x - cx;
           const dy = y - cy;
           const dist = Math.hypot(dx, dy);
-
-          // 8 compass triangles around Poké Ball emblem
           const angle = Math.atan2(dy, dx);
           const sector = Math.abs(((angle + Math.PI) % (Math.PI / 4)) - Math.PI / 8);
+
           if (dist >= 20 && dist <= 25 && sector < 0.14 * (1 - (dist - 20) / 6)) {
             this.baseMaterial[idx] = BaseMaterial.GymEmblemGold;
           } else if (dist <= 16.5 && dist >= 10.5) {
-            if (Math.abs(dy) <= 1.6) {
-              this.baseMaterial[idx] = BaseMaterial.GymFloor;
-            } else {
-              this.baseMaterial[idx] = BaseMaterial.GymEmblemGold;
-            }
+            this.baseMaterial[idx] = Math.abs(dy) <= 1.6 ? BaseMaterial.GymFloor : BaseMaterial.GymEmblemGold;
           } else if (dist < 10.5 && dist >= 6.8) {
             this.baseMaterial[idx] = BaseMaterial.GymFloor;
           } else if (dist < 6.8 && dist >= 3.4) {
@@ -242,7 +240,6 @@ export class ArenaGrid {
           } else {
             this.baseMaterial[idx] = BaseMaterial.RockFloor;
             this.fuel[idx] = 0.02;
-            // Pre-carve a couple subtle sandstone rings
             const dist = Math.hypot(x - cx, y - cy);
             if (Math.abs(dist - 22) < 1.2 || Math.abs(dist - 40) < 0.9) {
               this.crater[idx] = 0.16;
@@ -263,15 +260,78 @@ export class ArenaGrid {
             this.water[idx] = 0.42;
           } else {
             this.baseMaterial[idx] = BaseMaterial.PoolDeck;
-            this.water[idx] = 0.06; // slightly damp poolside deck
+            this.water[idx] = 0.06;
           }
         }
       }
     }
   }
 
-  public inBounds(x: number, y: number): boolean {
-    return x >= 0 && x < ARENA_W && y >= 0 && y < ARENA_H;
+  public spawnPillar(x: number, y: number, radius = 8, hp = 2): DestructiblePillar | null {
+    const cx = Math.max(PLAY_MIN_X + 14, Math.min(PLAY_MAX_X - 14, Math.round(x)));
+    const cy = Math.max(PLAY_MIN_Y + 12, Math.min(PLAY_MAX_Y - 12, Math.round(y)));
+    if (this.pillars.length >= 4) {
+      this.pillars.shift();
+    }
+    const pillar: DestructiblePillar = {
+      id: this.nextPillarId++,
+      x: cx,
+      y: cy,
+      radius,
+      hp,
+      maxHp: hp,
+      height: 11 + Math.round(radius * 0.7),
+    };
+    this.pillars.push(pillar);
+    this.injectCrater(cx, cy, radius + 3, 0.45);
+    return pillar;
+  }
+
+  /** Checks if a line segment (x1,y1)->(x2,y2) intersects any destructible Rock Pillar. */
+  public findBlockingPillar(x1: number, y1: number, x2: number, y2: number): DestructiblePillar | null {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    if (len2 < 1) return null;
+
+    let closest: DestructiblePillar | null = null;
+    let bestT = Infinity;
+
+    for (const pil of this.pillars) {
+      const t = Math.max(0.08, Math.min(0.92, ((pil.x - x1) * dx + (pil.y - y1) * dy) / len2));
+      const px = x1 + dx * t;
+      const py = y1 + dy * t;
+      const dist = Math.hypot(pil.x - px, pil.y - py);
+      if (dist <= pil.radius + 3 && t < bestT) {
+        bestT = t;
+        closest = pil;
+      }
+    }
+    return closest;
+  }
+
+  public damagePillar(pillarId: number, amount = 1): boolean {
+    const idx = this.pillars.findIndex((p) => p.id === pillarId);
+    if (idx === -1) return false;
+    this.pillars[idx].hp -= amount;
+    if (this.pillars[idx].hp <= 0) {
+      const dead = this.pillars[idx];
+      this.pillars.splice(idx, 1);
+      this.injectCrater(dead.x, dead.y, dead.radius + 6, 0.65);
+      this.recentReactions.pillarsShattered += 1;
+      return true;
+    }
+    return false;
+  }
+
+  public shatterAllPillars(): DestructiblePillar[] {
+    const broken = [...this.pillars];
+    for (const pil of broken) {
+      this.injectCrater(pil.x, pil.y, pil.radius + 6, 0.7);
+    }
+    this.recentReactions.pillarsShattered += broken.length;
+    this.pillars = [];
+    return broken;
   }
 
   public addRipple(
@@ -281,7 +341,7 @@ export class ArenaGrid {
     color: RippleRing['color'],
     speed = 54
   ): void {
-    if (this.ripples.length > 24) this.ripples.shift();
+    if (this.ripples.length > 26) this.ripples.shift();
     this.ripples.push({
       x,
       y,
@@ -293,10 +353,6 @@ export class ArenaGrid {
     });
   }
 
-  /**
-   * Injects a directional water surge (used by Surf, Water Gun, Hydro Pump).
-   * Handles extinguishing fire -> Steam cloud explosions and soaking the floor.
-   */
   public injectWater(
     cx: number,
     cy: number,
@@ -326,7 +382,6 @@ export class ArenaGrid {
         const falloff = 1 - Math.sqrt(d2);
         const idx = y * ARENA_W + x;
 
-        // Water hitting active Fire -> Steam explosion & extinguishes fire!
         if (this.fire[idx] > 0.08) {
           const steamBoost = Math.min(1.1, this.fire[idx] * 0.9 + depth * 0.5);
           this.steam[idx] = Math.min(1.2, this.steam[idx] + steamBoost);
@@ -337,23 +392,17 @@ export class ArenaGrid {
         }
 
         const addDepth = depth * (0.35 + falloff * 0.85);
-        this.water[idx] = Math.min(2.4, Math.max(this.water[idx], addDepth) + addDepth * 0.25);
+        this.water[idx] = Math.min(2.4, Math.max(this.water[idx], addDepth) + addDepth * 0.24);
         this.waterVx[idx] = this.waterVx[idx] * 0.4 + vx * falloff;
         this.waterVy[idx] = this.waterVy[idx] * 0.4 + vy * falloff;
 
-        // Leading crest generates dense pixel foam!
         const leadingEdge = vx >= 0 ? nx > 0.15 : nx < -0.15;
-        const edgeFoam = leadingEdge ? foamAmount * (0.55 + falloff * 0.8) : foamAmount * 0.28 * falloff;
+        const edgeFoam = leadingEdge ? foamAmount * (0.55 + falloff * 0.8) : foamAmount * 0.25 * falloff;
         this.foam[idx] = Math.min(1.4, Math.max(this.foam[idx], edgeFoam));
       }
     }
   }
 
-  /**
-   * Injects thermal flame energy (Flamethrower, Ember, Fire Blast).
-   * Ignites grass/forest/flora fuel, chars permanent scorch marks, melts ice,
-   * and boils puddles into Steam clouds!
-   */
   public injectFire(
     cx: number,
     cy: number,
@@ -381,7 +430,6 @@ export class ArenaGrid {
         const idx = y * ARENA_W + x;
         const heat = intensity * (0.35 + falloff * 0.9);
 
-        // Fire hits Ice -> melts ice into water & steam!
         if (this.ice[idx] > 0.05) {
           const melted = Math.min(this.ice[idx], heat * 0.9);
           this.ice[idx] -= melted;
@@ -390,7 +438,6 @@ export class ArenaGrid {
           this.recentReactions.iceMeltedCells += 1;
         }
 
-        // Fire hits Water puddle -> evaporates into Steam cloud!
         if (this.water[idx] > 0.14) {
           const evap = Math.min(this.water[idx], heat * 0.65);
           this.water[idx] = Math.max(0, this.water[idx] - evap);
@@ -398,11 +445,9 @@ export class ArenaGrid {
           this.steam[idx] = Math.min(1.2, this.steam[idx] + evap * 1.15);
           this.recentReactions.steamTriggered = true;
           this.steamTurns = Math.max(this.steamTurns, 2);
-          // Dampens flame right on water, though huge fire still chars underneath
           if (this.water[idx] > 0.1) continue;
         }
 
-        // Ignites sprouted flora for extra blaze!
         let bonusFuel = 0;
         if (this.flora[idx] > 0.1) {
           bonusFuel = this.flora[idx] * 0.7;
@@ -412,17 +457,13 @@ export class ArenaGrid {
         }
 
         this.fire[idx] = Math.min(2.0, Math.max(this.fire[idx], heat + bonusFuel));
-        this.scorch[idx] = Math.min(1.0, this.scorch[idx] + heat * 0.32 * falloff);
+        this.scorch[idx] = Math.min(1.0, this.scorch[idx] + heat * 0.34 * falloff);
         this.glowR[idx] = Math.min(1, this.glowR[idx] + heat * 0.85);
         this.glowG[idx] = Math.min(1, this.glowG[idx] + heat * 0.42);
       }
     }
   }
 
-  /**
-   * Injects frost energy (Ice Beam, Blizzard, Powder Snow).
-   * Freezes water puddles into slick ice sheets and quenches flames.
-   */
   public injectIce(cx: number, cy: number, radius: number, intensity: number): void {
     const minX = Math.max(PLAY_MIN_X, Math.floor(cx - radius));
     const maxX = Math.min(PLAY_MAX_X, Math.ceil(cx + radius));
@@ -447,7 +488,6 @@ export class ArenaGrid {
 
         let freezeAdd = intensity * (0.45 + falloff * 0.65);
         if (this.water[idx] > 0.08) {
-          // Freezing standing water creates thick crystalline ice sheets!
           freezeAdd += this.water[idx] * 0.85;
           this.water[idx] *= 0.2;
           this.foam[idx] *= 0.2;
@@ -460,9 +500,6 @@ export class ArenaGrid {
     }
   }
 
-  /**
-   * Injects electric voltage and conducts chain lightning through connected wet cells!
-   */
   public injectElectric(cx: number, cy: number, radius: number, voltage: number): void {
     const minX = Math.max(PLAY_MIN_X, Math.floor(cx - radius));
     const maxX = Math.min(PLAY_MAX_X, Math.ceil(cx + radius));
@@ -490,7 +527,6 @@ export class ArenaGrid {
       }
     }
 
-    // Flood-fill conduct electricity rapidly through connected water puddles!
     if (wetSeeds.length > 0) {
       const visited = new Uint8Array(ARENA_CELLS);
       const queue: number[] = [];
@@ -501,7 +537,7 @@ export class ArenaGrid {
         }
       }
       let head = 0;
-      const maxConduct = 2200;
+      const maxConduct = 2400;
       let conducted = 0;
       const arcPoints: Array<{ x: number; y: number }> = [];
 
@@ -513,7 +549,7 @@ export class ArenaGrid {
         this.glowG[cur] = Math.min(1, this.glowG[cur] + 0.5);
         this.glowB[cur] = Math.min(1, this.glowB[cur] + 0.7);
         conducted++;
-        if (conducted % 75 === 0) {
+        if (conducted % 70 === 0) {
           arcPoints.push({ x, y });
         }
 
@@ -527,7 +563,6 @@ export class ArenaGrid {
       }
       this.recentReactions.electricChainCells += conducted;
 
-      // Spawn crackling visual lightning arcs across the electrified puddle!
       for (let i = 0; i < arcPoints.length; i++) {
         const p1 = i === 0 ? { x: cx, y: cy } : arcPoints[i - 1];
         const p2 = arcPoints[i];
@@ -545,7 +580,7 @@ export class ArenaGrid {
     duration = 0.22,
     isWaterBranch = false
   ): void {
-    const steps = Math.max(4, Math.min(12, Math.floor(Math.hypot(x2 - x1, y2 - y1) / 10)));
+    const steps = Math.max(4, Math.min(12, Math.floor(Math.hypot(x2 - x1, y2 - y1) / 9)));
     let px = x1;
     let py = y1;
     const jitter = isWaterBranch ? 4.5 : 7.5;
@@ -568,7 +603,6 @@ export class ArenaGrid {
     }
   }
 
-  /** Carves a persistent crater & radiating fault cracks (Rock/Ground/Body Slam). */
   public injectCrater(cx: number, cy: number, radius: number, depth: number): void {
     const minX = Math.max(PLAY_MIN_X, Math.floor(cx - radius));
     const maxX = Math.min(PLAY_MAX_X, Math.ceil(cx + radius));
@@ -587,13 +621,11 @@ export class ArenaGrid {
         const idx = y * ARENA_W + x;
         const noise = (this.baseNoise[idx] / 255) * 0.25;
         this.crater[idx] = Math.min(1.0, Math.max(this.crater[idx], depth * (falloff + noise * 0.4)));
-        // Shatters ice sheets & smothers small embers
         if (this.ice[idx] > 0) this.ice[idx] = Math.max(0, this.ice[idx] - depth * 0.8);
         if (this.fire[idx] > 0) this.fire[idx] = Math.max(0, this.fire[idx] - depth * 0.35);
       }
     }
 
-    // Radiating pixel fissure lines
     const crackCount = Math.max(3, Math.round(radius / 4));
     for (let c = 0; c < crackCount; c++) {
       const ang = (c / crackCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
@@ -613,7 +645,6 @@ export class ArenaGrid {
     }
   }
 
-  /** Sprouts persistent overgrown vines/grass (amplified on moist ground). */
   public injectFlora(cx: number, cy: number, radius: number, density: number): void {
     const minX = Math.max(PLAY_MIN_X, Math.floor(cx - radius));
     const maxX = Math.min(PLAY_MAX_X, Math.ceil(cx + radius));
@@ -642,47 +673,52 @@ export class ArenaGrid {
     }
   }
 
-  /** Gust / Wind clears Steam clouds and fans active flames rightward/leftward. */
+  /**
+   * Gust / Wing Attack physically pushes Steam clouds away, fans & advects active flames
+   * downwind across the floor, and drives surface ripples on water puddles!
+   */
   public applyWindGust(dirX: number, strength: number): void {
     this.steamTurns = 0;
-    for (let i = 0; i < ARENA_CELLS; i++) {
-      this.steam[i] *= Math.max(0.05, 1 - strength * 0.75);
-      if (this.fire[i] > 0.1) {
-        this.fire[i] = Math.min(2.0, this.fire[i] * (1 + strength * 0.35));
-      }
-      if (this.water[i] > 0.08) {
-        this.waterVx[i] += dirX * strength * 18;
+    const shift = Math.round(dirX * (4 + strength * 10));
+    const fireCopy = new Float32Array(this.fire);
+
+    for (let y = 1; y < ARENA_H - 1; y++) {
+      const row = y * ARENA_W;
+      for (let x = PLAY_MIN_X; x <= PLAY_MAX_X; x++) {
+        const idx = row + x;
+        this.steam[idx] *= Math.max(0.05, 1 - strength * 0.8);
+        if (this.water[idx] > 0.08) {
+          this.waterVx[idx] += dirX * strength * 24;
+        }
+        const srcX = x - shift;
+        if (srcX >= PLAY_MIN_X && srcX <= PLAY_MAX_X) {
+          const srcFire = fireCopy[row + srcX];
+          if (srcFire > 0.12 && this.water[idx] < 0.1) {
+            this.fire[idx] = Math.min(2.0, Math.max(this.fire[idx], srcFire * (0.85 + strength * 0.3)));
+            this.scorch[idx] = Math.min(1.0, this.scorch[idx] + 0.18);
+          }
+        }
       }
     }
   }
 
-  /**
-   * Advances cellular automata & shallow-water fluid physics by dt seconds.
-   */
   public step(dt: number): void {
     const clampedDt = Math.min(0.05, dt);
     this.simTime += clampedDt;
     this.stepCounter++;
 
-    // 1. Update expanding ripples
     for (let i = this.ripples.length - 1; i >= 0; i--) {
       const r = this.ripples[i];
       r.radius += r.speed * clampedDt;
       r.alpha = Math.max(0, 1 - r.radius / r.maxRadius);
-      if (r.radius >= r.maxRadius) {
-        this.ripples.splice(i, 1);
-      }
+      if (r.radius >= r.maxRadius) this.ripples.splice(i, 1);
     }
 
-    // 2. Update lightning bolts
     for (let i = this.lightningArcs.length - 1; i >= 0; i--) {
       this.lightningArcs[i].life -= clampedDt;
-      if (this.lightningArcs[i].life <= 0) {
-        this.lightningArcs.splice(i, 1);
-      }
+      if (this.lightningArcs[i].life <= 0) this.lightningArcs.splice(i, 1);
     }
 
-    // 3. Cellular automata grid update
     const w = ARENA_W;
     const h = ARENA_H;
     const water = this.water;
@@ -703,19 +739,16 @@ export class ArenaGrid {
       for (let x = PLAY_MIN_X; x <= PLAY_MAX_X; x++) {
         const idx = row + x;
 
-        // Decay dynamic glow quickly
         this.glowR[idx] *= 0.86;
         this.glowG[idx] *= 0.86;
         this.glowB[idx] *= 0.86;
 
-        // --- SHALLOW WATER & WAVE ADVECTION ---
         const curW = water[idx];
         const vx = this.waterVx[idx];
         const vy = this.waterVy[idx];
         const avgNeighbors =
           (water[idx - 1] + water[idx + 1] + water[idx - w] + water[idx + w]) * 0.25;
 
-        // Semi-Lagrangian upstream sample when water is surging strongly
         let advectedW = curW;
         let advectedFoam = foam[idx];
         if (Math.abs(vx) > 0.3 || Math.abs(vy) > 0.3) {
@@ -726,35 +759,30 @@ export class ArenaGrid {
           advectedFoam = foam[idx] * 0.4 + foam[sIdx] * 0.6;
         }
 
-        // Diffuse wave height gently into puddles (tall waves relax into persistent puddles ~0.28 depth)
         let nextW = advectedW * 0.72 + avgNeighbors * 0.28;
         const isPool = this.baseMaterial[idx] === BaseMaterial.PoolWater;
         if (isPool) {
           nextW = Math.max(0.38, nextW);
         } else if (nextW > 0.34) {
-          // Tall transient waves settle down slowly toward standing puddle depth
           nextW = 0.34 + (nextW - 0.34) * (1 - clampedDt * 1.65);
         } else if (nextW > 0.02) {
-          // Standing puddles linger throughout the battle (very slow evaporation)
-          nextW *= 1 - clampedDt * 0.015;
+          nextW *= 1 - clampedDt * 0.014;
         } else {
           nextW = 0;
         }
         waterNext[idx] = nextW;
 
-        // Velocity damping
         this.waterVx[idx] = vx * (1 - clampedDt * 2.8);
         this.waterVy[idx] = vy * (1 - clampedDt * 2.8);
 
-        // Foam decays smoothly as wave settles
-        const slope = Math.abs(water[idx + 1] - water[idx - 1]) + Math.abs(water[idx + w] - water[idx - w]);
-        let nextFoam = advectedFoam * (1 - clampedDt * 2.1);
-        if (slope > 0.22 && nextW > 0.28) {
-          nextFoam = Math.min(1.3, nextFoam + slope * 0.28);
+        const slope =
+          Math.abs(water[idx + 1] - water[idx - 1]) + Math.abs(water[idx + w] - water[idx - w]);
+        let nextFoam = advectedFoam * (1 - clampedDt * 2.2);
+        if (slope > 0.24 && nextW > 0.28) {
+          nextFoam = Math.min(1.3, nextFoam + slope * 0.26);
         }
         foamNext[idx] = nextFoam > 0.015 ? nextFoam : 0;
 
-        // --- FIRE & FUEL COMBUSTION ---
         let f = fire[idx];
         if (tickFire) {
           const maxNeighborFire = Math.max(
@@ -763,44 +791,45 @@ export class ArenaGrid {
             fire[idx - w],
             fire[idx + w]
           );
-          if (f < 0.05 && maxNeighborFire > 0.48 && this.fuel[idx] > 0.25 && nextW < 0.08 && this.ice[idx] < 0.1) {
-            // Fire spreads realistically across grass & forest fuel!
+          if (
+            f < 0.05 &&
+            maxNeighborFire > 0.46 &&
+            this.fuel[idx] > 0.25 &&
+            nextW < 0.08 &&
+            this.ice[idx] < 0.1
+          ) {
             if (((x * 19 + y * 37 + this.stepCounter) & 15) === 0) {
-              f = 0.55;
+              f = 0.56;
             }
           }
         }
         if (f > 0.01) {
           if (nextW > 0.15) {
-            // Standing water quenches fire into steam
             steamNext[idx] = Math.min(1.2, steam[idx] + f * 0.55);
             f *= 0.45;
           } else if (this.fuel[idx] > 0.05) {
-            // Burn fuel slowly -> persistent glowing burning patch
-            this.fuel[idx] = Math.max(0, this.fuel[idx] - clampedDt * 0.065);
+            this.fuel[idx] = Math.max(0, this.fuel[idx] - clampedDt * 0.06);
             this.scorch[idx] = Math.min(1.0, this.scorch[idx] + clampedDt * 0.16);
-            f = Math.max(0.32, f * (1 - clampedDt * 0.35));
+            f = Math.max(0.32, f * (1 - clampedDt * 0.34));
             if (this.flora[idx] > 0) {
               this.flora[idx] = Math.max(0, this.flora[idx] - clampedDt * 0.3);
             }
           } else {
-            // Non-fuel stone/gym floor embers glow & cool over several seconds
             this.scorch[idx] = Math.min(1.0, this.scorch[idx] + clampedDt * 0.08);
-            f *= 1 - clampedDt * 0.72;
+            f *= 1 - clampedDt * 0.7;
           }
           this.glowR[idx] = Math.min(1, this.glowR[idx] + f * 0.45);
           this.glowG[idx] = Math.min(1, this.glowG[idx] + f * 0.2);
         }
         fireNext[idx] = f > 0.02 ? f : 0;
 
-        // --- ELECTRIC CHARGE DECAY ---
         const c = charge[idx];
         chargeNext[idx] = c > 0.02 ? c * (1 - clampedDt * 4.5) : 0;
 
-        // --- STEAM & SMOKE DRIFT UPWARD ---
         const belowSteam = steam[idx + w];
-        const avgS = (steam[idx] * 0.45 + belowSteam * 0.35 + steam[idx - 1] * 0.1 + steam[idx + 1] * 0.1);
-        let nextS = avgS * (1 - clampedDt * 0.55);
+        const avgS =
+          steam[idx] * 0.45 + belowSteam * 0.35 + steam[idx - 1] * 0.1 + steam[idx + 1] * 0.1;
+        let nextS = avgS * (1 - clampedDt * 0.52);
         if (f > 0.35 && ((x + y + this.stepCounter) & 7) === 0) {
           nextS = Math.min(1.0, nextS + 0.14);
         }
@@ -808,7 +837,6 @@ export class ArenaGrid {
       }
     }
 
-    // Swap double buffers
     this.water = waterNext;
     this.waterNext = water;
     this.foam = foamNext;
@@ -821,7 +849,16 @@ export class ArenaGrid {
     this.steamNext = steam;
   }
 
-  /** Samples average environmental fields in a circular zone around (cx, cy). */
+  public samplePointSurface(x: number, y: number): 'fire' | 'water' | 'ice' | 'normal' {
+    const ix = Math.max(PLAY_MIN_X, Math.min(PLAY_MAX_X, Math.round(x)));
+    const iy = Math.max(1, Math.min(ARENA_H - 2, Math.round(y)));
+    const idx = iy * ARENA_W + ix;
+    if (this.fire[idx] > 0.18) return 'fire';
+    if (this.ice[idx] > 0.18) return 'ice';
+    if (this.water[idx] > 0.12) return 'water';
+    return 'normal';
+  }
+
   public sampleZone(cx: number, cy: number, radius = 20): ZoneEnvSample {
     const minX = Math.max(PLAY_MIN_X, Math.floor(cx - radius));
     const maxX = Math.min(PLAY_MAX_X, Math.ceil(cx + radius));
@@ -881,9 +918,14 @@ export class ArenaGrid {
     return sample;
   }
 
-  public getSnapshot(): ArenaEnvSnapshot {
-    const playerZone = this.sampleZone(PLAYER_ANCHOR_X, PLAYER_ANCHOR_Y, 22);
-    const enemyZone = this.sampleZone(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 22);
+  public getSnapshot(
+    playerX = PLAYER_ANCHOR_X,
+    playerY = PLAYER_ANCHOR_Y,
+    enemyX = ENEMY_ANCHOR_X,
+    enemyY = ENEMY_ANCHOR_Y
+  ): ArenaEnvSnapshot {
+    const playerZone = this.sampleZone(playerX, playerY, 20);
+    const enemyZone = this.sampleZone(enemyX, enemyY, 20);
     const centerZone = this.sampleZone(ARENA_W / 2, ARENA_H / 2, 34);
 
     const tagSet = new Set<EnvConditionTag>([
@@ -892,6 +934,7 @@ export class ArenaGrid {
       ...centerZone.tags,
     ]);
     if (this.steamTurns > 0) tagSet.add('steam');
+    if (this.pillars.length > 0) tagSet.add('pillars');
 
     return {
       playerZone,
@@ -899,6 +942,7 @@ export class ArenaGrid {
       centerZone,
       activeTags: Array.from(tagSet),
       steamTurns: this.steamTurns,
+      pillarCount: this.pillars.length,
     };
   }
 }

@@ -1,3 +1,4 @@
+import { ITEMS } from '../../data/items';
 import { SPECIES } from '../../data/species';
 import { PokemonSpecies } from '../../types/game';
 import { generateFallbackSprite } from './fallbackSprites';
@@ -8,15 +9,35 @@ export interface SpriteEntry {
   whiteCanvas: HTMLCanvasElement;
   iceCanvas: HTMLCanvasElement;
   fireCanvas: HTMLCanvasElement;
+  wetCanvas: HTMLCanvasElement;
   source: 'fallback' | 'pokeapi';
+  /** Native pixel height of the trimmed official sprite (used for 1:1 fidelity rendering) */
+  nativeWidth: number;
+  nativeHeight: number;
 }
 
-const POKEAPI_FRLG =
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-iii/firered-leafgreen';
-const POKEAPI_PLATINUM =
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-iv/platinum';
-const POKEAPI_DEFAULT =
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+const POKEAPI_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites';
+const POKEAPI_FRLG = `${POKEAPI_BASE}/pokemon/versions/generation-iii/firered-leafgreen`;
+const POKEAPI_HGSS = `${POKEAPI_BASE}/pokemon/versions/generation-iv/heartgold-soulsilver`;
+const POKEAPI_PLATINUM = `${POKEAPI_BASE}/pokemon/versions/generation-iv/platinum`;
+const POKEAPI_BW = `${POKEAPI_BASE}/pokemon/versions/generation-v/black-white`;
+const POKEAPI_DEFAULT = `${POKEAPI_BASE}/pokemon`;
+const POKEAPI_ITEMS = `${POKEAPI_BASE}/items`;
+
+export function getOfficialSpriteUrl(speciesId: string): string {
+  const sp = SPECIES[speciesId];
+  if (!sp) return `${POKEAPI_FRLG}/25.png`;
+  if (sp.gen4Sprite) {
+    return `${POKEAPI_PLATINUM}/${sp.dexNumber}.png`;
+  }
+  return `${POKEAPI_FRLG}/${sp.dexNumber}.png`;
+}
+
+export function getOfficialItemUrl(itemId: string): string {
+  const item = ITEMS[itemId];
+  const slug = item?.apiSlug ?? 'poke-ball';
+  return `${POKEAPI_ITEMS}/${slug}.png`;
+}
 
 function createTintedCanvas(
   source: HTMLCanvasElement,
@@ -43,7 +64,7 @@ function createTintedCanvas(
     }
     ctx.putImageData(img, 0, 0);
   } catch {
-    // Fallback if canvas tainted
+    // ignore cross-origin tint failure
   }
   return c;
 }
@@ -96,12 +117,15 @@ function trimTransparentCanvas(img: HTMLImageElement): HTMLCanvasElement {
 }
 
 /**
- * Loads Gen 3 FireRed/LeafGreen (and Gen 4 Platinum for Munchlax) sprites from PokéAPI
- * with CORS-safe transparent trimming and instant custom pixel-art fallbacks.
+ * Loads official Pokémon sprites and item icons directly from https://github.com/PokeAPI/sprites
+ * at exact 1:1 native pixel fidelity with transparent-bound trimming, elemental tint masks,
+ * and automatic offline custom pixel-art fallbacks.
  */
 export class SpriteManager {
   private cache = new Map<string, SpriteEntry>();
   private loading = new Set<string>();
+  private itemCache = new Map<string, HTMLCanvasElement>();
+  private itemLoading = new Set<string>();
 
   public getSprite(speciesId: string): SpriteEntry {
     const existing = this.cache.get(speciesId);
@@ -115,11 +139,21 @@ export class SpriteManager {
       whiteCanvas: createTintedCanvas(fallbackCanvas, 255, 255, 255),
       iceCanvas: createTintedCanvas(fallbackCanvas, 125, 236, 255),
       fireCanvas: createTintedCanvas(fallbackCanvas, 255, 130, 35),
+      wetCanvas: createTintedCanvas(fallbackCanvas, 80, 175, 255),
       source: 'fallback',
+      nativeWidth: Math.round(fallbackCanvas.width * 1.6),
+      nativeHeight: Math.round(fallbackCanvas.height * 1.6),
     };
     this.cache.set(species.id, entry);
     this.loadRemoteSprite(species);
     return entry;
+  }
+
+  public getItemCanvas(itemId: string): HTMLCanvasElement | null {
+    const existing = this.itemCache.get(itemId);
+    if (existing) return existing;
+    this.loadRemoteItem(itemId);
+    return null;
   }
 
   public preload(speciesIds: string[]): void {
@@ -128,15 +162,41 @@ export class SpriteManager {
     }
   }
 
+  public preloadCommonItems(): void {
+    for (const id of ['poke_ball', 'great_ball', 'ultra_ball', 'potion', 'super_potion', 'rare_candy']) {
+      this.loadRemoteItem(id);
+    }
+  }
+
+  private loadRemoteItem(itemId: string): void {
+    if (typeof Image === 'undefined' || this.itemLoading.has(itemId)) return;
+    this.itemLoading.add(itemId);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const trimmed = trimTransparentCanvas(img);
+      if (trimmed.width > 4) {
+        this.itemCache.set(itemId, trimmed);
+      }
+    };
+    img.src = getOfficialItemUrl(itemId);
+  }
+
   private loadRemoteSprite(species: PokemonSpecies): void {
     if (typeof Image === 'undefined' || this.loading.has(species.id)) return;
     this.loading.add(species.id);
 
     const urls = species.gen4Sprite
-      ? [`${POKEAPI_PLATINUM}/${species.dexNumber}.png`, `${POKEAPI_DEFAULT}/${species.dexNumber}.png`]
+      ? [
+          `${POKEAPI_PLATINUM}/${species.dexNumber}.png`,
+          `${POKEAPI_HGSS}/${species.dexNumber}.png`,
+          `${POKEAPI_BW}/${species.dexNumber}.png`,
+          `${POKEAPI_DEFAULT}/${species.dexNumber}.png`,
+        ]
       : [
           `${POKEAPI_FRLG}/${species.dexNumber}.png`,
-          `${POKEAPI_PLATINUM}/${species.dexNumber}.png`,
+          `${POKEAPI_HGSS}/${species.dexNumber}.png`,
+          `${POKEAPI_BW}/${species.dexNumber}.png`,
           `${POKEAPI_DEFAULT}/${species.dexNumber}.png`,
         ];
 
@@ -153,13 +213,14 @@ export class SpriteManager {
             whiteCanvas: createTintedCanvas(trimmed, 255, 255, 255),
             iceCanvas: createTintedCanvas(trimmed, 125, 236, 255),
             fireCanvas: createTintedCanvas(trimmed, 255, 130, 35),
+            wetCanvas: createTintedCanvas(trimmed, 92, 188, 255),
             source: 'pokeapi',
+            nativeWidth: trimmed.width,
+            nativeHeight: trimmed.height,
           });
         }
       };
-      img.onerror = () => {
-        tryUrl(index + 1);
-      };
+      img.onerror = () => tryUrl(index + 1);
       img.src = urls[index];
     };
 

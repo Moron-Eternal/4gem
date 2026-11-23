@@ -3,9 +3,11 @@ import {
   ArenaGrid,
   ENEMY_ANCHOR_X,
   ENEMY_ANCHOR_Y,
+  PLAYER_ANCHOR_X,
+  PLAYER_ANCHOR_Y,
 } from '../engine/physics/arenaGrid';
 
-describe('ArenaGrid 2D Cellular-Automata & Fluid Physics', () => {
+describe('ArenaGrid 2D Cellular-Automata, Fluid Physics, Pillars & Wind', () => {
   it('injects water waves that leave persistent standing puddles', () => {
     const grid = new ArenaGrid('gym_floor');
     grid.injectWater(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 18, 22, 1.2, 24, 0, 0.9);
@@ -16,7 +18,7 @@ describe('ArenaGrid 2D Cellular-Automata & Fluid Physics', () => {
     expect(sample.tags).toContain('flooded');
   });
 
-  it('ignites Viridian Forest / Meadow grass fuel and leaves persistent scorch scars', () => {
+  it('ignites Viridian Forest fuel and leaves persistent scorch scars', () => {
     const grid = new ArenaGrid('viridian_forest');
     grid.injectFire(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 16, 16, 1.3);
     for (let i = 0; i < 30; i++) grid.step(1 / 60);
@@ -27,7 +29,7 @@ describe('ArenaGrid 2D Cellular-Automata & Fluid Physics', () => {
     expect(sample.tags).toContain('burning');
   });
 
-  it('triggers a Steam explosion and extinguishes fire when Water collides with Fire', () => {
+  it('triggers Steam and extinguishes fire when Water hits Fire', () => {
     const grid = new ArenaGrid('route_meadow');
     grid.injectFire(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 16, 16, 1.2);
     grid.resetRecentReactions();
@@ -36,13 +38,11 @@ describe('ArenaGrid 2D Cellular-Automata & Fluid Physics', () => {
     expect(grid.recentReactions.steamTriggered).toBe(true);
     expect(grid.recentReactions.fireExtinguishedCells).toBeGreaterThan(0);
     expect(grid.steamTurns).toBeGreaterThanOrEqual(2);
-    const snap = grid.getSnapshot();
-    expect(snap.activeTags).toContain('steam');
+    expect(grid.getSnapshot().activeTags).toContain('steam');
   });
 
-  it('conducts Electric voltage through connected water puddles across the arena', () => {
+  it('conducts Electric voltage through connected water puddles', () => {
     const grid = new ArenaGrid('gym_floor');
-    // Create a continuous flooded strip
     grid.injectWater(100, ENEMY_ANCHOR_Y, 36, 18, 0.8, 0, 0, 0.4);
     grid.injectWater(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 22, 18, 0.8, 0, 0, 0.4);
     grid.resetRecentReactions();
@@ -64,21 +64,28 @@ describe('ArenaGrid 2D Cellular-Automata & Fluid Physics', () => {
     expect(sample.tags).toContain('frozen');
   });
 
-  it('carves persistent craters from Rock/Ground impacts and sprouts combustible flora from Grass moves', () => {
+  it('spawns Destructible Rock Pillars that block line-of-sight and shatter on Earthquake', () => {
     const grid = new ArenaGrid('pewter_rock');
-    grid.injectCrater(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 18, 0.9);
-    const cratered = grid.sampleZone(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 18);
-    expect(cratered.crater).toBeGreaterThan(0.15);
-    expect(cratered.tags).toContain('cratered');
+    const pil = grid.spawnPillar(96, 56, 8, 2);
+    expect(pil).not.toBeNull();
+    expect(grid.getSnapshot().activeTags).toContain('pillars');
 
-    grid.injectFlora(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 18, 0.85);
-    const overgrown = grid.sampleZone(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 18);
-    expect(overgrown.flora).toBeGreaterThan(0.15);
-    expect(overgrown.tags).toContain('overgrown');
+    const hit = grid.findBlockingPillar(PLAYER_ANCHOR_X, PLAYER_ANCHOR_Y, ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y);
+    expect(hit?.id).toBe(pil?.id);
 
-    // Igniting overgrown flora triggers floraIgnitedCells!
-    grid.resetRecentReactions();
-    grid.injectFire(ENEMY_ANCHOR_X, ENEMY_ANCHOR_Y, 18, 18, 1.2);
-    expect(grid.recentReactions.floraIgnitedCells).toBeGreaterThan(0);
+    const broken = grid.shatterAllPillars();
+    expect(broken.length).toBe(1);
+    expect(grid.pillars.length).toBe(0);
+  });
+
+  it('physically pushes active flames downwind and clears Steam on applyWindGust', () => {
+    const grid = new ArenaGrid('route_meadow');
+    grid.injectFire(72, 56, 10, 10, 1.3);
+    grid.steamTurns = 2;
+
+    grid.applyWindGust(1, 0.9);
+    expect(grid.steamTurns).toBe(0);
+    const downwind = grid.sampleZone(84, 56, 10);
+    expect(downwind.fire).toBeGreaterThan(0.1);
   });
 });

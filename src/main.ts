@@ -4,11 +4,12 @@ import { healPokemon } from './data/pokemonFactory';
 import { TRAINERS } from './data/trainers';
 import { soundEngine } from './engine/audio/soundEngine';
 import { createNewSaveState, loadGame, saveGame } from './engine/save/saveManager';
-import { SaveState } from './types/game';
+import { PvpMatchConfig, SaveState } from './types/game';
 import { BattleLabUI } from './ui/BattleLabUI';
 import { BattleConfig, BattleOutcome, BattleUI } from './ui/BattleUI';
+import { OpeningCinematic } from './ui/OpeningCinematic';
 import { OverworldUI } from './ui/OverworldUI';
-import { TitleScreen } from './ui/TitleScreen';
+import { PvpSetupUI } from './ui/PvpSetupUI';
 
 interface ActiveScreen {
   unmount(): void;
@@ -18,6 +19,7 @@ class PokemonFireRedApp {
   private frameEl: HTMLElement;
   private activeScreen: ActiveScreen | null = null;
   private save: SaveState | null = null;
+  private lastPvpConfig: PvpMatchConfig | null = null;
   private labReturnTarget: 'title' | 'overworld' = 'title';
 
   constructor(root: HTMLElement) {
@@ -30,7 +32,8 @@ class PokemonFireRedApp {
     if (!frame) throw new Error('Failed to mount console frame');
     this.frameEl = frame as HTMLElement;
 
-    this.showTitle();
+    // Launch straight into the iconic FireRed Opening Cinematic on initial page load!
+    this.showTitle(false);
   }
 
   private swapScreen(next: ActiveScreen): void {
@@ -38,25 +41,29 @@ class PokemonFireRedApp {
     this.activeScreen = next;
   }
 
-  private showTitle(): void {
-    soundEngine.playMusic('title');
-    const title = new TitleScreen(this.frameEl, {
-      onNewGame: () => {
-        this.save = createNewSaveState();
-        saveGame(this.save);
-        this.showOverworld();
+  private showTitle(skipOpening = true): void {
+    const opening = new OpeningCinematic(
+      this.frameEl,
+      {
+        onNewGame: () => {
+          this.save = createNewSaveState();
+          saveGame(this.save);
+          this.showOverworld();
+        },
+        onContinue: () => {
+          this.save = loadGame() ?? createNewSaveState();
+          this.showOverworld();
+        },
+        onOpenPvp: () => this.showPvpSetup(),
+        onOpenLab: () => {
+          this.labReturnTarget = 'title';
+          this.showBattleLab();
+        },
       },
-      onContinue: () => {
-        this.save = loadGame() ?? createNewSaveState();
-        this.showOverworld();
-      },
-      onOpenLab: () => {
-        this.labReturnTarget = 'title';
-        this.showBattleLab();
-      },
-    });
-    this.swapScreen(title);
-    title.mount();
+      skipOpening
+    );
+    this.swapScreen(opening);
+    opening.mount();
   }
 
   private showOverworld(initialMessage?: string[]): void {
@@ -69,34 +76,64 @@ class PokemonFireRedApp {
         this.labReturnTarget = 'overworld';
         this.showBattleLab();
       },
-      onReturnTitle: () => this.showTitle(),
+      onReturnTitle: () => this.showTitle(true),
     });
     this.swapScreen(overworld);
     overworld.mount(initialMessage);
   }
 
+  private showPvpSetup(): void {
+    const pvp = new PvpSetupUI(this.frameEl, {
+      onStartMatch: (cfg) => {
+        this.lastPvpConfig = cfg;
+        this.showBattle({
+          mode: 'pvp',
+          biome: cfg.biome,
+          pvp: cfg,
+        });
+      },
+      onBack: () => this.showTitle(true),
+    });
+    this.swapScreen(pvp);
+    pvp.mount();
+  }
+
   private showBattle(config: BattleConfig): void {
-    if (!this.save) return;
     const battle = new BattleUI(this.frameEl, this.save, config, (outcome) => {
-      this.handleBattleOutcome(outcome);
+      this.handleBattleOutcome(outcome, config);
     });
     this.swapScreen(battle);
     battle.mount();
   }
 
-  private handleBattleOutcome(outcome: BattleOutcome): void {
+  private handleBattleOutcome(outcome: BattleOutcome, config: BattleConfig): void {
+    if (config.mode === 'pvp') {
+      if (outcome.result === 'pvp_rematch' && this.lastPvpConfig) {
+        for (const m of [...this.lastPvpConfig.p1Party, ...this.lastPvpConfig.p2Party]) {
+          healPokemon(m);
+        }
+        this.showBattle({
+          mode: 'pvp',
+          biome: this.lastPvpConfig.biome,
+          pvp: this.lastPvpConfig,
+        });
+      } else if (outcome.result === 'pvp_edit') {
+        this.showPvpSetup();
+      } else {
+        this.showTitle(true);
+      }
+      return;
+    }
+
     if (!this.save) {
-      this.showTitle();
+      this.showTitle(true);
       return;
     }
 
     let postMessages: string[] | undefined;
 
     if (outcome.result === 'lose') {
-      // Classic FireRed blackout respawn at nearest safe town with full heal!
-      for (const mon of this.save.party) {
-        healPokemon(mon);
-      }
+      for (const mon of this.save.party) healPokemon(mon);
       if (this.save.mapId === 'cerulean_gym' || this.save.mapId === 'cerulean_city') {
         this.save.mapId = 'cerulean_city';
         this.save.playerX = 3;
@@ -133,7 +170,7 @@ class PokemonFireRedApp {
       if (this.labReturnTarget === 'overworld' && this.save) {
         this.showOverworld();
       } else {
-        this.showTitle();
+        this.showTitle(true);
       }
     });
     this.swapScreen(lab);

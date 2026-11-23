@@ -4,6 +4,7 @@ export const ITEMS: Record<string, ItemData> = {
   poke_ball: {
     id: 'poke_ball',
     name: 'POKé BALL',
+    apiSlug: 'poke-ball',
     category: 'ball',
     price: 200,
     catchMultiplier: 1.0,
@@ -12,6 +13,7 @@ export const ITEMS: Record<string, ItemData> = {
   great_ball: {
     id: 'great_ball',
     name: 'GREAT BALL',
+    apiSlug: 'great-ball',
     category: 'ball',
     price: 600,
     catchMultiplier: 1.65,
@@ -20,6 +22,7 @@ export const ITEMS: Record<string, ItemData> = {
   ultra_ball: {
     id: 'ultra_ball',
     name: 'ULTRA BALL',
+    apiSlug: 'ultra-ball',
     category: 'ball',
     price: 1200,
     catchMultiplier: 2.3,
@@ -28,6 +31,7 @@ export const ITEMS: Record<string, ItemData> = {
   potion: {
     id: 'potion',
     name: 'POTION',
+    apiSlug: 'potion',
     category: 'heal',
     price: 200,
     healAmount: 25,
@@ -36,6 +40,7 @@ export const ITEMS: Record<string, ItemData> = {
   super_potion: {
     id: 'super_potion',
     name: 'SUPER POTION',
+    apiSlug: 'super-potion',
     category: 'heal',
     price: 500,
     healAmount: 65,
@@ -44,6 +49,7 @@ export const ITEMS: Record<string, ItemData> = {
   hyper_potion: {
     id: 'hyper_potion',
     name: 'HYPER POTION',
+    apiSlug: 'hyper-potion',
     category: 'heal',
     price: 1000,
     healAmount: 180,
@@ -52,6 +58,7 @@ export const ITEMS: Record<string, ItemData> = {
   antidote: {
     id: 'antidote',
     name: 'ANTIDOTE',
+    apiSlug: 'antidote',
     category: 'status',
     price: 100,
     curesStatus: 'poison',
@@ -60,6 +67,7 @@ export const ITEMS: Record<string, ItemData> = {
   paralyze_heal: {
     id: 'paralyze_heal',
     name: 'PARLYZ HEAL',
+    apiSlug: 'paralyze-heal',
     category: 'status',
     price: 150,
     curesStatus: 'paralyze',
@@ -68,6 +76,7 @@ export const ITEMS: Record<string, ItemData> = {
   full_heal: {
     id: 'full_heal',
     name: 'FULL HEAL',
+    apiSlug: 'full-heal',
     category: 'status',
     price: 400,
     curesStatus: 'all',
@@ -76,6 +85,7 @@ export const ITEMS: Record<string, ItemData> = {
   rare_candy: {
     id: 'rare_candy',
     name: 'RARE CANDY',
+    apiSlug: 'rare-candy',
     category: 'candy',
     price: 800,
     description: 'A candy packed with energy. Raises a POKéMON by 1 level to test growth & evolution!',

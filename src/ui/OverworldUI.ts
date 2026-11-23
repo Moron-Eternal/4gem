@@ -16,8 +16,9 @@ import {
   recordPokedexCaught,
   saveGame,
 } from '../engine/save/saveManager';
-import { spriteManager } from '../engine/sprites/spriteManager';
+import { getOfficialItemUrl, getOfficialSpriteUrl, spriteManager } from '../engine/sprites/spriteManager';
 import { Direction, MapDefinition, NpcEntity, SaveState } from '../types/game';
+import { playBattleStartTransition } from './BattleTransition';
 import { BattleConfig } from './BattleUI';
 
 export interface OverworldUICallbacks {
@@ -35,6 +36,7 @@ export class OverworldUI {
   private canvas: HTMLCanvasElement | null = null;
   private rafId: number | null = null;
   private lastTs = 0;
+  private transitioning = false;
 
   private dialogueQueue: string[] = [];
   private dialogueDoneCb: (() => void) | null = null;
@@ -66,9 +68,8 @@ export class OverworldUI {
         this.showDialogue(lines);
       },
       onWildEncounter: (speciesId, level, map) => {
-        soundEngine.playConfirm();
         const wild = createPokemon(speciesId, level);
-        this.callbacks.onStartBattle({
+        this.triggerTransitionToBattle('wild', {
           mode: 'wild',
           biome: map.arenaBiome,
           wildPokemon: wild,
@@ -79,7 +80,7 @@ export class OverworldUI {
         const tr = resolveTrainerData(npc.trainerId, this.save.starterId);
         soundEngine.playConfirm();
         this.showDialogue(tr.introDialogue, () => {
-          this.callbacks.onStartBattle({
+          this.triggerTransitionToBattle(tr.isGymLeader ? 'boss' : 'trainer', {
             mode: 'trainer',
             biome: tr.arenaBiome,
             trainer: tr,
@@ -92,9 +93,23 @@ export class OverworldUI {
     this.keyUpHandler = (e) => this.onKeyUp(e);
   }
 
+  private async triggerTransitionToBattle(
+    style: 'wild' | 'trainer' | 'boss',
+    config: BattleConfig
+  ): Promise<void> {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    this.engine.paused = true;
+    this.engine.clearInputs();
+    const stage = (this.container.querySelector('.overworld-stage') as HTMLElement) ?? this.container;
+    await playBattleStartTransition(stage, style);
+    this.callbacks.onStartBattle(config);
+  }
+
   public mount(initialMessage?: string[]): void {
     const map = this.engine.getCurrentMap();
     soundEngine.playMusic(map.musicTrack);
+    spriteManager.preloadCommonItems();
 
     this.container.innerHTML = `
       <div class="top-bar">
@@ -109,7 +124,8 @@ export class OverworldUI {
           <button class="pixel-btn sm" id="ow-btn-dex">DEX (${this.save.pokedexCaught.length})</button>
           <button class="pixel-btn sm gold" id="ow-btn-lab">BATTLE LAB</button>
           <button class="pixel-btn sm dark" id="ow-btn-save">SAVE</button>
-          <button class="pixel-btn sm dark" id="ow-btn-mute">${soundEngine.isMuted() ? 'AUDIO: OFF' : 'AUDIO: ON'}</button>
+          <button class="pixel-btn sm dark" id="ow-btn-bgm">BGM: ${soundEngine.isMusicEnabled() ? 'ON' : 'OFF'}</button>
+          <button class="pixel-btn sm dark" id="ow-btn-sfx">SFX: ${soundEngine.isSfxEnabled() ? 'ON' : 'OFF'}</button>
         </div>
       </div>
 
@@ -162,7 +178,7 @@ export class OverworldUI {
       this.save.flags.seen_intro = true;
       this.showDialogue([
         'Welcome to PALLET TOWN! Head southeast into PROF. OAK’S LAB to choose your first POKéMON!',
-        'Every move you use in battle reshapes the arena—and grows physically larger as your POKéMON levels up and evolves!',
+        'In battle, reposition tactically around elemental hazards—and watch your moves expand in range and power as you evolve!',
       ]);
     }
 
@@ -184,9 +200,7 @@ export class OverworldUI {
     window.addEventListener('keydown', this.keyDownHandler);
     window.addEventListener('keyup', this.keyUpHandler);
 
-    this.container.querySelector('#ow-dialogue')?.addEventListener('click', () => {
-      this.advanceDialogue();
-    });
+    this.container.querySelector('#ow-dialogue')?.addEventListener('click', () => this.advanceDialogue());
     this.container.querySelector('#ow-btn-party')?.addEventListener('click', () => {
       soundEngine.playBlip();
       this.openPartyModal();
@@ -209,13 +223,17 @@ export class OverworldUI {
       soundEngine.playConfirm();
       this.showDialogue([ok ? 'RED saved the game! Your Kanto journey is safely stored.' : 'Could not access browser storage.']);
     });
-    this.container.querySelector('#ow-btn-mute')?.addEventListener('click', () => {
-      soundEngine.toggleMute();
-      const btn = this.container.querySelector('#ow-btn-mute');
-      if (btn) btn.textContent = soundEngine.isMuted() ? 'AUDIO: OFF' : 'AUDIO: ON';
+    this.container.querySelector('#ow-btn-bgm')?.addEventListener('click', () => {
+      const on = soundEngine.toggleMusic();
+      const btn = this.container.querySelector('#ow-btn-bgm');
+      if (btn) btn.textContent = `BGM: ${on ? 'ON' : 'OFF'}`;
+    });
+    this.container.querySelector('#ow-btn-sfx')?.addEventListener('click', () => {
+      const on = soundEngine.toggleSfx();
+      const btn = this.container.querySelector('#ow-btn-sfx');
+      if (btn) btn.textContent = `SFX: ${on ? 'ON' : 'OFF'}`;
     });
 
-    // Touch controls
     this.container.querySelectorAll('[data-dir]').forEach((el) => {
       const dir = (el as HTMLElement).dataset.dir as Direction;
       const start = (e: Event) => {
@@ -239,28 +257,16 @@ export class OverworldUI {
 
   private mapKeyToDir(key: string): Direction | null {
     switch (key) {
-      case 'ArrowUp':
-      case 'w':
-      case 'W':
-        return 'up';
-      case 'ArrowDown':
-      case 's':
-      case 'S':
-        return 'down';
-      case 'ArrowLeft':
-      case 'a':
-      case 'A':
-        return 'left';
-      case 'ArrowRight':
-      case 'd':
-      case 'D':
-        return 'right';
-      default:
-        return null;
+      case 'ArrowUp': case 'w': case 'W': return 'up';
+      case 'ArrowDown': case 's': case 'S': return 'down';
+      case 'ArrowLeft': case 'a': case 'A': return 'left';
+      case 'ArrowRight': case 'd': case 'D': return 'right';
+      default: return null;
     }
   }
 
   private onKeyDown(e: KeyboardEvent): void {
+    if (this.transitioning) return;
     const dir = this.mapKeyToDir(e.key);
     if (dir) {
       e.preventDefault();
@@ -272,26 +278,18 @@ export class OverworldUI {
 
     if (e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z') {
       e.preventDefault();
-      if (this.dialogueQueue.length > 0) {
-        this.advanceDialogue();
-      } else if (!this.modalOpen) {
-        this.engine.interactFacing();
-      }
+      if (this.dialogueQueue.length > 0) this.advanceDialogue();
+      else if (!this.modalOpen) this.engine.interactFacing();
     } else if (e.key === 'Escape' || e.key === 'x' || e.key === 'X') {
       e.preventDefault();
-      if (this.modalOpen) {
-        this.closeModal();
-      } else if (this.dialogueQueue.length === 0) {
-        this.openPartyModal();
-      }
+      if (this.modalOpen) this.closeModal();
+      else if (this.dialogueQueue.length === 0) this.openPartyModal();
     }
   }
 
   private onKeyUp(e: KeyboardEvent): void {
     const dir = this.mapKeyToDir(e.key);
-    if (dir) {
-      this.engine.setDirectionHeld(dir, false);
-    }
+    if (dir) this.engine.setDirectionHeld(dir, false);
   }
 
   private updateTopBar(): void {
@@ -310,7 +308,7 @@ export class OverworldUI {
     if (dexBtn) dexBtn.textContent = `DEX (${this.save.pokedexCaught.length})`;
 
     if (objEl) {
-      let goal = 'GOAL: Visit PROF. OAK’S LAB in Pallet Town to pick your starter!';
+      let goal = 'GOAL: Visit PROF. OAK’S LAB (southeast Pallet Town) to choose your starter!';
       if (!this.save.flags.has_starter) {
         goal = 'GOAL: Visit PROF. OAK’S LAB (southeast Pallet Town) to choose your starter!';
       } else if (!this.save.defeatedTrainers.includes('rival_lab')) {
@@ -322,7 +320,7 @@ export class OverworldUI {
       } else if (!this.save.defeatedTrainers.includes('rival_cerulean')) {
         goal = 'GOAL: Cross Nugget Bridge north of Cerulean City for the RIVAL BLUE FINALE!';
       } else {
-        goal = 'KANTO CHAMPION! Catch ’em all, evolve your team, or test Lv. 100 scaling in BATTLE LAB!';
+        goal = 'KANTO CHAMPION! Catch ’em all, evolve your team, or play 2P Co-Op VS!';
       }
       objEl.textContent = goal;
     }
@@ -349,7 +347,7 @@ export class OverworldUI {
 
     if (this.dialogueQueue.length === 0) {
       box.style.display = 'none';
-      if (!this.modalOpen) this.engine.paused = false;
+      if (!this.modalOpen && !this.transitioning) this.engine.paused = false;
       const cb = this.dialogueDoneCb;
       this.dialogueDoneCb = null;
       cb?.();
@@ -370,9 +368,7 @@ export class OverworldUI {
     soundEngine.playBlip();
 
     if (npc.role === 'heal') {
-      for (const mon of this.save.party) {
-        healPokemon(mon);
-      }
+      for (const mon of this.save.party) healPokemon(mon);
       soundEngine.playHealJingle();
       saveGame(this.save);
       this.showDialogue(npc.dialogue);
@@ -390,7 +386,7 @@ export class OverworldUI {
       } else {
         this.showDialogue([
           `PROF. OAK: Your POKéDEX shows ${this.save.pokedexCaught.length} species caught so far!`,
-          'PROF. OAK: Watch how your partner’s attacks expand in size once it levels up and evolves!',
+          'PROF. OAK: Watch how your partner’s attacks expand in reach and scale once it evolves!',
         ]);
       }
       return;
@@ -401,6 +397,21 @@ export class OverworldUI {
       return;
     }
 
+    // Human NPC who gifts an item once and stays on the map permanently!
+    if (npc.role === 'item_giver' && npc.pickupItem) {
+      if (!this.save.collectedItems.includes(npc.id)) {
+        this.save.collectedItems.push(npc.id);
+        addInventoryItem(this.save, npc.pickupItem.itemId, npc.pickupItem.quantity);
+        soundEngine.playLevelUp();
+        saveGame(this.save);
+        this.showDialogue(npc.dialogue);
+      } else {
+        this.showDialogue(npc.postPickupDialogue ?? npc.dialogue);
+      }
+      return;
+    }
+
+    // Ground Poké Ball pickup
     if (npc.role === 'item_pickup' && npc.pickupItem) {
       if (!this.save.collectedItems.includes(npc.id)) {
         this.save.collectedItems.push(npc.id);
@@ -420,7 +431,7 @@ export class OverworldUI {
         this.showDialogue(['You need a healthy POKéMON before battling! Visit MOM or a POKéMON CENTER!']);
       } else {
         this.showDialogue(tr.introDialogue, () => {
-          this.callbacks.onStartBattle({
+          this.triggerTransitionToBattle(tr.isGymLeader ? 'boss' : 'trainer', {
             mode: 'trainer',
             biome: tr.arenaBiome,
             trainer: tr,
@@ -437,7 +448,7 @@ export class OverworldUI {
     const slot = this.container.querySelector('#ow-modal-slot');
     if (slot) slot.innerHTML = '';
     this.modalOpen = false;
-    if (this.dialogueQueue.length === 0) {
+    if (this.dialogueQueue.length === 0 && !this.transitioning) {
       this.engine.paused = false;
     }
     this.updateTopBar();
@@ -453,19 +464,17 @@ export class OverworldUI {
     const starters: Array<{ id: 'bulbasaur' | 'charmander' | 'squirtle'; pitch: string }> = [
       {
         id: 'bulbasaur',
-        pitch: 'GRASS/POISON • Sprouts living vines & Razor Leaf storms that heal Grass-types and fuel Fire combos!',
+        pitch: 'GRASS/POISON • Vine Whip snares foes in place & Razor Leaf overgrows the arena!',
       },
       {
         id: 'charmander',
-        pitch: 'FIRE • Starts with small Embers & grows into CHARIZARD’s arena-scorching Flamethrower inferno!',
+        pitch: 'FIRE • Close-range Scratch & small Embers grow into CHARIZARD’s full-arena Flamethrower!',
       },
       {
         id: 'squirtle',
-        pitch: 'WATER • Rides small Surf ripples that swell into BLASTOISE’s towering tidal waves!',
+        pitch: 'WATER • Gap-closing Tackle & Surf waves that swell into BLASTOISE’s knockback tsunamis!',
       },
     ];
-
-    spriteManager.preload(['bulbasaur', 'charmander', 'squirtle']);
 
     slot.innerHTML = `
       <div class="modal-backdrop">
@@ -483,7 +492,7 @@ export class OverworldUI {
                   const highlight = preselect === st.id ? 'border-color:#d93829;background:#fffbeb;' : '';
                   return `
                     <div class="starter-card" data-pick-starter="${st.id}" style="${highlight}">
-                      <canvas class="starter-preview" id="st-cv-${st.id}" width="72" height="72"></canvas>
+                      <img class="starter-preview" src="${getOfficialSpriteUrl(st.id)}" alt="${sp.name}" />
                       <div style="font-family:var(--font-pixel);font-size:11px;">${sp.name}</div>
                       <span class="type-pill" style="background:${tc.bg};color:${tc.text};">${sp.types.join(' / ')}</span>
                       <p style="font-size:10px;line-height:1.45;color:#334155;">${st.pitch}</p>
@@ -497,22 +506,6 @@ export class OverworldUI {
         </div>
       </div>
     `;
-
-    const drawPreviews = () => {
-      starters.forEach((st) => {
-        const c = slot.querySelector(`#st-cv-${st.id}`) as HTMLCanvasElement | null;
-        if (!c) return;
-        const ctx = c.getContext('2d');
-        const entry = spriteManager.getSprite(st.id);
-        if (ctx) {
-          ctx.clearRect(0, 0, 72, 72);
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(entry.canvas, 8, 8, 56, 56);
-        }
-      });
-    };
-    drawPreviews();
-    window.setTimeout(drawPreviews, 350);
 
     slot.querySelector('#st-cancel')?.addEventListener('click', () => {
       soundEngine.playBlip();
@@ -532,7 +525,7 @@ export class OverworldUI {
         this.closeModal();
         this.showDialogue([
           `RED received ${SPECIES[pickedId].name} (Lv. 5) from PROF. OAK!`,
-          'PROF. OAK: Wonderful choice! Take these POKé BALLS and step south—BLUE wants a quick match before you head to Route 1!',
+          'PROF. OAK: Wonderful choice! Step south—BLUE wants a quick match before you head to Route 1!',
         ]);
       });
     });
@@ -563,11 +556,14 @@ export class OverworldUI {
                   const canAfford = this.save.money >= it.price;
                   return `
                     <div class="item-row">
-                      <div>
-                        <div style="font-family:var(--font-pixel);font-size:10px;">
-                          ${it.name} <span style="color:#64748b;">(Owned: ${owned})</span>
+                      <div style="display:flex;align-items:center;gap:10px;">
+                        <img class="item-icon-img" src="${getOfficialItemUrl(it.id)}" alt="${it.name}" />
+                        <div>
+                          <div style="font-family:var(--font-pixel);font-size:10px;">
+                            ${it.name} <span style="color:#64748b;">(Owned: ${owned})</span>
+                          </div>
+                          <div style="font-size:10px;color:#475569;margin-top:3px;">${it.description}</div>
                         </div>
-                        <div style="font-size:10px;color:#475569;margin-top:3px;">${it.description}</div>
                       </div>
                       <button class="pixel-btn sm primary" data-buy="${id}" ${canAfford ? '' : 'disabled'}>
                         BUY ₽${it.price}
@@ -636,7 +632,7 @@ export class OverworldUI {
                           return `
                             <div class="party-card ${mon.hp <= 0 ? 'fainted' : ''}" style="flex-direction:column;align-items:stretch;">
                               <div style="display:flex;align-items:center;gap:10px;">
-                                <canvas class="party-thumb" id="ow-pt-${idx}" width="44" height="44"></canvas>
+                                <img class="party-thumb-img" src="${getOfficialSpriteUrl(mon.speciesId)}" alt="${getDisplayName(mon)}" />
                                 <div style="flex:1;min-width:0;">
                                   <div style="font-family:var(--font-pixel);font-size:9px;">
                                     ${idx === 0 ? '★ ' : ''}${getDisplayName(mon)} Lv.${mon.level}
@@ -650,11 +646,7 @@ export class OverworldUI {
                                 </div>
                               </div>
                               <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                ${
-                                  idx > 0
-                                    ? `<button class="pixel-btn sm" data-lead="${idx}">SET LEAD</button>`
-                                    : ''
-                                }
+                                ${idx > 0 ? `<button class="pixel-btn sm" data-lead="${idx}">SET LEAD</button>` : ''}
                                 ${
                                   potionQty() > 0 && mon.hp > 0 && mon.hp < mon.maxHp
                                     ? `<button class="pixel-btn sm" data-heal="${idx}">POTION (${potionQty()})</button>`
@@ -680,17 +672,6 @@ export class OverworldUI {
           </div>
         </div>
       `;
-
-      this.save.party.forEach((mon, idx) => {
-        const c = slot.querySelector(`#ow-pt-${idx}`) as HTMLCanvasElement | null;
-        if (!c) return;
-        const ctx = c.getContext('2d');
-        const sp = spriteManager.getSprite(mon.speciesId);
-        if (ctx) {
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(sp.canvas, 4, 4, 36, 36);
-        }
-      });
 
       slot.querySelector('#party-close')?.addEventListener('click', () => {
         soundEngine.playBlip();
@@ -743,7 +724,7 @@ export class OverworldUI {
             this.closeModal();
             this.showDialogue([
               `Whoa!! ${SPECIES[res.evolvedFrom!]?.name} evolved into ${SPECIES[res.evolvedTo]?.name} (Lv.${mon.level})!`,
-              `Its elemental moves are now dramatically larger and stronger in battle!`,
+              `Its elemental moves now have dramatically wider range and power in battle!`,
             ]);
             return;
           }
@@ -780,16 +761,19 @@ export class OverworldUI {
                       if (!it) return '';
                       return `
                         <div class="item-row">
-                          <div>
-                            <div style="font-family:var(--font-pixel);font-size:10px;">${it.name} ×${inv.quantity}</div>
-                            <div style="font-size:10px;color:#475569;margin-top:3px;">${it.description}</div>
+                          <div style="display:flex;align-items:center;gap:10px;">
+                            <img class="item-icon-img" src="${getOfficialItemUrl(it.id)}" alt="${it.name}" />
+                            <div>
+                              <div style="font-family:var(--font-pixel);font-size:10px;">${it.name} ×${inv.quantity}</div>
+                              <div style="font-size:10px;color:#475569;margin-top:3px;">${it.description}</div>
+                            </div>
                           </div>
                         </div>
                       `;
                     })
                     .join('')
             }
-            <p style="font-size:10px;color:#0f766e;">Tip: Use Potions and Rare Candies directly from the PARTY menu, and throw Poké Balls during wild encounters!</p>
+            <p style="font-size:10px;color:#0f766e;">Tip: Use Potions and Rare Candies from the PARTY menu, and throw Poké Balls during wild encounters!</p>
           </div>
         </div>
       </div>
@@ -822,7 +806,11 @@ export class OverworldUI {
                 const seen = this.save.pokedexSeen.includes(sp.id);
                 return `
                   <div class="party-card" style="opacity:${seen ? 1 : 0.55};">
-                    <canvas class="party-thumb" id="dex-cv-${sp.id}" width="44" height="44"></canvas>
+                    ${
+                      seen
+                        ? `<img class="party-thumb-img" src="${getOfficialSpriteUrl(sp.id)}" alt="${sp.name}" />`
+                        : `<div class="party-thumb-img" style="display:flex;align-items:center;justify-content:center;font-family:var(--font-pixel);font-size:14px;color:#94a3b8;">?</div>`
+                    }
                     <div style="flex:1;min-width:0;">
                       <div style="font-family:var(--font-pixel);font-size:9px;">
                         #${String(sp.dexNumber).padStart(3, '0')} ${seen ? sp.name : '?????'} ${caught ? '●' : ''}
@@ -840,18 +828,6 @@ export class OverworldUI {
       </div>
     `;
 
-    SPECIES_LIST.forEach((sp) => {
-      if (!this.save.pokedexSeen.includes(sp.id)) return;
-      const c = slot.querySelector(`#dex-cv-${sp.id}`) as HTMLCanvasElement | null;
-      if (!c) return;
-      const ctx = c.getContext('2d');
-      const entry = spriteManager.getSprite(sp.id);
-      if (ctx) {
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(entry.canvas, 4, 4, 36, 36);
-      }
-    });
-
     slot.querySelector('#dex-close')?.addEventListener('click', () => {
       soundEngine.playBlip();
       this.closeModal();
@@ -859,7 +835,7 @@ export class OverworldUI {
   }
 
   private loop = (ts: number): void => {
-    const dt = Math.min(0.05, (ts - this.lastTs) / 1000);
+    const dt = Math.max(0, Math.min(0.05, (ts - this.lastTs) / 1000));
     this.lastTs = ts;
 
     this.engine.step(dt);

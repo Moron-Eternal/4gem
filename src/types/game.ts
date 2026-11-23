@@ -60,6 +60,20 @@ export interface MoveData {
   archetype: MovePhysicsArchetype;
   description: string;
   envHint: string;
+  /** Minimum reach in 192x108 arena grid units at Lv.1 unevolved */
+  baseRangePx: number;
+  /** Maximum reach in 192x108 arena grid units at Lv.100 final evo */
+  maxRangePx: number;
+  /** Extra forward lunge distance covered by charge attacks like Tackle / Quick Attack */
+  lungeAdvancePx?: number;
+  /** Physical pushback applied to defender in arena units (scaled by MovePhysicsProfile) */
+  knockbackPx?: number;
+  /** True if move spawns destructible pixel rock pillars on the arena */
+  createsPillar?: boolean;
+  /** True if move tangles/roots target, halving movement speed for 2 turns */
+  rootsTarget?: boolean;
+  /** True if move physically pushes fire, steam, and light foes via wind */
+  pushesEnvironment?: boolean;
   statusEffect?: {
     condition: StatusCondition;
     chance: number;
@@ -72,7 +86,6 @@ export interface MoveData {
   };
   drainRatio?: number;
   highCrit?: boolean;
-  /** Scaling stat hint for display (e.g. 'Sp. Atk' or 'Attack') */
   scalesWith: 'spAtk' | 'atk' | 'level';
 }
 
@@ -102,9 +115,7 @@ export interface PokemonSpecies {
   name: string;
   types: [ElementType] | [ElementType, ElementType];
   baseStats: BaseStats;
-  /** 0 = unevolved/basic, 1 = mid evolution, 2 = final evolution */
   evoStage: 0 | 1 | 2;
-  /** True for strong single-stage Pokémon (Snorlax, Onix, Lapras) so scaling feels authentic */
   singleStageWeight?: number;
   evolvesTo?: {
     speciesId: string;
@@ -113,16 +124,13 @@ export interface PokemonSpecies {
   catchRate: number;
   baseExp: number;
   learnset: LearnsetEntry[];
-  /** Primary & accent hex colors for pixel-art fallback sprite & UI accents */
   colors: {
     primary: string;
     secondary: string;
     accent: string;
     eye?: string;
   };
-  /** Visual pixel scale in battle arena (0.75 = small basic, 1.25 = large final evo) */
   spriteScale: number;
-  /** Use Gen 4 Platinum sprite endpoint if true (e.g. Munchlax #446) */
   gen4Sprite?: boolean;
   pokedexEntry: string;
 }
@@ -144,7 +152,6 @@ export interface PokemonInstance {
   moves: MoveSlot[];
   status: StatusCondition;
   sleepTurns?: number;
-  /** Optional stat override used by Battle Lab sliders */
   statOverride?: Partial<Pick<BaseStats, 'atk' | 'spAtk'>>;
 }
 
@@ -161,6 +168,10 @@ export interface MovePhysicsProfile {
   tier: 'spark' | 'surge' | 'cataclysm';
   relevantStat: number;
   relevantStatName: 'Sp. Atk' | 'Attack' | 'Level';
+  /** Effective strike reach in 192x108 arena grid units */
+  effectiveRangePx: number;
+  /** Physical pushback force on impact in 192x108 arena units */
+  knockbackPx: number;
   beamWidthPx: number;
   waveHeight: number;
   speedPxPerSec: number;
@@ -172,6 +183,29 @@ export interface MovePhysicsProfile {
   durationSec: number;
 }
 
+export type MoveReachStatus = 'in_range' | 'dash_strike' | 'out_of_range';
+
+export interface MoveReachEvaluation {
+  status: MoveReachStatus;
+  distancePx: number;
+  effectiveRangePx: number;
+  moveBudgetPx: number;
+  shortfallPx: number;
+  /** Recommended destination point to close distance */
+  approachX: number;
+  approachY: number;
+}
+
+export interface DestructiblePillar {
+  id: number;
+  x: number;
+  y: number;
+  radius: number;
+  hp: number;
+  maxHp: number;
+  height: number;
+}
+
 export type EnvConditionTag =
   | 'burning'
   | 'flooded'
@@ -179,7 +213,8 @@ export type EnvConditionTag =
   | 'frozen'
   | 'steam'
   | 'cratered'
-  | 'overgrown';
+  | 'overgrown'
+  | 'pillars';
 
 export interface ZoneEnvSample {
   water: number;
@@ -199,11 +234,14 @@ export interface ArenaEnvSnapshot {
   centerZone: ZoneEnvSample;
   activeTags: EnvConditionTag[];
   steamTurns: number;
+  pillarCount: number;
 }
 
 export interface ItemData {
   id: string;
   name: string;
+  /** Official PokeAPI item sprite filename slug (e.g. 'poke-ball', 'rare-candy') */
+  apiSlug: string;
   category: 'ball' | 'heal' | 'status' | 'candy';
   price: number;
   description: string;
@@ -219,6 +257,18 @@ export interface InventoryItem {
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
+export type TrainerSpriteStyle =
+  | 'red'
+  | 'rival'
+  | 'youngster'
+  | 'bug_catcher'
+  | 'picnicker'
+  | 'camper'
+  | 'brock'
+  | 'hiker'
+  | 'swimmer'
+  | 'misty';
+
 export interface TrainerPokemonSpec {
   speciesId: string;
   level: number;
@@ -229,7 +279,7 @@ export interface TrainerData {
   id: string;
   name: string;
   title: string;
-  spriteStyle: 'rival' | 'youngster' | 'bug_catcher' | 'picnicker' | 'camper' | 'brock' | 'hiker' | 'swimmer' | 'misty';
+  spriteStyle: TrainerSpriteStyle;
   arenaBiome: ArenaBiomeId;
   introDialogue: string[];
   defeatDialogue: string[];
@@ -248,9 +298,26 @@ export interface NpcEntity {
   x: number;
   y: number;
   dir: Direction;
-  spriteStyle: 'oak' | 'mom' | 'nurse' | 'mart' | 'villager' | 'rival' | 'youngster' | 'bug_catcher' | 'picnicker' | 'camper' | 'brock' | 'hiker' | 'swimmer' | 'misty' | 'pokeball';
+  spriteStyle:
+    | 'oak'
+    | 'mom'
+    | 'nurse'
+    | 'mart'
+    | 'villager'
+    | 'rival'
+    | 'youngster'
+    | 'bug_catcher'
+    | 'picnicker'
+    | 'camper'
+    | 'brock'
+    | 'hiker'
+    | 'swimmer'
+    | 'misty'
+    | 'pokeball';
   dialogue: string[];
-  role?: 'heal' | 'mart' | 'starter_table' | 'oak' | 'trainer' | 'item_pickup' | 'gym_guide';
+  /** Dialogue spoken by an item_giver NPC after already giving their gift */
+  postPickupDialogue?: string[];
+  role?: 'heal' | 'mart' | 'starter_table' | 'oak' | 'trainer' | 'item_pickup' | 'item_giver' | 'gym_guide';
   trainerId?: string;
   sightRange?: number;
   starterSpeciesId?: 'bulbasaur' | 'charmander' | 'squirtle';
@@ -285,12 +352,20 @@ export interface MapDefinition {
   height: number;
   arenaBiome: ArenaBiomeId;
   musicTrack: 'town' | 'route' | 'forest' | 'gym';
-  /** ASCII tile grid rows (length = height, each string length = width) */
   tiles: string[];
   warps: WarpPoint[];
   npcs: NpcEntity[];
   encounters: WildEncounterEntry[];
   signs: Array<{ x: number; y: number; text: string[] }>;
+}
+
+export interface PvpMatchConfig {
+  p1Name: string;
+  p2Name: string;
+  p1Party: PokemonInstance[];
+  p2Party: PokemonInstance[];
+  biome: ArenaBiomeId;
+  privacyHandoff: boolean;
 }
 
 export interface SaveState {

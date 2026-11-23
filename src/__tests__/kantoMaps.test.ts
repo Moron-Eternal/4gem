@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { isTileWalkable, KANTO_MAPS } from '../data/maps/kantoMaps';
 import { SPECIES } from '../data/species';
 import { TRAINERS } from '../data/trainers';
+import { OverworldEngine } from '../engine/overworld/overworldEngine';
+import { createNewSaveState } from '../engine/save/saveManager';
 
-describe('Kanto FireRed Overworld Map Integrity', () => {
-  it('verifies every map has consistent row dimensions and valid walkable warps', () => {
+describe('Kanto FireRed Overworld Map Integrity & NPC Persistence', () => {
+  it('verifies every map has consistent row dimensions, walkable warps, and valid NPC placements', () => {
     const maps = Object.values(KANTO_MAPS);
     expect(maps.length).toBe(10);
 
@@ -40,7 +42,33 @@ describe('Kanto FireRed Overworld Map Integrity', () => {
         if (npc.trainerId) {
           expect(TRAINERS[npc.trainerId]).toBeDefined();
         }
+        // Human NPCs must never use 'item_pickup' (only pokeball ground items should disappear)
+        if (npc.role === 'item_pickup') {
+          expect(npc.spriteStyle).toBe('pokeball');
+        }
       }
     }
+  });
+
+  it('never hides human trainers or item_giver NPCs after interaction', () => {
+    const save = createNewSaveState();
+    save.mapId = 'route_1';
+    save.collectedItems.push('route1_clerk', 'route1_potion_ball');
+    save.defeatedTrainers.push('youngster_joey');
+
+    const engine = new OverworldEngine(save, {
+      onWarpBlocked: () => {},
+      onMapChanged: () => {},
+      onInteractNpc: () => {},
+      onReadSign: () => {},
+      onWildEncounter: () => {},
+      onTrainerSpotted: () => {},
+    });
+
+    const visible = engine.getVisibleNpcs(KANTO_MAPS.route_1).map((n) => n.id);
+    // Ground Poké Ball disappears once collected, but Mart Clerk & Youngster Joey MUST remain visible!
+    expect(visible).not.toContain('route1_potion_ball');
+    expect(visible).toContain('route1_clerk');
+    expect(visible).toContain('route1_joey');
   });
 });

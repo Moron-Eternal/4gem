@@ -10,9 +10,9 @@ import {
   StatStages,
   StatusCondition,
 } from '../../types/game';
-import { ArenaGrid } from '../physics/arenaGrid';
+import { ArenaGrid, PLAY_MAX_X, PLAY_MAX_Y, PLAY_MIN_X, PLAY_MIN_Y } from '../physics/arenaGrid';
 import { evaluateMoveEnvironment } from './environmentRules';
-import { stageMultiplier } from './moveScaling';
+import { computeMovementBudget, computeMoveScale, evaluateMoveReach, stageMultiplier } from './moveScaling';
 
 export function createDefaultStages(): StatStages {
   return { atk: 0, def: 0, spAtk: 0, spDef: 0, spd: 0 };
@@ -29,6 +29,7 @@ export interface MoveResolution {
   statChangeLog?: string;
   envMessages: string[];
   missedReason?: 'miss' | 'paralyzed' | 'asleep';
+  pillarBlocked?: boolean;
 }
 
 export function applyStatStage(
@@ -92,6 +93,7 @@ export function resolveMoveExecution(params: {
   attackerSide: 'player' | 'enemy';
   envSnapshot: ArenaEnvSnapshot;
   grid?: ArenaGrid;
+  positions?: { ax: number; ay: number; dx: number; dy: number };
   rng?: () => number;
 }): MoveResolution {
   const {
@@ -103,12 +105,12 @@ export function resolveMoveExecution(params: {
     attackerSide,
     envSnapshot,
     grid,
+    positions,
   } = params;
   const rng = params.rng ?? Math.random;
   const attackerSpecies = SPECIES[attacker.speciesId];
   const defenderSpecies = SPECIES[defender.speciesId];
 
-  // Check Sleep / Paralysis pre-move gates
   if (attacker.status === 'sleep') {
     if ((attacker.sleepTurns ?? 0) > 0) {
       attacker.sleepTurns = (attacker.sleepTurns ?? 1) - 1;
@@ -149,10 +151,10 @@ export function resolveMoveExecution(params: {
     attackerZone,
     defenderZone,
     envSnapshot,
-    grid
+    grid,
+    positions
   );
 
-  // Accuracy check
   const effAccuracy = envMods.guaranteedHit
     ? 100
     : Math.max(35, Math.min(100, move.accuracy + envMods.accuracyDelta));
@@ -177,17 +179,15 @@ export function resolveMoveExecution(params: {
     effectivenessLabel: null,
     drainHeal: 0,
     envMessages: [...envMods.messages],
+    pillarBlocked: envMods.pillarBlocked,
   };
 
-  // Damage calculation for Physical / Special moves
   if (move.category !== 'status' && move.power > 0) {
     const effectiveness = getTypeEffectiveness(move.type, defenderSpecies?.types ?? ['normal']);
     res.effectiveness = effectiveness;
     res.effectivenessLabel = getEffectivenessLabel(effectiveness);
 
-    if (effectiveness === 0) {
-      return res;
-    }
+    if (effectiveness === 0) return res;
 
     const critChance = move.highCrit ? 0.16 : 0.0625;
     res.isCrit = rng() < critChance;
@@ -226,12 +226,10 @@ export function resolveMoveExecution(params: {
     }
   }
 
-  // Ice + Water environmental speed drop
   if (envMods.applySpeedDropOnTarget) {
     applyStatStage(defenderStages, 'spd', -1, getDisplayName(defender));
   }
 
-  // Secondary status effect
   if (move.statusEffect && defender.status === 'none') {
     const defTypes = defenderSpecies?.types ?? [];
     const immune =
@@ -260,7 +258,6 @@ export function resolveMoveExecution(params: {
     res.appliedStatus = 'paralyze';
   }
 
-  // Stat changes
   if (move.statChange && rng() < move.statChange.chance) {
     const isSelf = move.statChange.target === 'self';
     const targetStages = isSelf ? attackerStages : defenderStages;
@@ -276,9 +273,6 @@ export function resolveMoveExecution(params: {
   return res;
 }
 
-/**
- * End-of-turn Burn / Poison status damage tick.
- */
 export function resolveStatusTick(mon: PokemonInstance): { damage: number; message: string } | null {
   if (mon.hp <= 0) return null;
   if (mon.status === 'burn') {
@@ -292,51 +286,103 @@ export function resolveStatusTick(mon: PokemonInstance): { damage: number; messa
   return null;
 }
 
+export interface AiTurnDecision {
+  move: MoveData;
+  stepTo?: { x: number; y: number };
+  onlyApproach?: boolean;
+}
+
 /**
- * Smart tactical AI move selection (considers type effectiveness AND arena synergies like Electric-on-Water!).
+ * Tactical AI decision maker: chooses the best move AND repositions dynamically
+ * to close in for Scratch/Bite, escape burning ground, or exploit Electrified Water!
  */
-export function chooseAiMove(
+export function chooseAiDecision(
   aiMon: PokemonInstance,
   playerMon: PokemonInstance,
-  envSnapshot: ArenaEnvSnapshot
-): MoveData {
+  aiStages: StatStages,
+  aiPos: { x: number; y: number },
+  playerPos: { x: number; y: number },
+  envSnapshot: ArenaEnvSnapshot,
+  isRooted = false
+): AiTurnDecision {
   const playerTypes = SPECIES[playerMon.speciesId]?.types ?? ['normal'];
   const aiTypes = SPECIES[aiMon.speciesId]?.types ?? ['normal'];
   const usable = aiMon.moves.filter((m) => m.pp > 0 && MOVES[m.moveId]);
-  if (usable.length === 0) return MOVES.tackle;
+  const budget = computeMovementBudget(aiMon, aiStages, envSnapshot.enemyZone, isRooted);
 
-  let bestMove = MOVES[usable[0].moveId];
-  let bestScore = -1;
+  if (usable.length === 0) {
+    return { move: MOVES.tackle };
+  }
+
+  let bestDecision: AiTurnDecision = { move: MOVES[usable[0].moveId] };
+  let bestScore = -Infinity;
 
   for (const slot of usable) {
     const move = MOVES[slot.moveId];
-    let score = 20 + Math.random() * 14;
+    const prof = computeMoveScale(aiMon, move, aiStages);
+    const reach = evaluateMoveReach(aiPos.x, aiPos.y, playerPos.x, playerPos.y, move, prof, budget);
 
+    let score = 20 + Math.random() * 14;
     if (move.category === 'status') {
-      score = playerMon.status === 'none' && move.statusEffect ? 44 : 24;
+      score = playerMon.status === 'none' && move.statusEffect ? 44 : 22;
     } else {
       const eff = getTypeEffectiveness(move.type, playerTypes);
       const stab = aiTypes.includes(move.type) ? 1.35 : 1.0;
-      score = move.power * eff * stab + Math.random() * 18;
+      score = move.power * eff * stab + Math.random() * 16;
 
-      // Tactical AI takes advantage of flooded/overgrown arena!
       if (move.type === 'electric' && envSnapshot.playerZone.water >= 0.08) score *= 1.45;
       if (move.type === 'fire' && envSnapshot.playerZone.flora >= 0.14) score *= 1.3;
       if (move.type === 'ice' && envSnapshot.playerZone.water >= 0.08) score *= 1.25;
     }
 
+    // Factor in range reachability!
+    if (reach.status === 'in_range') {
+      score += 18;
+    } else if (reach.status === 'dash_strike') {
+      score += 6;
+    } else {
+      score *= 0.45;
+    }
+
     if (score > bestScore) {
       bestScore = score;
-      bestMove = move;
+      if (reach.status === 'dash_strike') {
+        bestDecision = { move, stepTo: { x: reach.approachX, y: reach.approachY } };
+      } else if (reach.status === 'out_of_range') {
+        bestDecision = { move, stepTo: { x: reach.approachX, y: reach.approachY }, onlyApproach: true };
+      } else {
+        // If standing in active fire and not Fire-type, sidestep out of flames!
+        if (envSnapshot.enemyZone.fire >= 0.14 && !aiTypes.includes('fire')) {
+          const dodgeY = aiPos.y > 54 ? Math.max(PLAY_MIN_Y + 12, aiPos.y - 24) : Math.min(PLAY_MAX_Y - 12, aiPos.y + 24);
+          bestDecision = {
+            move,
+            stepTo: { x: Math.max(PLAY_MIN_X + 14, Math.min(PLAY_MAX_X - 14, aiPos.x)), y: dodgeY },
+          };
+        } else {
+          bestDecision = { move };
+        }
+      }
     }
   }
 
-  return bestMove;
+  return bestDecision;
 }
 
-/**
- * Authentic FireRed-inspired catching probability formula.
- */
+export function chooseAiMove(
+  aiMon: PokemonInstance,
+  playerMon: PokemonInstance,
+  envSnapshot: ArenaEnvSnapshot
+): MoveData {
+  return chooseAiDecision(
+    aiMon,
+    playerMon,
+    createDefaultStages(),
+    { x: 140, y: 56 },
+    { x: 52, y: 56 },
+    envSnapshot
+  ).move;
+}
+
 export function calculateCatchAttempt(
   wildMon: PokemonInstance,
   ballItemId: string,
@@ -351,7 +397,10 @@ export function calculateCatchAttempt(
   const statusBonus =
     wildMon.status === 'sleep' ? 1.85 : wildMon.status !== 'none' ? 1.4 : 1.0;
 
-  const probability = Math.max(0.08, Math.min(0.98, (hpFactor * (catchRate / 255) * ballMult * statusBonus) * 1.15));
+  const probability = Math.max(
+    0.08,
+    Math.min(0.98, hpFactor * (catchRate / 255) * ballMult * statusBonus * 1.15)
+  );
 
   if (rng() < probability) {
     return { caught: true, shakes: 3 };
@@ -360,9 +409,6 @@ export function calculateCatchAttempt(
   return { caught: false, shakes };
 }
 
-/**
- * Calculates story XP reward (generously tuned ~2.2x FireRed so starters naturally evolve during campaign!).
- */
 export function calculateExpReward(defeated: PokemonInstance, isTrainer: boolean): number {
   const species = SPECIES[defeated.speciesId];
   const baseExp = species?.baseExp ?? 64;

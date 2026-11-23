@@ -4,7 +4,7 @@ import { SPECIES, SPECIES_LIST } from '../data/species';
 import { TYPE_COLORS } from '../data/typeChart';
 import { soundEngine } from '../engine/audio/soundEngine';
 import { computeMoveScale } from '../engine/battle/moveScaling';
-import { ARENA_H, ARENA_W, ArenaGrid } from '../engine/physics/arenaGrid';
+import { ArenaGrid, RENDER_H, RENDER_W } from '../engine/physics/arenaGrid';
 import { ArenaRenderer } from '../engine/physics/arenaRenderer';
 import { MoveChoreographer } from '../engine/physics/moveChoreographer';
 import { ParticleSystem } from '../engine/physics/particleSystem';
@@ -26,7 +26,7 @@ const SHOWCASE_PRESETS: ShowcasePreset[] = [
     id: 'surf',
     label: 'SURF',
     moveId: 'surf',
-    subtitle: 'Sp. Atk sets the size of the wave',
+    subtitle: 'Sp. Atk sets the size, reach & pushback of the wave',
     biome: 'gym_floor',
     defenderId: 'munchlax',
     tiers: [
@@ -39,7 +39,7 @@ const SHOWCASE_PRESETS: ShowcasePreset[] = [
     id: 'flamethrower',
     label: 'FLAMETHROWER',
     moveId: 'flamethrower',
-    subtitle: 'Sp. Atk & Evolution grow the flame into an inferno',
+    subtitle: 'Sp. Atk & Evolution grow the flame & range into an inferno',
     biome: 'viridian_forest',
     defenderId: 'snorlax',
     tiers: [
@@ -78,7 +78,7 @@ const SHOWCASE_PRESETS: ShowcasePreset[] = [
     id: 'earthquake',
     label: 'EARTHQUAKE',
     moveId: 'earthquake',
-    subtitle: 'Attack deepens craters, rubble & seismic shockwaves',
+    subtitle: 'Attack deepens craters, rubble & shatters Stone Pillars',
     biome: 'pewter_rock',
     defenderId: 'charizard',
     tiers: [
@@ -136,6 +136,7 @@ const ENV_BADGE_LABELS: Record<EnvConditionTag, string> = {
   steam: 'STEAM',
   cratered: 'CRATERED',
   overgrown: 'OVERGROWN',
+  pillars: 'ROCK COVER',
 };
 
 interface ShowcaseSlot {
@@ -163,7 +164,6 @@ export class BattleLabUI {
   private autoLoopTimer = 0.65;
   private showcaseSlots: ShowcaseSlot[] = [];
 
-  // Sandbox state
   private sbAttackerId = 'charmander';
   private sbDefenderId = 'munchlax';
   private sbLevel = 5;
@@ -210,7 +210,7 @@ export class BattleLabUI {
             </button>
           </div>
           <div class="lab-tab-group">
-            <button class="pixel-btn sm dark" id="btn-lab-mute">${soundEngine.isMuted() ? 'AUDIO: OFF' : 'AUDIO: ON'}</button>
+            <button class="pixel-btn sm dark" id="btn-lab-sfx">SFX: ${soundEngine.isSfxEnabled() ? 'ON' : 'OFF'}</button>
             <button class="pixel-btn sm primary" id="btn-lab-back">EXIT LAB</button>
           </div>
         </div>
@@ -228,10 +228,10 @@ export class BattleLabUI {
       this.activeTab = 'sandbox';
       this.renderView();
     });
-    this.container.querySelector('#btn-lab-mute')?.addEventListener('click', () => {
-      soundEngine.toggleMute();
-      const btn = this.container.querySelector('#btn-lab-mute');
-      if (btn) btn.textContent = soundEngine.isMuted() ? 'AUDIO: OFF' : 'AUDIO: ON';
+    this.container.querySelector('#btn-lab-sfx')?.addEventListener('click', () => {
+      const on = soundEngine.toggleSfx();
+      const btn = this.container.querySelector('#btn-lab-sfx');
+      if (btn) btn.textContent = `SFX: ${on ? 'ON' : 'OFF'}`;
     });
     this.container.querySelector('#btn-lab-back')?.addEventListener('click', () => {
       soundEngine.playBlip();
@@ -262,7 +262,7 @@ export class BattleLabUI {
             .map(
               (t, idx) => `
             <div class="showcase-panel">
-              <canvas class="showcase-canvas" id="sc-canvas-${idx}" width="${ARENA_W * 3}" height="${ARENA_H * 3}"></canvas>
+              <canvas class="showcase-canvas" id="sc-canvas-${idx}" width="${RENDER_W * 2}" height="${RENDER_H * 2}"></canvas>
               <div class="showcase-panel-label">${SPECIES[t.speciesId]?.name ?? ''}  Lv. ${t.level}</div>
               <div class="showcase-panel-meta" id="sc-meta-${idx}"></div>
             </div>
@@ -298,7 +298,6 @@ export class BattleLabUI {
       </div>
     `;
 
-    // Initialize 3 independent synchronized pixel-physics arenas!
     this.showcaseSlots = preset.tiers.map((tier, idx) => {
       const grid = new ArenaGrid(this.showcaseBiome);
       const particles = new ParticleSystem();
@@ -311,7 +310,7 @@ export class BattleLabUI {
       const prof = computeMoveScale(attacker, move);
       const metaEl = body.querySelector(`#sc-meta-${idx}`) as HTMLElement | null;
       if (metaEl) {
-        metaEl.textContent = `${prof.relevantStatName.toUpperCase()} ${prof.relevantStat} • SCALE ${Math.round(
+        metaEl.textContent = `${prof.relevantStatName.toUpperCase()} ${prof.relevantStat} • RNG ${prof.effectiveRangePx}m • SCALE ${Math.round(
           prof.scaleFactor * 100
         )}%`;
       }
@@ -345,12 +344,11 @@ export class BattleLabUI {
       for (const slot of this.showcaseSlots) {
         slot.grid.reset(this.showcaseBiome);
         slot.particles.clear();
+        slot.choreo.resetVisuals();
       }
     });
 
-    body.querySelector('#sc-fire')?.addEventListener('click', () => {
-      this.fireShowcaseAll();
-    });
+    body.querySelector('#sc-fire')?.addEventListener('click', () => this.fireShowcaseAll());
 
     body.querySelector('#sc-slowmo')?.addEventListener('click', () => {
       this.slowMo = !this.slowMo;
@@ -387,6 +385,7 @@ export class BattleLabUI {
       const slot = this.showcaseSlots[i];
       slot.grid.reset(this.showcaseBiome);
       slot.particles.clear();
+      slot.choreo.resetVisuals();
       const prof = computeMoveScale(slot.attacker, move);
       slot.choreo.triggerMove('player', move, prof, {
         onImpact: i === 2 ? () => soundEngine.playHit(1, prof.scaleFactor) : undefined,
@@ -421,13 +420,13 @@ export class BattleLabUI {
     body.innerHTML = `
       <div class="sandbox-body">
         <div class="sandbox-arena-wrap">
-          <canvas class="battle-canvas" id="sb-canvas" width="${ARENA_W * 4}" height="${ARENA_H * 4}"></canvas>
+          <canvas class="battle-canvas" id="sb-canvas" width="${RENDER_W * 2}" height="${RENDER_H * 2}"></canvas>
           <div class="showcase-panel-label" id="sb-matchup-label" style="font-size:10px;top:8px;left:12px;">
             ${SPECIES[this.sbAttackerId]?.name ?? ''} Lv.${this.sbLevel}  vs  ${SPECIES[this.sbDefenderId]?.name ?? ''}
           </div>
           <div class="env-strip">
             <div class="env-tags" id="sb-env-tags"></div>
-            <div class="scale-callout" id="sb-scale-callout">PICK ANY MOVE BELOW TO TEST PIXEL PHYSICS!</div>
+            <div class="scale-callout" id="sb-scale-callout">PICK ANY MOVE BELOW TO TEST 384×216 PIXEL PHYSICS!</div>
           </div>
         </div>
 
@@ -532,6 +531,7 @@ export class BattleLabUI {
       this.sbBiome = (e.target as HTMLSelectElement).value as ArenaBiomeId;
       this.sbGrid.reset(this.sbBiome);
       this.sbParticles.clear();
+      this.sbChoreo.resetVisuals();
     });
     body.querySelector('#sb-reset')?.addEventListener('click', () => {
       soundEngine.playBlip();
@@ -550,7 +550,7 @@ export class BattleLabUI {
         if (this.sbScaleEl) {
           this.sbScaleEl.textContent = `${move.name} • ${prof.relevantStatName.toUpperCase()} ${
             prof.relevantStat
-          } • SCALE ${Math.round(prof.scaleFactor * 100)}% (${prof.tier.toUpperCase()})`;
+          } • RNG ${prof.effectiveRangePx}m • SCALE ${Math.round(prof.scaleFactor * 100)}%`;
         }
         this.sbChoreo.triggerMove('player', move, prof, {
           onImpact: () => soundEngine.playHit(1, prof.scaleFactor),
@@ -560,18 +560,15 @@ export class BattleLabUI {
   }
 
   private loop = (ts: number): void => {
-    const rawDt = Math.min(0.05, (ts - this.lastTs) / 1000);
+    const rawDt = Math.max(0, Math.min(0.05, (ts - this.lastTs) / 1000));
     this.lastTs = ts;
     const dt = this.slowMo && this.activeTab === 'showcase' ? rawDt * 0.45 : rawDt;
 
     if (this.activeTab === 'showcase') {
-      const preset = SHOWCASE_PRESETS[this.presetIdx];
       const anyBusy = this.showcaseSlots.some((s) => s.choreo.isBusy());
       if (this.autoLoop && !anyBusy) {
         this.autoLoopTimer -= rawDt;
-        if (this.autoLoopTimer <= 0) {
-          this.fireShowcaseAll();
-        }
+        if (this.autoLoopTimer <= 0) this.fireShowcaseAll();
       }
 
       for (const slot of this.showcaseSlots) {
@@ -587,8 +584,6 @@ export class BattleLabUI {
           });
         }
       }
-      // keep preset reference alive
-      void preset;
     } else {
       this.sbChoreo.step(rawDt);
       if (this.sbCanvas) {
@@ -602,13 +597,16 @@ export class BattleLabUI {
         });
       }
       if (this.sbEnvEl) {
-        const snap = this.sbGrid.getSnapshot();
+        const snap = this.sbGrid.getSnapshot(
+          this.sbChoreo.playerVisual.homeX,
+          this.sbChoreo.playerVisual.homeY,
+          this.sbChoreo.enemyVisual.homeX,
+          this.sbChoreo.enemyVisual.homeY
+        );
         const html = snap.activeTags
           .map((tag) => `<span class="env-chip ${tag}">${ENV_BADGE_LABELS[tag]}</span>`)
           .join('');
-        if (this.sbEnvEl.innerHTML !== html) {
-          this.sbEnvEl.innerHTML = html;
-        }
+        if (this.sbEnvEl.innerHTML !== html) this.sbEnvEl.innerHTML = html;
       }
     }
 
